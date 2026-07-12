@@ -1,0 +1,3 @@
+D:\QT\Tools\CMake_64\bin\cmake.exe -E rm -f CMakeFiles\Windows_AI.dir/objects.a
+D:\QT\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\Windows_AI.dir/objects.a @CMakeFiles\Windows_AI.dir\objects1.rsp
+D:\QT\Tools\mingw1310_64\bin\g++.exe -g -mwindows -Wl,--whole-archive CMakeFiles\Windows_AI.dir/objects.a -Wl,--no-whole-archive -o Windows_AI.exe -Wl,--out-implib,libWindows_AI.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\Windows_AI.dir\linkLibs.rsp

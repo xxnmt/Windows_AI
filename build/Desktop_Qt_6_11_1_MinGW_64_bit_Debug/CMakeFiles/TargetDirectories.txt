@@ -1,0 +1,9 @@
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/Windows_AI.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/edit_cache.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/rebuild_cache.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/list_install_components.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/install.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/install/local.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/install/strip.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/Windows_AI_autogen_timestamp_deps.dir
+D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/Windows_AI_autogen.dir
