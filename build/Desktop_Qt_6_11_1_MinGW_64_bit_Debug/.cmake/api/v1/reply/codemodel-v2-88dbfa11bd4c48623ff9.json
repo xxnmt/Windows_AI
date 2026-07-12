@@ -7,7 +7,7 @@
 				{
 					"build" : ".",
 					"hasInstallRule" : true,
-					"jsonFile" : "directory-.-Debug-4c70438141e8251a6b31.json",
+					"jsonFile" : "directory-.-Debug-52788be7ce49dcfffb5b.json",
 					"minimumCMakeVersion" : 
 					{
 						"string" : "3.16"
@@ -44,7 +44,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "Windows_AI::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-Windows_AI-Debug-65743175c208d07bc138.json",
+					"jsonFile" : "target-Windows_AI-Debug-9ea057da7a9c8c20a639.json",
 					"name" : "Windows_AI",
 					"projectIndex" : 0
 				},

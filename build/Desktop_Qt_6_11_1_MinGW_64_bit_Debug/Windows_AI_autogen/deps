@@ -1,9 +1,16 @@
 Windows_AI_autogen/timestamp: \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QFlags \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QIODevice \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QList \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QMetaType \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QObject \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QRect \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QSharedDataPointer \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QSize \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QSizeF \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QString \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QUrl \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QVariant \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q17memory.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q20bit.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q20functional.h \
@@ -13,6 +20,7 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q20utility.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q23type_traits.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q23utility.h \
+	D:/QT/6.11.1/mingw_64/include/QtCore/q26numeric.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qabstracteventdispatcher.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qalgorithms.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qalloc.h \
@@ -30,6 +38,7 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qbytearrayalgorithms.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qbytearraylist.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qbytearrayview.h \
+	D:/QT/6.11.1/mingw_64/include/QtCore/qcalendar.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qchar.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qcheckedint_impl.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qcompare.h \
@@ -45,8 +54,10 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qcoreapplication.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qcoreapplication_platform.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qcoreevent.h \
+	D:/QT/6.11.1/mingw_64/include/QtCore/qcryptographichash.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qdarwinhelpers.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qdatastream.h \
+	D:/QT/6.11.1/mingw_64/include/QtCore/qdatetime.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qdeadlinetimer.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qdebug.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qendian.h \
@@ -76,6 +87,7 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qmargins.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qmath.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qmetacontainer.h \
+	D:/QT/6.11.1/mingw_64/include/QtCore/qmetaobject.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qmetatype.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qminmax.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qnamespace.h \
@@ -184,6 +196,27 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtGui/qvectornd.h \
 	D:/QT/6.11.1/mingw_64/include/QtGui/qwindowdefs.h \
 	D:/QT/6.11.1/mingw_64/include/QtGui/qwindowdefs_win.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkReply \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslConfiguration \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslPreSharedKeyAuthenticator \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qabstractsocket.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qhostaddress.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qhttpheaders.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkaccessmanager.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkreply.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkrequest.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qssl.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslcertificate.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslconfiguration.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslerror.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslpresharedkeyauthenticator.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslsocket.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qtcpsocket.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetwork-config.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkexports.h \
+	D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkglobal.h \
 	D:/QT/6.11.1/mingw_64/include/QtWidgets/QLabel \
 	D:/QT/6.11.1/mingw_64/include/QtWidgets/QWidget \
 	D:/QT/6.11.1/mingw_64/include/QtWidgets/qframe.h \
@@ -341,6 +374,36 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6GuiTools/Qt6GuiToolsTargets.cmake \
 	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6GuiTools/Qt6GuiToolsTargetsPrecheck.cmake \
 	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6GuiTools/Qt6GuiToolsVersionlessTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkAdditionalTargetInfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkConfig.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkConfigVersion.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkConfigVersionImpl.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkDependencies.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkPlugins.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkTargets-relwithdebinfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkTargetsPrecheck.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkVersionlessAliasTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginAdditionalTargetInfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginConfig.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginTargets-relwithdebinfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginTargetsPrecheck.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginAdditionalTargetInfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginConfig.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginTargets-relwithdebinfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginTargetsPrecheck.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginAdditionalTargetInfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginConfig.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargets-relwithdebinfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargetsPrecheck.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginAdditionalTargetInfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginConfig.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets-relwithdebinfo.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets.cmake \
+	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargetsPrecheck.cmake \
 	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Widgets/Qt6QModernWindowsStylePluginAdditionalTargetInfo.cmake \
 	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Widgets/Qt6QModernWindowsStylePluginConfig.cmake \
 	D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Widgets/Qt6QModernWindowsStylePluginTargets-relwithdebinfo.cmake \

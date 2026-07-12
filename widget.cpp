@@ -5,6 +5,11 @@
 #include <QPixmap>
 #include <QCoreApplication>
 
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkRequest>
+
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
 {
@@ -16,8 +21,8 @@ Widget::Widget(QWidget *parent)
     imageLabel = new QLabel(this);
 
     //test photo path
-    // QString imagePath_test = ":/image/test1.jpg";
-    QPixmap pixmap(":/image/test1.jpg");
+    QString imagePath = ":/image/test1.jpg";
+    QPixmap pixmap(imagePath);
 
     if(!pixmap.isNull()) {
         imageLabel->setPixmap(pixmap);
@@ -34,10 +39,49 @@ Widget::Widget(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0); // 取消边距
     layout->addWidget(imageLabel);
 
+    networkManager = new QNetworkAccessManager(this);
+    connect(networkManager,&QNetworkAccessManager::finished,this,&Widget::onReplyFinished);
+    askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
+
 
 }
 
 Widget::~Widget() = default;
+
+void Widget::askDeepSeek(const QString &userInput)
+{
+    QUrl url("https://api.deepseek.com/chat/completions");
+    QNetworkRequest request(url);
+
+    request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
+    //define YOUR_API_KEY into AI api key
+    request.setRawHeader("Authorization","Bearer sk-8150d4f2c95644b39d35c9fae00baa81");
+
+
+    // 构建 JSON 请求体
+    QJsonObject systemMessage;
+    systemMessage["role"] = "system";
+    systemMessage["content"] = "你叫千岛茉子，简称茉子，今年7岁";
+
+    QJsonObject userMessage;
+    userMessage["role"] = "user";
+    userMessage["content"] = userInput;
+
+    QJsonArray messagesArray;
+    messagesArray.append(systemMessage);
+    messagesArray.append(userMessage);
+
+    QJsonObject rootObj;
+    rootObj["model"] = "deepseek-chat";
+    rootObj["messages"] = messagesArray;
+    rootObj["temperature"] = 0.7;
+
+    // 将 JSON 对象转为字节数据并发送 POST 请求
+    QByteArray postData = QJsonDocument(rootObj).toJson();
+    networkManager->post(request, postData);
+
+    qDebug() << "[系统] 茉子正在思考...";
+}
 
 void Widget::mousePressEvent(QMouseEvent *event)
 {
@@ -53,4 +97,28 @@ void Widget::mouseMoveEvent(QMouseEvent *event)
         move(event->globalPosition().toPoint() - dragPosition);
         event->accept();
     }
+}
+
+void Widget::onReplyFinished(QNetworkReply *reply)
+{
+    if(reply->error()==QNetworkReply::NoError){
+        QByteArray responseData = reply->readAll();
+
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+        QJsonObject rootObj = jsonDoc.object();
+        QJsonArray choices = rootObj["choices"].toArray();
+
+        if(!choices.isEmpty()){
+            QJsonObject messageObj = choices[0].toObject()["message"].toObject();
+            QString replyText = messageObj["content"].toString();
+
+            qDebug()<<"[茉子回复]:"<<replyText;
+
+        }
+
+        else {
+            qDebug()<<"[网络错误]:"<<reply->errorString();
+        }
+    }
+    reply->deleteLater();
 }

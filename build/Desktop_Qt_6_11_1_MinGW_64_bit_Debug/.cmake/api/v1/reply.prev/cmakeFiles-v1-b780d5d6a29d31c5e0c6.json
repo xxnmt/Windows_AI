@@ -1180,6 +1180,151 @@
 		},
 		{
 			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkConfigVersion.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkConfigVersionImpl.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "D:/QT/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkDependencies.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkTargetsPrecheck.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkTargets.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkTargets-relwithdebinfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkAdditionalTargetInfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkPlugins.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "D:/QT/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginTargetsPrecheck.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginTargets.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginTargets-relwithdebinfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QNLMNIPluginAdditionalTargetInfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "D:/QT/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginTargetsPrecheck.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginTargets.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginTargets-relwithdebinfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QSchannelBackendPluginAdditionalTargetInfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "D:/QT/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargetsPrecheck.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargets.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargets-relwithdebinfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginAdditionalTargetInfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "D:/QT/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargetsPrecheck.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets-relwithdebinfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginAdditionalTargetInfo.cmake"
+		},
+		{
+			"isExternal" : true,
+			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6Network/Qt6NetworkVersionlessAliasTargets.cmake"
+		},
+		{
+			"isExternal" : true,
 			"path" : "D:/QT/6.11.1/mingw_64/lib/cmake/Qt6/Qt6ConfigVersion.cmake"
 		},
 		{

@@ -1,10 +1,17 @@
 D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_autogen/EWIEGA46WW/moc_widget.cpp: D:/QtProject/Windows_AI/widget.h \
   D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_autogen/moc_predefs.h \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QFlags \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QIODevice \
   D:/QT/6.11.1/mingw_64/include/QtCore/QList \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QMetaType \
   D:/QT/6.11.1/mingw_64/include/QtCore/QObject \
   D:/QT/6.11.1/mingw_64/include/QtCore/QRect \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QSharedDataPointer \
   D:/QT/6.11.1/mingw_64/include/QtCore/QSize \
   D:/QT/6.11.1/mingw_64/include/QtCore/QSizeF \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QString \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QUrl \
+  D:/QT/6.11.1/mingw_64/include/QtCore/QVariant \
   D:/QT/6.11.1/mingw_64/include/QtCore/q17memory.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/q20bit.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/q20functional.h \
@@ -14,6 +21,7 @@ D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_au
   D:/QT/6.11.1/mingw_64/include/QtCore/q20utility.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/q23type_traits.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/q23utility.h \
+  D:/QT/6.11.1/mingw_64/include/QtCore/q26numeric.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qabstracteventdispatcher.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qalgorithms.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qalloc.h \
@@ -31,6 +39,7 @@ D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_au
   D:/QT/6.11.1/mingw_64/include/QtCore/qbytearrayalgorithms.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qbytearraylist.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qbytearrayview.h \
+  D:/QT/6.11.1/mingw_64/include/QtCore/qcalendar.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qchar.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qcheckedint_impl.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qcompare.h \
@@ -46,8 +55,10 @@ D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_au
   D:/QT/6.11.1/mingw_64/include/QtCore/qcoreapplication.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qcoreapplication_platform.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qcoreevent.h \
+  D:/QT/6.11.1/mingw_64/include/QtCore/qcryptographichash.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qdarwinhelpers.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qdatastream.h \
+  D:/QT/6.11.1/mingw_64/include/QtCore/qdatetime.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qdeadlinetimer.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qdebug.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qendian.h \
@@ -77,6 +88,7 @@ D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_au
   D:/QT/6.11.1/mingw_64/include/QtCore/qmargins.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qmath.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qmetacontainer.h \
+  D:/QT/6.11.1/mingw_64/include/QtCore/qmetaobject.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qmetatype.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qminmax.h \
   D:/QT/6.11.1/mingw_64/include/QtCore/qnamespace.h \
@@ -185,6 +197,27 @@ D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_au
   D:/QT/6.11.1/mingw_64/include/QtGui/qvectornd.h \
   D:/QT/6.11.1/mingw_64/include/QtGui/qwindowdefs.h \
   D:/QT/6.11.1/mingw_64/include/QtGui/qwindowdefs_win.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkReply \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslConfiguration \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslPreSharedKeyAuthenticator \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qabstractsocket.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qhostaddress.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qhttpheaders.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkaccessmanager.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkreply.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkrequest.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qssl.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslcertificate.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslconfiguration.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslerror.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslpresharedkeyauthenticator.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslsocket.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qtcpsocket.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetwork-config.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkexports.h \
+  D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkglobal.h \
   D:/QT/6.11.1/mingw_64/include/QtWidgets/QLabel \
   D:/QT/6.11.1/mingw_64/include/QtWidgets/QWidget \
   D:/QT/6.11.1/mingw_64/include/QtWidgets/qframe.h \

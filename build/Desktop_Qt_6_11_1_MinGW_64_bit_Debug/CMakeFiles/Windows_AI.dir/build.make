@@ -151,6 +151,7 @@ Windows_AI.exe: CMakeFiles/Windows_AI.dir/widget.cpp.obj
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/qrc_image.cpp.obj
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/build.make
 Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6Widgets.a
+Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6Network.a
 Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6Gui.a
 Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6Core.a
 Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6EntryPoint.a

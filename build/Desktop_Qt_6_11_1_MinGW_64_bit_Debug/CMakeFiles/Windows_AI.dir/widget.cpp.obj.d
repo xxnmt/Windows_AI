@@ -417,6 +417,40 @@ CMakeFiles/Windows_AI.dir/widget.cpp.obj: \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qframe.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qpicture.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextdocument.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkaccessmanager.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetwork-config.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkexports.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkrequest.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qhttpheaders.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qdatetime.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcalendar.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qmetaobject.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QSharedDataPointer \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QString \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QUrl \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QVariant \
+ D:/QT/6.11.1/mingw_64/include/QtCore/q26numeric.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslConfiguration \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslconfiguration.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslsocket.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtcpsocket.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qabstractsocket.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qhostaddress.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslerror.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslcertificate.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcryptographichash.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qssl.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QFlags \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslPreSharedKeyAuthenticator \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslpresharedkeyauthenticator.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QMetaType \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkReply \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkreply.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QIODevice \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
  D:/QT/6.11.1/mingw_64/include/QtCore/QDebug \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/QVBoxLayout \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qboxlayout.h \
@@ -424,4 +458,17 @@ CMakeFiles/Windows_AI.dir/widget.cpp.obj: \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qlayoutitem.h \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qgridlayout.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/QPixmap \
- D:/QT/6.11.1/mingw_64/include/QtCore/QCoreApplication
+ D:/QT/6.11.1/mingw_64/include/QtCore/QCoreApplication \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QJsonDocument \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qjsondocument.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qjsonparseerror.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QJsonObject \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qjsonobject.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qjsonvalue.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcborvalue.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcborcommon.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qregularexpression.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/quuid.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QJsonArray \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qjsonarray.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest

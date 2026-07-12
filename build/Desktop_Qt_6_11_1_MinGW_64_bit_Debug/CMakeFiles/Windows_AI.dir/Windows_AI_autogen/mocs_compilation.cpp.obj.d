@@ -419,10 +419,45 @@ CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.obj: \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qframe.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qpicture.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextdocument.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkaccessmanager.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkglobal.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetwork-config.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtnetworkexports.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkrequest.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qhttpheaders.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qdatetime.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcalendar.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qmetaobject.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QSharedDataPointer \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QString \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QUrl \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QVariant \
+ D:/QT/6.11.1/mingw_64/include/QtCore/q26numeric.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslConfiguration \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslconfiguration.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslsocket.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qtcpsocket.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qabstractsocket.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qhostaddress.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslerror.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslcertificate.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcryptographichash.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qssl.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QFlags \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslPreSharedKeyAuthenticator \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qsslpresharedkeyauthenticator.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QMetaType \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkReply \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/qnetworkreply.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QIODevice \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextcursor.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextformat.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qpen.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextoption.h \
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslError \
  D:/QT/6.11.1/mingw_64/include/QtCore/qtmochelpers.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qtmocconstants.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/q20algorithm.h
