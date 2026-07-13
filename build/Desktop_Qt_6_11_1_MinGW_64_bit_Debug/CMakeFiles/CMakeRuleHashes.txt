@@ -1,4 +1,0 @@
-# Hashes of file build rules.
-381a1a9da5198a8e9125ed3d7cceea14 CMakeFiles/Windows_AI_autogen
-48a1826b71d9db0841875ac4f7a82d3a Windows_AI_autogen/timestamp
-94154537aa43e4283a77a9d2f0e23688 qrc_image.cpp
