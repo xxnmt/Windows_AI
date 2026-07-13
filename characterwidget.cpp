@@ -33,6 +33,10 @@ CharacterWidget::CharacterWidget(QWidget *parent)
         imageLabel->setPixmap(pixmap);
         // 根据图片实际分辨率调整窗口大小
         resize(pixmap.width(), pixmap.height());
+
+        //人物真实位置（排除空白背景
+        m_visibleRect= calculateVisibleRect(pixmap);
+        qDebug()<<"[功能调试]人物边界为:"<<m_visibleRect;
     } else {
         imageLabel->setText("未能加载 test1.png，请检查路径！");
         qDebug()<<"未能加载 test1.png，请检查路径！";
@@ -70,7 +74,7 @@ void CharacterWidget::askDeepSeek(const QString &userInput)
     // 构建 JSON 请求体
     QJsonObject systemMessage;
     systemMessage["role"] = "system";
-    systemMessage["content"] = "你叫千岛茉子，简称茉子，今年7岁";
+    systemMessage["content"] = "你叫千岛茉子，简称茉子，今年7岁,请暂时称呼我为欧尼酱";
 
     QJsonObject userMessage;
     userMessage["role"] = "user";
@@ -109,7 +113,7 @@ void CharacterWidget::mouseMoveEvent(QMouseEvent *event)
         //speakBubble moveEvent
         //this->geometry() 返回当前窗口（widget）的几何位置和大小
         if (speakBubble && speakBubble->isVisible()) {
-            QPoint bubblePos = this->geometry().topRight() + QPoint(10, 20);
+            QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
             speakBubble->move(bubblePos);
         }
 
@@ -159,7 +163,7 @@ void CharacterWidget::onReplyFinished(QNetworkReply *reply)
 
             // 显示speakButton
             if(speakBubble){
-                QPoint bubblePos = this->geometry().topRight() + QPoint(10, 20);
+                QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
                 speakBubble->move(bubblePos);
                 //.trimmed() 是 QString 的成员函数，用于移除字符串首尾的空白字符。
                 speakBubble->showMessage(cleanText.trimmed());
@@ -171,4 +175,26 @@ void CharacterWidget::onReplyFinished(QNetworkReply *reply)
         qDebug()<<"[网络错误]:"<<reply->errorString();
     }
     reply->deleteLater();
+}
+
+QRect CharacterWidget::calculateVisibleRect(const QPixmap &pixmap)
+{
+    QImage image = pixmap.toImage();
+    int width = image.width();
+    int height = image.height();
+    //扫描像素点的透明度（Alpha 通道）
+    int left = width, right = 0, top = height, bottom = 0;
+    bool hasAlpha = false;
+    for(int y=0;y<height;y++){
+        for(int x=0;x<width;x++){
+            if (qAlpha(image.pixel(x, y)) > 10) {
+                if (x < left)   left = x;
+                if (x > right)  right = x;
+                if (y < top)    top = y;
+                if (y > bottom) bottom = y;
+                hasAlpha = true;
+            }
+        }
+    }
+    return QRect(left, top, right - left + 1, bottom - top + 1);
 }
