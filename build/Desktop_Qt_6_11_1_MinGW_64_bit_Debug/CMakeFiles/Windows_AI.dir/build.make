@@ -70,6 +70,119 @@ include CMakeFiles/Windows_AI.dir/flags.make
 
 qrc_image.cpp: D:/QtProject/Windows_AI/image.qrc
 qrc_image.cpp: D:/QtProject/Windows_AI/image/test1.jpg
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/pajama/up7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniform/u7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCat/uh7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/u14.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/closer/schoolUniformWithoutCoat/ui7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/pajama/p7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniform/7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCat/h7a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i1.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i1a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i2.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i2a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i3.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i3a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i4.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i4a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i5.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i5a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i6.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i6a.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i7.png
+qrc_image.cpp: D:/QtProject/Windows_AI/image/far/schoolUniformWithoutCoat/i7a.png
 qrc_image.cpp: image.qrc.depends
 qrc_image.cpp: D:/QT/6.11.1/mingw_64/bin/rcc.exe
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating qrc_image.cpp"
@@ -105,20 +218,20 @@ CMakeFiles/Windows_AI.dir/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/Windows_AI.dir/main.cpp.s"
 	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QtProject\Windows_AI\main.cpp -o CMakeFiles\Windows_AI.dir\main.cpp.s
 
-CMakeFiles/Windows_AI.dir/widget.cpp.obj: CMakeFiles/Windows_AI.dir/flags.make
-CMakeFiles/Windows_AI.dir/widget.cpp.obj: CMakeFiles/Windows_AI.dir/includes_CXX.rsp
-CMakeFiles/Windows_AI.dir/widget.cpp.obj: D:/QtProject/Windows_AI/widget.cpp
-CMakeFiles/Windows_AI.dir/widget.cpp.obj: CMakeFiles/Windows_AI.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/Windows_AI.dir/widget.cpp.obj"
-	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/Windows_AI.dir/widget.cpp.obj -MF CMakeFiles\Windows_AI.dir\widget.cpp.obj.d -o CMakeFiles\Windows_AI.dir\widget.cpp.obj -c D:\QtProject\Windows_AI\widget.cpp
+CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj: CMakeFiles/Windows_AI.dir/flags.make
+CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj: CMakeFiles/Windows_AI.dir/includes_CXX.rsp
+CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj: D:/QtProject/Windows_AI/characterwidget.cpp
+CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj: CMakeFiles/Windows_AI.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj"
+	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj -MF CMakeFiles\Windows_AI.dir\characterwidget.cpp.obj.d -o CMakeFiles\Windows_AI.dir\characterwidget.cpp.obj -c D:\QtProject\Windows_AI\characterwidget.cpp
 
-CMakeFiles/Windows_AI.dir/widget.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/Windows_AI.dir/widget.cpp.i"
-	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\QtProject\Windows_AI\widget.cpp > CMakeFiles\Windows_AI.dir\widget.cpp.i
+CMakeFiles/Windows_AI.dir/characterwidget.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/Windows_AI.dir/characterwidget.cpp.i"
+	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\QtProject\Windows_AI\characterwidget.cpp > CMakeFiles\Windows_AI.dir\characterwidget.cpp.i
 
-CMakeFiles/Windows_AI.dir/widget.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/Windows_AI.dir/widget.cpp.s"
-	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QtProject\Windows_AI\widget.cpp -o CMakeFiles\Windows_AI.dir\widget.cpp.s
+CMakeFiles/Windows_AI.dir/characterwidget.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/Windows_AI.dir/characterwidget.cpp.s"
+	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QtProject\Windows_AI\characterwidget.cpp -o CMakeFiles\Windows_AI.dir\characterwidget.cpp.s
 
 CMakeFiles/Windows_AI.dir/qrc_image.cpp.obj: CMakeFiles/Windows_AI.dir/flags.make
 CMakeFiles/Windows_AI.dir/qrc_image.cpp.obj: CMakeFiles/Windows_AI.dir/includes_CXX.rsp
@@ -135,20 +248,37 @@ CMakeFiles/Windows_AI.dir/qrc_image.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/Windows_AI.dir/qrc_image.cpp.s"
 	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\qrc_image.cpp -o CMakeFiles\Windows_AI.dir\qrc_image.cpp.s
 
+CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj: CMakeFiles/Windows_AI.dir/flags.make
+CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj: CMakeFiles/Windows_AI.dir/includes_CXX.rsp
+CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj: D:/QtProject/Windows_AI/bubblewidget.cpp
+CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj: CMakeFiles/Windows_AI.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj"
+	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj -MF CMakeFiles\Windows_AI.dir\bubblewidget.cpp.obj.d -o CMakeFiles\Windows_AI.dir\bubblewidget.cpp.obj -c D:\QtProject\Windows_AI\bubblewidget.cpp
+
+CMakeFiles/Windows_AI.dir/bubblewidget.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/Windows_AI.dir/bubblewidget.cpp.i"
+	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\QtProject\Windows_AI\bubblewidget.cpp > CMakeFiles\Windows_AI.dir\bubblewidget.cpp.i
+
+CMakeFiles/Windows_AI.dir/bubblewidget.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/Windows_AI.dir/bubblewidget.cpp.s"
+	D:\QT\Tools\mingw1310_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QtProject\Windows_AI\bubblewidget.cpp -o CMakeFiles\Windows_AI.dir\bubblewidget.cpp.s
+
 # Object files for target Windows_AI
 Windows_AI_OBJECTS = \
 "CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.obj" \
 "CMakeFiles/Windows_AI.dir/main.cpp.obj" \
-"CMakeFiles/Windows_AI.dir/widget.cpp.obj" \
-"CMakeFiles/Windows_AI.dir/qrc_image.cpp.obj"
+"CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj" \
+"CMakeFiles/Windows_AI.dir/qrc_image.cpp.obj" \
+"CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj"
 
 # External object files for target Windows_AI
 Windows_AI_EXTERNAL_OBJECTS =
 
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.obj
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/main.cpp.obj
-Windows_AI.exe: CMakeFiles/Windows_AI.dir/widget.cpp.obj
+Windows_AI.exe: CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/qrc_image.cpp.obj
+Windows_AI.exe: CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/build.make
 Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6Widgets.a
 Windows_AI.exe: D:/QT/6.11.1/mingw_64/lib/libQt6Network.a
@@ -159,7 +289,7 @@ Windows_AI.exe: Windows_AI.exe.manifest
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/linkLibs.rsp
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/objects1.rsp
 Windows_AI.exe: CMakeFiles/Windows_AI.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX executable Windows_AI.exe"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable Windows_AI.exe"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles\Windows_AI.dir\link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

@@ -1,4 +1,4 @@
-#include "widget.h"
+#include "characterwidget.h"
 
 #include <QDebug>
 #include <QVBoxLayout>
@@ -10,7 +10,10 @@
 #include <QJsonArray>
 #include <QNetworkRequest>
 
-Widget::Widget(QWidget *parent)
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
+
+CharacterWidget::CharacterWidget(QWidget *parent)
     : QWidget(parent)
 {
     //without side  always on top
@@ -19,9 +22,11 @@ Widget::Widget(QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
 
     imageLabel = new QLabel(this);
+    speakBubble = new BubbleWidget();
+
 
     //test photo path
-    QString imagePath = ":/image/test1.jpg";
+    QString imagePath = ":/image/far/schoolUniform/1.png";
     QPixmap pixmap(imagePath);
 
     if(!pixmap.isNull()) {
@@ -40,15 +45,19 @@ Widget::Widget(QWidget *parent)
     layout->addWidget(imageLabel);
 
     networkManager = new QNetworkAccessManager(this);
-    connect(networkManager,&QNetworkAccessManager::finished,this,&Widget::onReplyFinished);
+    connect(networkManager,&QNetworkAccessManager::finished,this,&CharacterWidget::onReplyFinished);
     askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
 
 
 }
 
-Widget::~Widget() = default;
+CharacterWidget::~CharacterWidget() {
+    if (speakBubble) {
+        delete speakBubble;
+    }
+}
 
-void Widget::askDeepSeek(const QString &userInput)
+void CharacterWidget::askDeepSeek(const QString &userInput)
 {
     QUrl url("https://api.deepseek.com/chat/completions");
     QNetworkRequest request(url);
@@ -83,7 +92,7 @@ void Widget::askDeepSeek(const QString &userInput)
     qDebug() << "[系统] 茉子正在思考...";
 }
 
-void Widget::mousePressEvent(QMouseEvent *event)
+void CharacterWidget::mousePressEvent(QMouseEvent *event)
 {
     if(event->button()==Qt::LeftButton){
         dragPosition=event->globalPosition().toPoint() - frameGeometry().topLeft();
@@ -91,15 +100,24 @@ void Widget::mousePressEvent(QMouseEvent *event)
     }
 }
 
-void Widget::mouseMoveEvent(QMouseEvent *event)
+void CharacterWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if(event->buttons() & Qt::LeftButton){
         move(event->globalPosition().toPoint() - dragPosition);
+
+
+        //speakBubble moveEvent
+        //this->geometry() 返回当前窗口（widget）的几何位置和大小
+        if (speakBubble && speakBubble->isVisible()) {
+            QPoint bubblePos = this->geometry().topRight() + QPoint(10, 20);
+            speakBubble->move(bubblePos);
+        }
+
         event->accept();
     }
 }
 
-void Widget::onReplyFinished(QNetworkReply *reply)
+void CharacterWidget::onReplyFinished(QNetworkReply *reply)
 {
     if(reply->error()==QNetworkReply::NoError){
         QByteArray responseData = reply->readAll();
@@ -114,11 +132,43 @@ void Widget::onReplyFinished(QNetworkReply *reply)
 
             qDebug()<<"[茉子回复]:"<<replyText;
 
-        }
+            //正则表达式抓取表情包
+            QRegularExpression regex("\\[(.*?)\\]");
+            QRegularExpressionMatch match=regex.match(replyText);
 
-        else {
-            qDebug()<<"[网络错误]:"<<reply->errorString();
-        }
+            QString emotion = "idle";
+            QString cleanText=replyText;
+
+            //凤梨表情和文本
+            if(match.hasMatch()){
+                emotion=match.captured(1);
+                cleanText.remove(match.captured(0));
+            }
+            qDebug() << "[提取的表情]:" << emotion;
+            qDebug() << "[茉子想说的话]:" << cleanText.trimmed();
+
+            // //切换立绘  没有做好文件路径管理，暂时屏蔽
+            // QString imagePath =QCoreApplication::applicationDirPath()+"/"+emotion+".png";
+            // QPixmap pixmap(imagePath);
+            // if(!imagePath.isNull()){
+            //     imageLabel->setPixmap(pixmap);
+            // }
+            // else{
+            //     imageLabel->setPixmap(QPixmap(QCoreApplication::applicationDirPath() + "/idle.png"));
+            // }
+
+            // 显示speakButton
+            if(speakBubble){
+                QPoint bubblePos = this->geometry().topRight() + QPoint(10, 20);
+                speakBubble->move(bubblePos);
+                //.trimmed() 是 QString 的成员函数，用于移除字符串首尾的空白字符。
+                speakBubble->showMessage(cleanText.trimmed());
+                qDebug()<<"气泡出现";
+            }
+        }    
+    }
+    else {
+        qDebug()<<"[网络错误]:"<<reply->errorString();
     }
     reply->deleteLater();
 }

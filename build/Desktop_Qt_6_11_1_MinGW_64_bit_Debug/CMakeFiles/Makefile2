@@ -79,16 +79,16 @@ clean: CMakeFiles/Windows_AI_autogen.dir/clean
 # Target rules for target CMakeFiles/Windows_AI.dir
 
 # All Build rule for target.
-CMakeFiles/Windows_AI.dir/all: CMakeFiles/Windows_AI_autogen_timestamp_deps.dir/all
 CMakeFiles/Windows_AI.dir/all: CMakeFiles/Windows_AI_autogen.dir/all
+CMakeFiles/Windows_AI.dir/all: CMakeFiles/Windows_AI_autogen_timestamp_deps.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=1,2,3,4,5,6 "Built target Windows_AI"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=1,2,3,4,5,6,7 "Built target Windows_AI"
 .PHONY : CMakeFiles/Windows_AI.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/Windows_AI.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles 7
+	$(CMAKE_COMMAND) -E cmake_progress_start D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles 8
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 CMakeFiles/Windows_AI.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles 0
 .PHONY : CMakeFiles/Windows_AI.dir/rule
@@ -135,7 +135,7 @@ CMakeFiles/Windows_AI_autogen_timestamp_deps.dir/clean:
 CMakeFiles/Windows_AI_autogen.dir/all: CMakeFiles/Windows_AI_autogen_timestamp_deps.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI_autogen.dir\build.make CMakeFiles/Windows_AI_autogen.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI_autogen.dir\build.make CMakeFiles/Windows_AI_autogen.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=7 "Built target Windows_AI_autogen"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\CMakeFiles --progress-num=8 "Built target Windows_AI_autogen"
 .PHONY : CMakeFiles/Windows_AI_autogen.dir/all
 
 # Build rule for subdir invocation for target.

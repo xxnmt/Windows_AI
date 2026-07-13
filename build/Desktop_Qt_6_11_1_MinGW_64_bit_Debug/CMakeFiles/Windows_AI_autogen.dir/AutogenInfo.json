@@ -378,9 +378,15 @@
 	"HEADERS" : 
 	[
 		[
-			"D:/QtProject/Windows_AI/widget.h",
+			"D:/QtProject/Windows_AI/bubblewidget.h",
 			"MU",
-			"EWIEGA46WW/moc_widget.cpp",
+			"EWIEGA46WW/moc_bubblewidget.cpp",
+			null
+		],
+		[
+			"D:/QtProject/Windows_AI/characterwidget.h",
+			"MU",
+			"EWIEGA46WW/moc_characterwidget.cpp",
 			null
 		]
 	],
@@ -460,8 +466,9 @@
 	"SETTINGS_FILE" : "D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/Windows_AI_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
-		[ "D:/QtProject/Windows_AI/main.cpp", "MU", null ],
-		[ "D:/QtProject/Windows_AI/widget.cpp", "MU", null ]
+		[ "D:/QtProject/Windows_AI/bubblewidget.cpp", "MU", null ],
+		[ "D:/QtProject/Windows_AI/characterwidget.cpp", "MU", null ],
+		[ "D:/QtProject/Windows_AI/main.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],
 	"UIC_SEARCH_PATHS" : [],

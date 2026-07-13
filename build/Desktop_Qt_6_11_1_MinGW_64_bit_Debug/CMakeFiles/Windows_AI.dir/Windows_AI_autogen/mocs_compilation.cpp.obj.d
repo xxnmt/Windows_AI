@@ -1,7 +1,7 @@
 CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.obj: \
  D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\Windows_AI_autogen\mocs_compilation.cpp \
- D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\Windows_AI_autogen\EWIEGA46WW/moc_widget.cpp \
- D:/QtProject/Windows_AI/widget.h \
+ D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\Windows_AI_autogen\EWIEGA46WW/moc_bubblewidget.cpp \
+ D:/QtProject/Windows_AI/bubblewidget.h \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/QWidget \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qwidget.h \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qtwidgetsglobal.h \
@@ -385,13 +385,21 @@ CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.obj: \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qsizepolicy.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qcursor.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qbitmap.h \
- D:/QT/6.11.1/mingw_64/include/QtGui/QMouseEvent \
- D:/QT/6.11.1/mingw_64/include/QtGui/qevent.h \
- D:/QT/6.11.1/mingw_64/include/QtCore/qcoreevent.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QTimer \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qtimer.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qbasictimer.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qabstracteventdispatcher.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qeventloop.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qdeadlinetimer.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QString \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qtmochelpers.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qtmocconstants.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/q20algorithm.h \
+ D:\QtProject\Windows_AI\build\Desktop_Qt_6_11_1_MinGW_64_bit_Debug\Windows_AI_autogen\EWIEGA46WW/moc_characterwidget.cpp \
+ D:/QtProject/Windows_AI/characterwidget.h \
+ D:/QT/6.11.1/mingw_64/include/QtGui/QMouseEvent \
+ D:/QT/6.11.1/mingw_64/include/QtGui/qevent.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qcoreevent.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qiodevice.h \
  D:/QT/6.11.1/mingw_64/include/QtCore/qurl.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qeventpoint.h \
@@ -453,11 +461,9 @@ CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.obj: \
  D:/QT/6.11.1/mingw_64/include/QtCore/QIODevice \
  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest \
  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
+ D:/QtProject/Windows_AI/BubbleWidget.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextcursor.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextformat.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qpen.h \
  D:/QT/6.11.1/mingw_64/include/QtGui/qtextoption.h \
- D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslError \
- D:/QT/6.11.1/mingw_64/include/QtCore/qtmochelpers.h \
- D:/QT/6.11.1/mingw_64/include/QtCore/qtmocconstants.h \
- D:/QT/6.11.1/mingw_64/include/QtCore/q20algorithm.h
+ D:/QT/6.11.1/mingw_64/include/QtNetwork/QSslError

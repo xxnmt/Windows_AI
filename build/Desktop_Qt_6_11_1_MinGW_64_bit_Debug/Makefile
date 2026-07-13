@@ -223,6 +223,54 @@ Windows_AI_autogen/mocs_compilation.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/Windows_AI_autogen/mocs_compilation.cpp.s
 .PHONY : Windows_AI_autogen/mocs_compilation.cpp.s
 
+bubblewidget.obj: bubblewidget.cpp.obj
+.PHONY : bubblewidget.obj
+
+# target to build an object file
+bubblewidget.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/bubblewidget.cpp.obj
+.PHONY : bubblewidget.cpp.obj
+
+bubblewidget.i: bubblewidget.cpp.i
+.PHONY : bubblewidget.i
+
+# target to preprocess a source file
+bubblewidget.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/bubblewidget.cpp.i
+.PHONY : bubblewidget.cpp.i
+
+bubblewidget.s: bubblewidget.cpp.s
+.PHONY : bubblewidget.s
+
+# target to generate assembly for a file
+bubblewidget.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/bubblewidget.cpp.s
+.PHONY : bubblewidget.cpp.s
+
+characterwidget.obj: characterwidget.cpp.obj
+.PHONY : characterwidget.obj
+
+# target to build an object file
+characterwidget.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/characterwidget.cpp.obj
+.PHONY : characterwidget.cpp.obj
+
+characterwidget.i: characterwidget.cpp.i
+.PHONY : characterwidget.i
+
+# target to preprocess a source file
+characterwidget.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/characterwidget.cpp.i
+.PHONY : characterwidget.cpp.i
+
+characterwidget.s: characterwidget.cpp.s
+.PHONY : characterwidget.s
+
+# target to generate assembly for a file
+characterwidget.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/characterwidget.cpp.s
+.PHONY : characterwidget.cpp.s
+
 main.obj: main.cpp.obj
 .PHONY : main.obj
 
@@ -271,30 +319,6 @@ qrc_image.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/qrc_image.cpp.s
 .PHONY : qrc_image.cpp.s
 
-widget.obj: widget.cpp.obj
-.PHONY : widget.obj
-
-# target to build an object file
-widget.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/widget.cpp.obj
-.PHONY : widget.cpp.obj
-
-widget.i: widget.cpp.i
-.PHONY : widget.i
-
-# target to preprocess a source file
-widget.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/widget.cpp.i
-.PHONY : widget.cpp.i
-
-widget.s: widget.cpp.s
-.PHONY : widget.s
-
-# target to generate assembly for a file
-widget.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Windows_AI.dir\build.make CMakeFiles/Windows_AI.dir/widget.cpp.s
-.PHONY : widget.cpp.s
-
 # Help Target
 help:
 	@echo The following are some of the valid targets for this Makefile:
@@ -313,15 +337,18 @@ help:
 	@echo ... Windows_AI_autogen/mocs_compilation.obj
 	@echo ... Windows_AI_autogen/mocs_compilation.i
 	@echo ... Windows_AI_autogen/mocs_compilation.s
+	@echo ... bubblewidget.obj
+	@echo ... bubblewidget.i
+	@echo ... bubblewidget.s
+	@echo ... characterwidget.obj
+	@echo ... characterwidget.i
+	@echo ... characterwidget.s
 	@echo ... main.obj
 	@echo ... main.i
 	@echo ... main.s
 	@echo ... qrc_image.obj
 	@echo ... qrc_image.i
 	@echo ... qrc_image.s
-	@echo ... widget.obj
-	@echo ... widget.i
-	@echo ... widget.s
 .PHONY : help
 
 

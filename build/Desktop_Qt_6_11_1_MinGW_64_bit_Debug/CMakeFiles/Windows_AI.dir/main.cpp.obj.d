@@ -1,5 +1,5 @@
 CMakeFiles/Windows_AI.dir/main.cpp.obj: D:\QtProject\Windows_AI\main.cpp \
- D:\QtProject\Windows_AI\widget.h \
+ D:\QtProject\Windows_AI\characterwidget.h \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/QWidget \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qwidget.h \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qtwidgetsglobal.h \
@@ -451,5 +451,9 @@ CMakeFiles/Windows_AI.dir/main.cpp.obj: D:\QtProject\Windows_AI\main.cpp \
  D:/QT/6.11.1/mingw_64/include/QtCore/QIODevice \
  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkRequest \
  D:/QT/6.11.1/mingw_64/include/QtNetwork/QNetworkAccessManager \
+ D:\QtProject\Windows_AI\BubbleWidget.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QTimer \
+ D:/QT/6.11.1/mingw_64/include/QtCore/qtimer.h \
+ D:/QT/6.11.1/mingw_64/include/QtCore/QString \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/QApplication \
  D:/QT/6.11.1/mingw_64/include/QtWidgets/qapplication.h

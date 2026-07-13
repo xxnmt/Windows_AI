@@ -9,6 +9,7 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QSize \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QSizeF \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QString \
+	D:/QT/6.11.1/mingw_64/include/QtCore/QTimer \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QUrl \
 	D:/QT/6.11.1/mingw_64/include/QtCore/QVariant \
 	D:/QT/6.11.1/mingw_64/include/QtCore/q17memory.h \
@@ -138,6 +139,7 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qtenvironmentvariables.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qtextstream.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qtformat_impl.h \
+	D:/QT/6.11.1/mingw_64/include/QtCore/qtimer.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qtmetamacros.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qtnoop.h \
 	D:/QT/6.11.1/mingw_64/include/QtCore/qtpreprocessorsupport.h \
@@ -675,6 +677,8 @@ Windows_AI_autogen/timestamp: \
 	D:/QT/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
 	D:/QT/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
 	D:/QtProject/Windows_AI/CMakeLists.txt \
+	D:/QtProject/Windows_AI/bubblewidget.cpp \
+	D:/QtProject/Windows_AI/bubblewidget.h \
 	D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/.qtcreator/cmake-helper/maintenance_tool_provider.cmake \
 	D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/.qtcreator/cmake-helper/package-manager.cmake \
 	D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/.qtcreator/cmake-helper/qtcreator-project.cmake \
@@ -682,8 +686,9 @@ Windows_AI_autogen/timestamp: \
 	D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/3.30.5/CMakeRCCompiler.cmake \
 	D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/CMakeFiles/3.30.5/CMakeSystem.cmake \
 	D:/QtProject/Windows_AI/build/Desktop_Qt_6_11_1_MinGW_64_bit_Debug/Windows_AI_autogen/moc_predefs.h \
+	D:/QtProject/Windows_AI/characterwidget.cpp \
+	D:/QtProject/Windows_AI/characterwidget.h \
 	D:/QtProject/Windows_AI/image.qrc \
 	D:/QtProject/Windows_AI/main.cpp \
-	D:/QtProject/Windows_AI/widget.cpp \
-	D:/QtProject/Windows_AI/widget.h \
+	D:/QtProject/Windows_AI/bubblewidget.ui \
 	D:/QT/Tools/CMake_64/bin/cmake.exe

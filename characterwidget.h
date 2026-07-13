@@ -1,5 +1,5 @@
-#ifndef WIDGET_H
-#define WIDGET_H
+#ifndef CHARACTERWIDGET_H
+#define CHARACTERWIDGET_H
 
 #include <QWidget>
 #include <QMouseEvent>
@@ -8,13 +8,15 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 
-class Widget : public QWidget
+#include "BubbleWidget.h"
+
+class CharacterWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit Widget(QWidget *parent = nullptr);
-    ~Widget() override;
+    explicit CharacterWidget(QWidget *parent = nullptr);
+    ~CharacterWidget() override;
 
     //AI transmission
     void askDeepSeek(const QString& userInput);
@@ -32,5 +34,8 @@ private:
     QPoint dragPosition; //鼠标点击时相对坐标
     QLabel *imageLabel;  // 立绘图片的标签
     QNetworkAccessManager* networkManager;
+    //
+    BubbleWidget *speakBubble;
+
 };
-#endif // WIDGET_H
+#endif // CHARACTERWIDGET_H

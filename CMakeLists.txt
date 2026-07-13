@@ -11,9 +11,10 @@ qt6_add_resources(RESOURCE_FILES image.qrc)
 qt_add_executable(Windows_AI
     WIN32 MACOSX_BUNDLE
     main.cpp
-    widget.cpp
-    widget.h
+    characterwidget.cpp
+    characterwidget.h
     ${RESOURCE_FILES}
+    bubblewidget.h bubblewidget.cpp bubblewidget.ui
 )
 
 target_link_libraries(Windows_AI

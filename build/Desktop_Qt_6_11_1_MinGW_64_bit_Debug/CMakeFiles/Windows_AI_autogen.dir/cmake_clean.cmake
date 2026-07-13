@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/Windows_AI_autogen"
+  "Windows_AI_autogen/include/ui_bubblewidget.h"
   "Windows_AI_autogen/mocs_compilation.cpp"
   "Windows_AI_autogen/timestamp"
 )
