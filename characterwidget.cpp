@@ -8,7 +8,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QNetworkRequest>
 
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
@@ -48,9 +47,12 @@ CharacterWidget::CharacterWidget(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0); // 取消边距
     layout->addWidget(imageLabel);
 
-    networkManager = new QNetworkAccessManager(this);
-    connect(networkManager,&QNetworkAccessManager::finished,this,&CharacterWidget::onReplyFinished);
-    askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
+    m_llmService = new LLMService(this);
+    connect(m_llmService, &LLMService::replyReady, this, &CharacterWidget::onMakoReplyReady);
+    connect(m_llmService, &LLMService::internetErrorSignal, this, &CharacterWidget::onMakoError);
+
+    m_llmService->askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
+    qDebug()<<"[CharacterWidget]茉子思考中......";
 
 
 }
@@ -61,40 +63,6 @@ CharacterWidget::~CharacterWidget() {
     }
 }
 
-void CharacterWidget::askDeepSeek(const QString &userInput)
-{
-    QUrl url("https://api.deepseek.com/chat/completions");
-    QNetworkRequest request(url);
-
-    request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
-    //define YOUR_API_KEY into AI api key
-    request.setRawHeader("Authorization","Bearer sk-8150d4f2c95644b39d35c9fae00baa81");
-
-
-    // 构建 JSON 请求体
-    QJsonObject systemMessage;
-    systemMessage["role"] = "system";
-    systemMessage["content"] = "你叫千岛茉子，简称茉子，今年7岁,请暂时称呼我为欧尼酱";
-
-    QJsonObject userMessage;
-    userMessage["role"] = "user";
-    userMessage["content"] = userInput;
-
-    QJsonArray messagesArray;
-    messagesArray.append(systemMessage);
-    messagesArray.append(userMessage);
-
-    QJsonObject rootObj;
-    rootObj["model"] = "deepseek-chat";
-    rootObj["messages"] = messagesArray;
-    rootObj["temperature"] = 0.7;
-
-    // 将 JSON 对象转为字节数据并发送 POST 请求
-    QByteArray postData = QJsonDocument(rootObj).toJson();
-    networkManager->post(request, postData);
-
-    qDebug() << "[系统] 茉子正在思考...";
-}
 
 void CharacterWidget::mousePressEvent(QMouseEvent *event)
 {
@@ -121,60 +89,21 @@ void CharacterWidget::mouseMoveEvent(QMouseEvent *event)
     }
 }
 
-void CharacterWidget::onReplyFinished(QNetworkReply *reply)
+void CharacterWidget::onMakoReplyReady(const QString &cleanText, const QString &emotion)
 {
-    if(reply->error()==QNetworkReply::NoError){
-        QByteArray responseData = reply->readAll();
+    qDebug()<<"[CharacterWidget]收到表情:"<<emotion;
+    qDebug()<<"[CharacterWidget]收到文本:"<<cleanText;
 
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-        QJsonObject rootObj = jsonDoc.object();
-        QJsonArray choices = rootObj["choices"].toArray();
-
-        if(!choices.isEmpty()){
-            QJsonObject messageObj = choices[0].toObject()["message"].toObject();
-            QString replyText = messageObj["content"].toString();
-
-            qDebug()<<"[茉子回复]:"<<replyText;
-
-            //正则表达式抓取表情包
-            QRegularExpression regex("\\[(.*?)\\]");
-            QRegularExpressionMatch match=regex.match(replyText);
-
-            QString emotion = "idle";
-            QString cleanText=replyText;
-
-            //凤梨表情和文本
-            if(match.hasMatch()){
-                emotion=match.captured(1);
-                cleanText.remove(match.captured(0));
-            }
-            qDebug() << "[提取的表情]:" << emotion;
-            qDebug() << "[茉子想说的话]:" << cleanText.trimmed();
-
-            // //切换立绘  没有做好文件路径管理，暂时屏蔽
-            // QString imagePath =QCoreApplication::applicationDirPath()+"/"+emotion+".png";
-            // QPixmap pixmap(imagePath);
-            // if(!imagePath.isNull()){
-            //     imageLabel->setPixmap(pixmap);
-            // }
-            // else{
-            //     imageLabel->setPixmap(QPixmap(QCoreApplication::applicationDirPath() + "/idle.png"));
-            // }
-
-            // 显示speakButton
-            if(speakBubble){
-                QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
-                speakBubble->move(bubblePos);
-                //.trimmed() 是 QString 的成员函数，用于移除字符串首尾的空白字符。
-                speakBubble->showMessage(cleanText.trimmed());
-                qDebug()<<"气泡出现";
-            }
-        }    
+    if(speakBubble){
+        QPoint bubblePos = this->pos() + m_visibleRect.topRight() + QPoint(5, 10);
+        speakBubble->move(bubblePos);
+        speakBubble->showMessage(cleanText);
     }
-    else {
-        qDebug()<<"[网络错误]:"<<reply->errorString();
-    }
-    reply->deleteLater();
+}
+
+void CharacterWidget::onMakoError(const QString &errorMsg)
+{
+    qDebug() << "[CharacterWidget] Internet Error:" << errorMsg;
 }
 
 QRect CharacterWidget::calculateVisibleRect(const QPixmap &pixmap)

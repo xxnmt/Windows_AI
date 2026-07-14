@@ -15,6 +15,8 @@ qt_add_executable(Windows_AI
     characterwidget.h
     ${RESOURCE_FILES}
     bubblewidget.h bubblewidget.cpp bubblewidget.ui
+    configmanager.h configmanager.cpp
+    llmservice.h llmservice.cpp
 )
 
 target_link_libraries(Windows_AI
