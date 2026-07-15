@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-14
+> 日期：2026-07-15
 > 状态：开发中
 
 ---
@@ -135,7 +135,7 @@ void BubbleWidget::typeWriteEffect() {
 
 - [ ] TTS语音功能
 - [ ] 设置界面
-- [ ] 立绘切换系统
+- [ ] 立绘切换系统（emotion标签→图片映射）
 
 ---
 
@@ -150,23 +150,51 @@ Windows_AI/
 │   └── ROADMAP.md
 ├── main.cpp                 # 入口函数
 ├── CMakeLists.txt           # 构建配置
-├── image.qrc                # 资源文件
+├── image.qrc                # 资源文件（已更新）
 ├── llmservice.h/cpp         # AI服务模块（网络请求+解析）
 ├── configmanager.h/cpp      # 配置管理器（单例）
 ├── characterwidget.h/cpp    # 角色主组件（UI+交互）
 ├── bubblewidget.h/cpp/ui    # 气泡组件（UI文件）
-└── image/                   # 立绘资源目录
+└── image/                   # 立绘资源目录（已统一命名）
     ├── closer/              # 近景立绘
     │   ├── pajama/
+    │   │   ├── blushing/    # 脸红状态
+    │   │   │   ├── happyIdle.png
+    │   │   │   ├── happyMore.png
+    │   │   │   ├── amazing.png
+    │   │   │   ├── loving.png
+    │   │   │   ├── caring.png
+    │   │   │   ├── sad.png
+    │   │   │   └── conscientious.png
+    │   │   └── unblushing/  # 常态
+    │   │       └── (同上7个文件)
     │   ├── schoolUniform/
-    │   ├── schoolUniformWithoutCat/
+    │   │   ├── blushing/
+    │   │   └── unblushing/
+    │   ├── schoolUniformWithoutCap/
+    │   │   ├── blushing/
+    │   │   └── unblushing/
     │   └── schoolUniformWithoutCoat/
+    │       ├── blushing/
+    │       └── unblushing/
     └── far/                 # 远景立绘
         ├── pajama/
         ├── schoolUniform/
-        ├── schoolUniformWithoutCat/
+        ├── schoolUniformWithoutCap/
         └── schoolUniformWithoutCoat/
 ```
+
+### 图片命名规范
+
+| 序号 | 文件名 | 含义 |
+|------|--------|------|
+| 1 | happyIdle.png | 开心空闲 |
+| 2 | happyMore.png | 更开心 |
+| 3 | amazing.png | 惊讶 |
+| 4 | loving.png | 爱慕 |
+| 5 | caring.png | 关心 |
+| 6 | sad.png | 伤心 |
+| 7 | conscientious.png | 认真 |
 
 ---
 
@@ -191,3 +219,15 @@ CharacterWidget (UI层)
             │
             └── ConfigManager (单例) - API Key配置
 ```
+
+---
+
+## 7. 近期变更
+
+| 日期 | 变更内容 | 文件 |
+|------|----------|------|
+| 2026-07-15 | 统一图片命名为规范格式（happyIdle/happyMore/amazing/loving/caring/sad/conscientious） | image/ 目录下所有图片 |
+| 2026-07-15 | 更新资源文件，匹配新图片路径 | image.qrc |
+| 2026-07-15 | 更新默认立绘加载路径 | characterwidget.cpp#L28 |
+| 2026-07-14 | 创建docs目录，整理项目文档 | docs/ |
+| 2026-07-14 | 抽离LLMService模块，引入ConfigManager单例 | llmservice.h/cpp, configmanager.h/cpp |

@@ -1,11 +1,10 @@
-#include "characterwidget.h"
-
 #include <QApplication>
 
-int main(int argc, char *argv[])
-{
+#include "appcontroller.h"
+
+int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
-    CharacterWidget w;
-    w.show();
-    return QApplication::exec();
+    AppController ctrl;
+    ctrl.startApp();
+    return a.exec();
 }

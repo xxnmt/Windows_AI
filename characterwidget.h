@@ -5,11 +5,11 @@
 #include <QMouseEvent>
 #include <QLabel>
 
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
+// #include <QNetworkAccessManager>
+// #include <QNetworkReply>
 
-#include "BubbleWidget.h"
-#include "llmservice.h"
+// #include "BubbleWidget.h"
+// #include "llmservice.h"
 
 class CharacterWidget : public QWidget
 {
@@ -19,9 +19,13 @@ public:
     explicit CharacterWidget(QWidget *parent = nullptr);
     ~CharacterWidget() override;
 
+    void updatePath(const QString &imagePath);
+    //get bubble绘制起始坐标
+    QPoint getBubbleAnchorPos() const;
 
-
-
+signals:
+    void userChat( const QString &input);
+    void characterMoved();
 
 protected:
     //mouseevent Rewrite
@@ -30,22 +34,22 @@ protected:
 
 private slots:
 
-    void onMakoReplyReady(const QString &cleanText, const QString &emotion);
-    void onMakoError(const QString &errorMsg);
+    // void onMakoReplyReady(const QString &cleanText, const QString &emotion);
+    // void onMakoError(const QString &errorMsg);
 
 private:
     QPoint dragPosition; //鼠标点击时相对坐标
     QLabel *imageLabel;  //立绘图片的标签
 
     //
-    BubbleWidget *speakBubble;
+    // BubbleWidget *speakBubble;
     //存储立绘中真正有像素的有效区域
     QRect m_visibleRect;
     //扫描像素的辅助函数
     QRect calculateVisibleRect(const QPixmap &pixmap);
 
 
-    LLMService *m_llmService;
+    // LLMService *m_llmService;
 
 };
 #endif // CHARACTERWIDGET_H

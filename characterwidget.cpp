@@ -21,11 +21,11 @@ CharacterWidget::CharacterWidget(QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
 
     imageLabel = new QLabel(this);
-    speakBubble = new BubbleWidget();
+    // speakBubble = new BubbleWidget();
 
 
     //test photo path
-    QString imagePath = ":/image/far/schoolUniform/1.png";
+    QString imagePath = ":/image/far/schoolUniform/unblushing/happyIdle.png";
     QPixmap pixmap(imagePath);
 
     if(!pixmap.isNull()) {
@@ -47,20 +47,37 @@ CharacterWidget::CharacterWidget(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0); // 取消边距
     layout->addWidget(imageLabel);
 
-    m_llmService = new LLMService(this);
-    connect(m_llmService, &LLMService::replyReady, this, &CharacterWidget::onMakoReplyReady);
-    connect(m_llmService, &LLMService::internetErrorSignal, this, &CharacterWidget::onMakoError);
+    // m_llmService = new LLMService(this);
+    // connect(m_llmService, &LLMService::replyReady, this, &CharacterWidget::onMakoReplyReady);
+    // connect(m_llmService, &LLMService::internetErrorSignal, this, &CharacterWidget::onMakoError);
 
-    m_llmService->askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
-    qDebug()<<"[CharacterWidget]茉子思考中......";
+    // m_llmService->askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
+    // qDebug()<<"[CharacterWidget]茉子思考中......";
 
 
 }
 
 CharacterWidget::~CharacterWidget() {
-    if (speakBubble) {
-        delete speakBubble;
+    // if (speakBubble) {
+    //     delete speakBubble;
+    // }
+}
+
+void CharacterWidget::updatePath(const QString &imagePath)
+{
+    QPixmap pixmap(imagePath);
+    if(!pixmap.isNull()){
+        imageLabel->setPixmap(pixmap);
+        resize(pixmap.size());
+
+        m_visibleRect = calculateVisibleRect(pixmap);
+
     }
+}
+
+QPoint CharacterWidget::getBubbleAnchorPos() const
+{
+    return this->pos() + m_visibleRect.topRight() + QPoint(5, 10);
 }
 
 
@@ -80,31 +97,32 @@ void CharacterWidget::mouseMoveEvent(QMouseEvent *event)
 
         //speakBubble moveEvent
         //this->geometry() 返回当前窗口（widget）的几何位置和大小
-        if (speakBubble && speakBubble->isVisible()) {
-            QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
-            speakBubble->move(bubblePos);
-        }
+        // if (speakBubble && speakBubble->isVisible()) {
+        //     QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
+        //     speakBubble->move(bubblePos);
+        // }
+        emit characterMoved();
 
         event->accept();
     }
 }
 
-void CharacterWidget::onMakoReplyReady(const QString &cleanText, const QString &emotion)
-{
-    qDebug()<<"[CharacterWidget]收到表情:"<<emotion;
-    qDebug()<<"[CharacterWidget]收到文本:"<<cleanText;
+// void CharacterWidget::onMakoReplyReady(const QString &cleanText, const QString &emotion)
+// {
+//     qDebug()<<"[CharacterWidget]收到表情:"<<emotion;
+//     qDebug()<<"[CharacterWidget]收到文本:"<<cleanText;
 
-    if(speakBubble){
-        QPoint bubblePos = this->pos() + m_visibleRect.topRight() + QPoint(5, 10);
-        speakBubble->move(bubblePos);
-        speakBubble->showMessage(cleanText);
-    }
-}
+//     if(speakBubble){
+//         QPoint bubblePos = this->pos() + m_visibleRect.topRight() + QPoint(5, 10);
+//         speakBubble->move(bubblePos);
+//         speakBubble->showMessage(cleanText);
+//     }
+// }
 
-void CharacterWidget::onMakoError(const QString &errorMsg)
-{
-    qDebug() << "[CharacterWidget] Internet Error:" << errorMsg;
-}
+// void CharacterWidget::onMakoError(const QString &errorMsg)
+// {
+//     qDebug() << "[CharacterWidget] Internet Error:" << errorMsg;
+// }
 
 QRect CharacterWidget::calculateVisibleRect(const QPixmap &pixmap)
 {

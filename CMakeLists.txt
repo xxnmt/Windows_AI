@@ -17,6 +17,7 @@ qt_add_executable(Windows_AI
     bubblewidget.h bubblewidget.cpp bubblewidget.ui
     configmanager.h configmanager.cpp
     llmservice.h llmservice.cpp
+    appcontroller.h appcontroller.cpp
 )
 
 target_link_libraries(Windows_AI
