@@ -6,11 +6,15 @@
 #include <QJsonArray>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QDebug>
 
 LLMService::LLMService(QObject *parent):QObject{parent}
 {
     m_networkManager = new QNetworkAccessManager(this);
+
     connect(m_networkManager,&QNetworkAccessManager::finished,this,&LLMService::onReplyFinished);
+    //注册元数据
+    qRegisterMetaType<QList<SentenceText>>("QList<SentenceText>");
 }
 
 void LLMService::askDeepSeek(const QString &userInput)
@@ -80,47 +84,70 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
             QJsonObject messageObj = choices[0].toObject()["message"].toObject();
             QString replyText = messageObj["content"].toString();
 
-            qDebug()<<"[茉子回复]:"<<replyText;
+            qDebug()<<"[茉子回复](未处理):"<<replyText;
 
-            //正则表达式抓取表情包
-            QRegularExpression regex("\\[(.*?)\\]");
-            QRegularExpressionMatch match=regex.match(replyText);
+            QList<SentenceText> parsedSentences;
+            // //正则表达式抓取表情包
+            // QRegularExpression regex("\\[(.*?)\\]");
+            // QRegularExpressionMatch match=regex.match(replyText);
 
-            QString emotion = "idle";
-            QString cleanText=replyText;
+            // QString emotion = "idle";
+            // QString cleanText=replyText;
 
-            //凤梨表情和文本
-            if(match.hasMatch()){
-                emotion=match.captured(1);
-                cleanText.remove(match.captured(0));
+            // //凤梨表情和文本
+            // if(match.hasMatch()){
+            //     emotion=match.captured(1);
+            //     cleanText.remove(match.captured(0));
+            // }
+            // qDebug() << "[提取的表情]:" << emotion;
+            // qDebug() << "[茉子想说的话]:" << cleanText.trimmed();
+
+            //正则表达式拆分
+            QRegularExpression sentenceRegex("((?:\\[[^\\]]+\\])+)([^\\[]+)");
+            QRegularExpressionMatchIterator sentenceIt = sentenceRegex.globalMatch(replyText);
+
+            while (sentenceIt.hasNext()) {
+                QRegularExpressionMatch sentenceMatch=sentenceIt.next();
+                //剥离多层标签
+                QString tags=sentenceMatch.captured(1);
+                QString zhText=sentenceMatch.captured(2).trimmed();
+
+                SentenceText sentence;
+                sentence.zhText=zhText;
+
+                //匹配日文
+                QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
+                QRegularExpressionMatchIterator tagIt= tagRegex.globalMatchView(tags);
+
+                while (tagIt.hasNext()) {
+                    QRegularExpressionMatch tagMatch = tagIt.next();
+                    QString key = tagMatch.captured(1);
+                    QString value = tagMatch.captured(2);
+
+                    if (key == "ja") {
+                        sentence.jaText = value;
+                    } else {
+                        sentence.rawTags.insert(key, value);
+                    }
+                }
+                parsedSentences.append(sentence);
             }
-            qDebug() << "[提取的表情]:" << emotion;
-            qDebug() << "[茉子想说的话]:" << cleanText.trimmed();
 
-            // //切换立绘  没有做好文件路径管理，暂时屏蔽
-            // QString imagePath =QCoreApplication::applicationDirPath()+"/"+emotion+".png";
-            // QPixmap pixmap(imagePath);
-            // if(!imagePath.isNull()){
-            //     imageLabel->setPixmap(pixmap);
-            // }
-            // else{
-            //     imageLabel->setPixmap(QPixmap(QCoreApplication::applicationDirPath() + "/idle.png"));
-            // }
-
-            // 显示speakButton
-            // if(speakBubble){
-            //     QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
-            //     speakBubble->move(bubblePos);
-            //     //.trimmed() 是 QString 的成员函数，用于移除字符串首尾的空白字符。
-            //     speakBubble->showMessage(cleanText.trimmed());
-            //     qDebug()<<"气泡出现";
-            // }
-
-            replyReady(cleanText.trimmed(),emotion);
+            qDebug()<<"[LLM]成功拆分为"<<parsedSentences.size()<<"个段落：";
+            for (int i = 0; i < parsedSentences.size(); ++i) {
+                const auto &s = parsedSentences[i];
+                qDebug()<<QString("--------- [第 %1 句] ---------").arg(i + 1);
+                qDebug()<<"[LLM]中文气泡:"<<s.zhText;
+                qDebug()<<"[LLM]日文音频目标:"<<s.jaText;
+                qDebug()<<"[LLM]四维状态变更:"<<s.rawTags;
+            }
+            //拆完传信号
+            emit sentenceReady(parsedSentences);
         }
     }
     else {
         qDebug()<<"[网络错误]:"<<reply->errorString();
+        emit internetErrorSignal(reply->errorString());
     }
     reply->deleteLater();
 }

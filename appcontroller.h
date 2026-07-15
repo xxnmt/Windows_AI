@@ -2,12 +2,15 @@
 #define APPCONTROLLER_H
 
 #include <QObject>
-
+#include <QQueue>
+#include <QMap>
+#include "sentencedata.h"
 
 class CharacterWidget;
 class BubbleWidget;
 class LLMService;
-// class TTSService;
+class AppearanceManager;
+class TTSService;
 
 class AppController : public QObject
 {
@@ -19,8 +22,9 @@ public:
     void startApp();
 
 private slots:
-    void handleMakoReply(const QString &cleanText, const QString &emotion);
+    void handleMakoReply(const QList<SentenceText> &sentences);
     void handleSystemError(const QString &errorMsg);
+    void onPlayAudioAction(const QString &zhText, const QMap<QString, QString> &tags);
 
 signals:
 
@@ -28,7 +32,8 @@ private:
     CharacterWidget *m_character;
     BubbleWidget *m_bubble;
     LLMService *m_llmService;
-    // TTSService      *m_ttsService;
+    AppearanceManager *m_appearance;
+    TTSService *m_ttsService;
 };
 
 #endif // APPCONTROLLER_H

@@ -5,6 +5,8 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 
+#include "sentencedata.h"
+
 class LLMService : public QObject
 {
     Q_OBJECT
@@ -15,7 +17,8 @@ public:
 
 signals:
     //数据处理通知函数
-    void replyReady(const QString &cleanText,const QString &emotion);
+    // void replyReady(const QString &cleanText,const QString &emotion);
+    void sentenceReady(const QList<SentenceText> &sentence);
 
     void internetErrorSignal(const QString &errorMessage);
 private slots:

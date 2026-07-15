@@ -18,6 +18,9 @@ qt_add_executable(Windows_AI
     configmanager.h configmanager.cpp
     llmservice.h llmservice.cpp
     appcontroller.h appcontroller.cpp
+    sentencedata.h
+    appearancemanager.h appearancemanager.cpp
+    ttsservice.h ttsservice.cpp
 )
 
 target_link_libraries(Windows_AI
