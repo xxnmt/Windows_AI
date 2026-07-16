@@ -1,6 +1,4 @@
 #include "appcontroller.h"
-
-#include "appcontroller.h"
 #include "characterwidget.h"
 #include "bubblewidget.h"
 #include "llmservice.h"

@@ -429,13 +429,33 @@ image/
 
 ## 7. 技术债务与优化项
 
+### 7.1 隐式耦合问题
+
+| 编号 | 问题 | 位置 | 说明 | 建议 |
+|------|------|------|------|------|
+| IC-001 | 服务定位器反模式 | llmservice.cpp | LLMService 直接调用 `ConfigManager::instance()` 获取API Key，隐式依赖单例 | 改为构造函数注入apiKey参数 |
+| IC-002 | 上帝控制器 | appcontroller.cpp | AppController 持有全部5个模块实例，建立全部信号连接，模块间隐式依赖其存在 | 短期可接受；长期考虑按功能域拆分子控制器 |
+| IC-003 | TTS服务感知UI关注点 | ttsservice.h | `playAudioAction(zhText, tags)` 同时传递了气泡文本和立绘标签，TTS不应关心appearance | TTS信号只通知"音频就绪"，UI更新由AppController基于SentenceText自行决策 |
+| IC-004 | 控制器直接操作UI | appcontroller.cpp `handleSystemError()` | 控制器直接调 `m_bubble->showMessage()` 和 `m_appearance->applyTags()`，混入UI逻辑 | 错误应通过信号通知，由专门的UI协调层处理 |
+
+### 7.2 代码冗余与死代码
+
+| 编号 | 问题 | 位置 | 说明 |
+|------|------|------|------|
+| RC-001 | 死信号 | characterwidget.h | `characterMoved()` 信号被emit但无人连接，BubbleWidget已通过eventFilter自动跟随 |
+| RC-002 | 立绘双重加载 | characterwidget.cpp + appcontroller.cpp | CharacterWidget构造函数加载硬编码图片，AppController构造函数又调updatePath覆盖 |
+| RC-003 | 重复include | appcontroller.cpp L1-L2 | `#include "appcontroller.h"` 出现两次 |
+| RC-004 | 注释代码残留 | characterwidget.cpp | 约40行被注释的旧LLM/Bubble逻辑，已有新架构替代 |
+
+### 7.3 功能性技术债务
+
 | 优先级 | 项目 | 描述 | 当前状态 |
 |--------|------|------|----------|
-| 高 | TTS真实接入 | 接入GPT-SoVITS等真实TTS引擎 | 模拟实现 |
+| 高 | TTS真实接入 | 接入GPT-SoVITS推理引擎 | 模拟实现 |
 | 高 | 配置持久化 | API Key等配置保存到文件 | 硬编码 |
-| 高 | 用户输入入口 | 添加输入框/托盘菜单 | 硬编码测试 |
-| 中 | 代码清理 | 移除characterwidget中大量注释 | 待清理 |
-| 中 | 重复include | appcontroller.cpp重复include | 待修复 |
+| 高 | 用户输入入口 | 右键菜单/输入框 | 硬编码测试 |
+| 高 | 对话历史 | 当前每轮无状态，AI无记忆 | 未实现 |
+| 中 | 系统提示词外部化 | 1000+字符prompt硬编码在源码中 | 待外部化 |
 | 中 | 错误重试 | LLM请求失败后自动重试 | 无 |
 | 低 | 立绘过渡 | 换图时添加淡入淡出动画 | 无 |
 | 低 | 资源缓存 | 立绘pixmap缓存机制 | 每次重新加载 |

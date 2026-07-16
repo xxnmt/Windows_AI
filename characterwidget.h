@@ -25,7 +25,7 @@ public:
 
 signals:
     void userChat( const QString &input);
-    void characterMoved();
+    // void characterMoved();
 
 protected:
     //mouseevent Rewrite
