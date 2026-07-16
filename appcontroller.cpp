@@ -4,7 +4,8 @@
 #include "llmservice.h"
 #include "appearancemanager.h"
 #include "ttsservice.h"
-
+#include "chatwidget.h"
+#include "anchormanager.h"
 #include <QDebug>
 
 AppController::AppController(QObject *parent)
@@ -15,14 +16,19 @@ AppController::AppController(QObject *parent)
     m_llmService = new LLMService;
     m_appearance = new AppearanceManager;
     m_ttsService = new TTSService;
-    //bubble love character
-    m_bubble->attachTo(m_character,[this](){ return m_character->getBubbleAnchorPos();});
+    m_chatWidget = new ChatWidget;
 
-    connect(m_character, &CharacterWidget::userChat, m_llmService, &LLMService::askDeepSeek);
-    connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
-    connect(m_ttsService, &TTSService::playAudioAction, this, &AppController::onPlayAudioAction);
-    connect(m_appearance, &AppearanceManager::characterPathChanged, m_character, &CharacterWidget::updatePath);
-    connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
+    m_anchorManager = new AnchorManager(m_character, this);
+
+    //绑定主人 ~ ❤  (已取消，由位置管理器管理)
+    // m_bubble->attachTo(m_character,[this](){ return m_character->getBubbleAnchorPos();});
+    // m_chatWidget->attachTo(m_character,[this](){ return m_character->getBubbleAnchorPos();});
+    m_anchorManager->registerWidget(m_bubble, AnchorConfig{AnchorPosition::HeadRight});
+
+    m_anchorManager->registerWidget(m_chatWidget, AnchorConfig{AnchorPosition::WaistCenter, QPoint(0, 20)});
+
+    initConnections();
+
     m_character->updatePath(m_appearance->getPath());
 
 }
@@ -74,4 +80,18 @@ void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString,
     qDebug()<<"[AppController] 当前播放文本:" << zhText;
     qDebug()<<"[AppController] 当前立绘路径:" << m_appearance->getPath();
 
+}
+
+void AppController::initConnections()
+{
+    connect(m_character, &CharacterWidget::userChat, m_llmService, &LLMService::askDeepSeek);
+    connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
+    connect(m_ttsService, &TTSService::playAudioAction, this, &AppController::onPlayAudioAction);
+    connect(m_appearance, &AppearanceManager::characterPathChanged, m_character, &CharacterWidget::updatePath);
+    connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
+
+    connect(m_character, &CharacterWidget::chatRequested, m_chatWidget,&ChatWidget::popup);
+    connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
+    connect(m_appearance, &AppearanceManager::characterPathChanged,m_anchorManager, &AnchorManager::updateAllAnchors);
+    connect(m_bubble, &BubbleWidget::bubbleShown,m_anchorManager, &AnchorManager::updateAllAnchors);
 }

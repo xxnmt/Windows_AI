@@ -11,6 +11,8 @@ class BubbleWidget;
 class LLMService;
 class AppearanceManager;
 class TTSService;
+class ChatWidget;
+class AnchorManager;
 
 class AppController : public QObject
 {
@@ -25,15 +27,20 @@ private slots:
     void handleMakoReply(const QList<SentenceText> &sentences);
     void handleSystemError(const QString &errorMsg);
     void onPlayAudioAction(const QString &zhText, const QMap<QString, QString> &tags);
+    // void onChatRequested();
 
 signals:
 
 private:
+    void initConnections();
+
     CharacterWidget *m_character;
     BubbleWidget *m_bubble;
     LLMService *m_llmService;
     AppearanceManager *m_appearance;
     TTSService *m_ttsService;
+    ChatWidget *m_chatWidget;
+    AnchorManager *m_anchorManager;
 };
 
 #endif // APPCONTROLLER_H

@@ -21,6 +21,9 @@ qt_add_executable(Windows_AI
     sentencedata.h
     appearancemanager.h appearancemanager.cpp
     ttsservice.h ttsservice.cpp
+    chatwidget.h chatwidget.cpp
+    anchorstrategy.h
+    anchormanager.h anchormanager.cpp
 )
 
 target_link_libraries(Windows_AI

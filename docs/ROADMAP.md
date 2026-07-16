@@ -1,7 +1,7 @@
 # 开发路线图
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.0
+> 版本：v0.2.1
 > 更新日期：2026-07-16
 
 ---
@@ -141,7 +141,7 @@ CharacterWidget
     └── LLMService（信号槽）
 ```
 
-### 阶段3：中央控制器（v0.2.0，当前）
+### 阶段3：中央控制器（v0.2.0）
 
 ```
 AppController（信号调度中枢）
@@ -153,7 +153,25 @@ AppController（信号调度中枢）
     └── ConfigManager
 ```
 
-### 阶段4：插件化（v0.5.0+）
+### 阶段4：位置锚点系统（v0.2.1，当前）
+
+```
+AppController（信号调度中枢）
+    ├── CharacterWidget（立绘/右键菜单）
+    ├── BubbleWidget（气泡/打字机）
+    ├── ChatWidget（聊天输入框）
+    ├── AnchorManager（位置锚点管理）
+    ├── LLMService（AI对话/解析）
+    ├── TTSService（语音合成/播放）
+    ├── AppearanceManager（四维状态）
+    └── ConfigManager（单例配置）
+
+AnchorManager 管理：
+    ├── BubbleWidget → HeadRight 位置
+    └── ChatWidget → WaistCenter 位置
+```
+
+### 阶段5：插件化（v0.5.0+）
 
 ```
 Core

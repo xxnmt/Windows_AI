@@ -2,14 +2,14 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 日期：2026-07-16
-> 版本：v0.2.0
+> 版本：v0.2.1
 > 状态：开发中
 
 ---
 
 ## 1. 核心类与成员
 
-### AppController（新增·应用中枢）
+### AppController（应用中枢）
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
@@ -18,10 +18,13 @@
 | | `m_llmService` | LLMService*，AI服务 |
 | | `m_appearance` | AppearanceManager*，外观管理 |
 | | `m_ttsService` | TTSService*，TTS服务 |
+| | `m_chatWidget` | ChatWidget*，聊天输入窗口（新增） |
+| | `m_anchorManager` | AnchorManager*，位置锚点管理（新增） |
 | **函数签名** | `void startApp()` | 启动应用，显示角色并触发首次对话 |
 | | `void handleMakoReply(const QList<SentenceText>& sentences)` | 处理AI回复，交给TTS队列 |
 | | `void handleSystemError(const QString& errorMsg)` | 统一错误处理 |
 | | `void onPlayAudioAction(const QString& zhText, const QMap<QString,QString>& tags)` | 播放同步：更新气泡+立绘 |
+| | `void initConnections()` | 集中初始化信号槽连接 |
 
 ### CharacterWidget
 
@@ -31,14 +34,47 @@
 | | `imageLabel` | QLabel*，立绘图片标签 |
 | | `m_visibleRect` | QRect，立绘有效像素区域 |
 | **函数签名** | `void updatePath(const QString& imagePath)` | 切换立绘图片 |
-| | `QPoint getBubbleAnchorPos() const` | 获取气泡锚点坐标 |
+| | `QPoint getBubbleAnchorPos() const` | 获取气泡锚点坐标（已不再直接使用） |
+| | `QPoint getChatAnchorPos() const` | 获取聊天窗口锚点坐标（新增） |
+| | `QRect getVisibleRect() const` | 获取立绘有效区域（新增，供AnchorManager使用） |
 | | `QRect calculateVisibleRect(const QPixmap& pixmap)` | 计算立绘有效区域 |
 | **信号** | `void userChat(const QString& input)` | 用户发起聊天 |
-| | `void characterMoved()` | 角色位置移动 |
+| | `void chatRequested()` | 用户请求聊天（右键菜单触发，新增） |
+| | `void settingsRequested()` | 用户请求设置（右键菜单触发，新增） |
 
-> ⚠️ 原LLMService/BubbleWidget成员已从CharacterWidget中移除，改由AppController统一管理。
+### AnchorManager（新增·位置锚点管理）
 
-### AppearanceManager（新增·外观管理）
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **私有变量** | `m_character` | CharacterWidget*，角色组件 |
+| | `m_anchors` | std::unordered_map\<QWidget*, AnchorInfo\>，锚点映射 |
+| **函数签名** | `void registerWidget(QWidget* widget, AnchorConfig config)` | 注册Widget到预定义锚点位置 |
+| | `void registerWidget(QWidget* widget, std::function<QPoint()> customCalculator)` | 注册Widget到自定义位置计算 |
+| | `void unregisterWidget(QWidget* widget)` | 注销Widget |
+| | `void updateAllAnchors()` | 更新所有锚点位置 |
+| | `QPoint calculatePosition(const QRect& visibleRect, const QPoint& characterPos, const QSize& widgetSize, const AnchorConfig& config)` | 根据配置计算目标位置 |
+
+### AnchorStrategy（锚点策略）
+
+| 枚举 | 值 | 说明 |
+|------|------|------|
+| AnchorPosition | Bottom | 底部 |
+| | WaistCenter | 腰部居中 |
+| | WaistLeft | 腰部左侧 |
+| | WaistRight | 腰部右侧 |
+| | TopCenter | 顶部居中 |
+| | HeadRight | 头部右侧 |
+| | Custom | 自定义 |
+
+### ChatWidget（聊天输入窗口）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **私有变量** | `m_lineEdit` | QLineEdit*，输入框 |
+| **函数签名** | `void popup()` | 弹出聊天窗口 |
+| **信号** | `void textSubmitted(const QString& text)` | 用户提交文本 |
+
+### AppearanceManager
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
@@ -62,7 +98,7 @@
 | **信号** | `void sentenceReady(const QList<SentenceText>& sentence)` | 句子解析完成 |
 | | `void internetErrorSignal(const QString& errorMessage)` | 网络错误 |
 
-### TTSService（新增·TTS语音服务）
+### TTSService
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
@@ -70,8 +106,6 @@
 | | `m_playQueue` | QQueue\<SentenceText\>，播放队列 |
 | | `m_isSynthesizing` | bool，合成状态锁 |
 | | `m_isPlaying` | bool，播放状态锁 |
-| | `m_currentSynthesisSentence` | SentenceText，当前合成句 |
-| | `m_currentPlaySentence` | SentenceText，当前播放句 |
 | **函数签名** | `void enqueueSentences(const QList<SentenceText>& sentences)` | 入队多句话 |
 | | `void processTtsQueue()` | 合成生产者 |
 | | `void processPlayQueue()` | 播放消费者 |
@@ -86,12 +120,9 @@
 | **私有变量** | `m_timer` | QTimer*，打字机定时器 |
 | | `m_text` | QString，完整文本 |
 | | `m_idex` | int，当前显示位置 |
-| | `m_master` | QWidget*，跟踪的宿主组件 |
-| | `m_positionProvider` | std::function\<QPoint()\>，位置回调 |
 | **函数签名** | `void showMessage(const QString& text)` | 显示气泡并启动打字机 |
-| | `void attachTo(QWidget* master, std::function<QPoint()> positionProvider)` | 绑定宿主+位置计算 |
 | | `void typeWriteEffect()` | 打字机特效 |
-| | `bool eventFilter(QObject* watched, QEvent* event)` | 监听宿主移动/大小变化 |
+| **信号** | `void bubbleShown()` | 气泡显示时发出，通知位置管理器更新位置 |
 
 ### ConfigManager
 
@@ -103,13 +134,13 @@
 | | `QString getApiKey() const` | 获取API Key |
 | | `void setApiKey(const QString& apiKey)` | 设置API Key |
 
-### SentenceText（新增·数据结构）
+### SentenceText
 
 ```cpp
 struct SentenceText {
-    QString zhText;           // 中文文本（气泡显示）
-    QString jaText;           // 日文文本（TTS合成）
-    QMap<QString,QString> rawTags;  // 多维状态标签
+    QString zhText;                  // 中文文本（气泡显示）
+    QString jaText;                  // 日文文本（TTS合成）
+    QMap<QString, QString> rawTags;  // 多维状态标签
 };
 ```
 
@@ -120,37 +151,37 @@ struct SentenceText {
 ### AI对话完整流程
 
 ```
-用户输入 → userChat信号 → LLMService::askDeepSeek
-                              │
-                              ▼
-                        DeepSeek API
-                              │
-                              ▼
-                   onReplyFinished 解析
-                              │
-                    正则拆分多句 + 提取标签
-                              │
-                              ▼
-                   sentenceReady(QList<SentenceText>)
-                              │
-                              ▼
-               AppController::handleMakoReply
-                              │
-                              ▼
-                   TTSService::enqueueSentences
-                              │
-                  ┌───────────┴───────────┐
-                  ▼                       ▼
-           合成队列(Producer)       播放队列(Consumer)
-                  │                       │
-                  ▼                       ▼
-           onMockTtsFinished      playAudioAction信号
-                                          │
-                                          ▼
-                          AppController::onPlayAudioAction
-                               ┌──────┴──────┐
-                               ▼             ▼
-                       气泡显示中文    立绘切换状态
+用户右键 → chatRequested信号 → ChatWidget::popup() → 用户输入 → textSubmitted信号 → LLMService::askDeepSeek
+                                                                                                              │
+                                                                                                              ▼
+                                                                                                    DeepSeek API
+                                                                                                              │
+                                                                                                              ▼
+                                                                                                   onReplyFinished 解析
+                                                                                                              │
+                                                                                               正则拆分多句 + 提取标签
+                                                                                                              │
+                                                                                                              ▼
+                                                                                                   sentenceReady(QList<SentenceText>)
+                                                                                                              │
+                                                                                                              ▼
+                                                                                            AppController::handleMakoReply
+                                                                                                              │
+                                                                                                              ▼
+                                                                                            TTSService::enqueueSentences
+                                                                                                              │
+                                                                                           ┌───────────┴───────────┐
+                                                                                           ▼                       ▼
+                                                                                    合成队列(Producer)       播放队列(Consumer)
+                                                                                           │                       │
+                                                                                           ▼                       ▼
+                                                                                    onMockTtsFinished      playAudioAction信号
+                                                                                                                   │
+                                                                                                                   ▼
+                                                                                                   AppController::onPlayAudioAction
+                                                                                                        ┌──────┴──────┐
+                                                                                                        ▼             ▼
+                                                                                                气泡显示中文    立绘切换状态
 ```
 
 ### 信号槽连接（AppController中统一管理）
@@ -158,43 +189,21 @@ struct SentenceText {
 | 发送方 | 信号 | 接收方 | 槽 |
 |--------|------|--------|-----|
 | CharacterWidget | `userChat(input)` | LLMService | `askDeepSeek()` |
+| CharacterWidget | `chatRequested()` | ChatWidget | `popup()` |
+| ChatWidget | `textSubmitted(text)` | LLMService | `askDeepSeek()` |
 | LLMService | `sentenceReady(sentences)` | AppController | `handleMakoReply()` |
 | LLMService | `internetErrorSignal(msg)` | AppController | `handleSystemError()` |
 | TTSService | `playAudioAction(zhText, tags)` | AppController | `onPlayAudioAction()` |
 | AppearanceManager | `characterPathChanged(path)` | CharacterWidget | `updatePath()` |
-| CharacterWidget | `characterMoved()` | （BubbleWidget通过eventFilter跟随） | - |
+| AppearanceManager | `characterPathChanged(path)` | AnchorManager | `updateAllAnchors()` |
+| BubbleWidget | `bubbleShown()` | AnchorManager | `updateAllAnchors()` |
 
-### 多标签协议解析（LLMService）
+### 位置跟随机制（AnchorManager）
 
-```cpp
-// 正则拆分多句
-QRegularExpression sentenceRegex("((?:\\[[^\\]]+\\])+)([^\\[]+)");
-// 每句中匹配标签
-QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
-```
-
-### 立绘路径生成（AppearanceManager）
-
-```cpp
-QString(":/image/%1/%2/%3/%4.png")
-    .arg(m_distance)   // far / closer
-    .arg(m_clothing)   // pajama / schoolUniform / ...
-    .arg(m_blush)      // unblushing / blushing
-    .arg(m_emotion);   // happyIdle / happyMore / ...
-```
-
-### 打字机特效（BubbleWidget）
-
-```cpp
-void BubbleWidget::typeWriteEffect() {
-    if(m_idex < m_text.length()){
-        m_idex++;
-        ui->label_text->setText(m_text.left(m_idex));
-    } else {
-        m_timer->stop();
-    }
-}
-```
+| Widget | 锚点位置 | 偏移 |
+|--------|----------|------|
+| BubbleWidget | HeadRight | 默认 |
+| ChatWidget | WaistCenter | (0, 20) |
 
 ---
 
@@ -205,25 +214,24 @@ void BubbleWidget::typeWriteEffect() {
 | 位置 | 说明 |
 |------|------|
 | TTSService | TTS为模拟实现（QTimer），未接入真实语音合成引擎 |
-| AppController::startApp() | 首次对话为硬编码测试文本，缺少用户输入入口 |
 | ConfigManager::ConfigManager() | API Key硬编码，未从文件/环境加载 |
+| settingsRequested信号 | 右键菜单"设置"入口已预留但无处理槽函数 |
 
 ### 待开发功能
 
 - [ ] 真实TTS引擎接入（GPT-SoVITS）
-- [ ] 用户输入界面（输入框/托盘菜单）
 - [ ] 设置界面（API Key配置、音量、速度等）
 - [ ] 配置文件持久化
+- [ ] 对话历史（短期记忆+长期记忆）
 - [ ] 立绘切换过渡动画
-- [ ] 角色点击交互
 
 ### 已知代码问题
 
 | 位置 | 问题描述 |
 |------|----------|
-| appcontroller.cpp | 头文件重复include（`#include "appcontroller.h"` 出现两次） |
-| characterwidget.cpp | 大量注释代码残留（旧的LLM/Bubble逻辑） |
-| ttsservice.cpp | 仅模拟实现，无真实音频输出 |
+| chatwidget.cpp | `#include <QVBoxLayout>` 出现两次 |
+| anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 |
+| appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） |
 
 ---
 
@@ -239,90 +247,79 @@ Windows_AI/
 ├── main.cpp                 # 入口函数（创建AppController）
 ├── CMakeLists.txt           # 构建配置
 ├── image.qrc                # 资源文件
-├── appcontroller.h/cpp      # 应用中枢（新增）
-├── sentencedata.h           # 句子数据结构（新增）
-├── appearancemanager.h/cpp  # 外观管理器（新增）
-├── ttsservice.h/cpp         # TTS语音服务（新增）
-├── llmservice.h/cpp         # AI服务模块（升级：多标签+多句拆分）
-├── configmanager.h/cpp      # 配置管理器（单例）
-├── characterwidget.h/cpp    # 角色主组件（瘦身：仅UI+拖拽）
-├── bubblewidget.h/cpp/ui    # 气泡组件（升级：attachTo解耦）
+├── appcontroller.h/cpp      # 应用中枢
+├── anchormanager.h/cpp      # 位置锚点管理（新增）
+├── anchorstrategy.h         # 锚点策略（新增）
+├── chatwidget.h/cpp         # 聊天输入窗口（新增）
+├── sentencedata.h           # 句子数据结构
+├── appearancemanager.h/cpp  # 外观管理器
+├── ttsservice.h/cpp         # TTS语音服务
+├── llmservice.h/cpp         # AI服务模块
+├── configmanager.h/cpp      # 配置管理器
+├── characterwidget.h/cpp    # 角色主组件（已瘦身）
+├── bubblewidget.h/cpp/ui    # 气泡组件
 └── image/                   # 立绘资源目录
     ├── closer/              # 近景
-    │   ├── pajama/
-    │   │   ├── blushing/
-    │   │   │   ├── happyIdle.png ~ conscientious.png (7张)
-    │   │   └── unblushing/  (7张)
-    │   ├── schoolUniform/
-    │   ├── schoolUniformWithoutCap/
-    │   └── schoolUniformWithoutCoat/
     └── far/                 # 远景
-        ├── pajama/
-        ├── schoolUniform/
-        ├── schoolUniformWithoutCap/
-        └── schoolUniformWithoutCoat/
-```
-
-### 图片命名规范
-
-| 序号 | 文件名 | emotion值 | 含义 |
-|------|--------|-----------|------|
-| 1 | happyIdle.png | happyIdle | 开心空闲 |
-| 2 | happyMore.png | happyMore | 更开心 |
-| 3 | amazing.png | amazing | 惊讶 |
-| 4 | loving.png | loving | 爱慕 |
-| 5 | caring.png | caring | 关心 |
-| 6 | sad.png | sad | 伤心 |
-| 7 | conscientious.png | conscientious | 认真 |
-
----
-
-## 5. CMake依赖
-
-| 组件 | 版本 |
-|------|------|
-| Qt6 | 6.5+ |
-| Qt::Core | - |
-| Qt::Widgets | - |
-| Qt::Network | - |
-| CMake | 3.19+ |
-
----
-
-## 6. 模块关系图
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         AppController                             │
-│                    （应用中枢 / 信号调度中心）                       │
-│                                                                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────...    │
-│  │  Character  │  │   Bubble    │  │  LLMService │  │  TTS...   │
-│  │   Widget    │  │   Widget    │  │             │  │            │
-│  │  立绘/拖拽   │  │  气泡/打字机 │  │  AI对话/解析  │  │  语音服务  │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬... │
-│         │ eventFilter      │                  │                  │
-│         │ (attachTo)       │                  │                  │
-│         ▼                  │                  ▼                  │
-│  ┌─────────────┐           │          ┌─────────────┐         │
-│  │  Appearance │           │          │  ConfigM-   │         │
-│  │   Manager   │           │          │   anager    │         │
-│  │ 四维状态管理 │           │          │  单例配置    │         │
-│  └─────────────┘           │          └─────────────┘         │
-│                              │                                  │
-│         SentenceText 数据结构（贯穿 LLM → TTS → UI）            │
-└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. 近期变更
+## 5. 模块关系图
 
-| 日期 | 变更内容 | 提交 |
-|------|----------|------|
-| 2026-07-16 | 新增句子解析、TTS服务、外观管理、AppController中枢 | `7dd8ce4` |
-| 2026-07-15 | 重构资源架构，统一图片命名，BubbleWidget解耦 | `88df6b2` |
-| 2026-07-15 | 统一图片命名为7种emotion规范格式 | - |
-| 2026-07-15 | 更新image.qrc匹配新资源路径 | - |
-| 2026-07-14 | 创建docs目录，整理项目文档 | `e296241` |
-| 2026-07-14 | 抽离LLMService模块，引入ConfigManager单例 | `c9f1f5f` |
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         AppController                                │
+│                    （应用中枢 / 信号调度中心）                          │
+│                                                                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │
+│  │  Character  │  │   Bubble    │  │   Chat      │                 │
+│  │   Widget    │  │   Widget    │  │   Widget    │                 │
+│  │ 立绘/右键菜单 │  │ 气泡/打字机  │  │ 聊天输入框  │                 │
+│  └─────────────┘  └──────┬──────┘  └──────┬──────┘                 │
+│         │                │                │                         │
+│         │                └────────┬───────┘                         │
+│         │                         │                                 │
+│         ▼                         ▼                                 │
+│  ┌─────────────┐         ┌─────────────┐                           │
+│  │  Anchor     │         │  LLMService │                           │
+│  │   Manager   │         │  AI对话/解析  │                           │
+│  │ 位置锚点管理 │         └──────┬──────┘                           │
+│  └─────────────┘                ▼                                   │
+│                          ┌─────────────┐                           │
+│                          │ ConfigM-    │                           │
+│                          │   anager    │                           │
+│                          │  单例配置    │                           │
+│                          └─────────────┘                           │
+│                                                                     │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                        TTSService                            │  │
+│  │  合成队列(Producer)  →  播放队列(Consumer)                    │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌─────────────┐                                                   │
+│  │ Appearance  │                                                   │
+│  │   Manager   │                                                   │
+│  │ 四维状态管理 │                                                   │
+│  └─────────────┘                                                   │
+│                                                                     │
+│  SentenceText 数据结构（贯穿 LLM → TTS → UI）                        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 近期变更
+
+| 日期 | 变更内容 |
+|------|----------|
+| 2026-07-16 | 修复气泡首次显示位置未初始化问题（新增 bubbleShown 信号） |
+| 2026-07-16 | 修复立绘切换时位置未更新问题（连接 characterPathChanged 到 updateAllAnchors） |
+| 2026-07-16 | 移除 BubbleWidget/ChatWidget 中重复的位置跟随逻辑（attachTo/eventFilter/updatePosition） |
+| 2026-07-16 | 实现 HeadRight 锚点策略 |
+| 2026-07-16 | 新增 AnchorManager（位置锚点管理）、AnchorStrategy（锚点策略枚举）、ChatWidget（聊天输入窗口） |
+| 2026-07-16 | CharacterWidget 新增右键菜单（和茉子聊天/设置/退出）、getChatAnchorPos()、getVisibleRect() |
+| 2026-07-16 | AppController 集成 AnchorManager，气泡和聊天窗口位置统一管理 |
+| 2026-07-16 | 清理 CharacterWidget 构造函数中的硬编码图片加载 |
+| 2026-07-15 | 新增句子解析、TTS服务、外观管理、AppController中枢 |
+| 2026-07-15 | 统一图片命名为7种emotion规范格式 |

@@ -1,7 +1,7 @@
 # 架构设计文档
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.0
+> 版本：v0.2.1
 > 更新日期：2026-07-16
 
 ---
@@ -17,13 +17,16 @@
 | 层级 | 模块 | 职责 | 文件 |
 |------|------|------|------|
 | **中枢层** | AppController | 应用生命周期管理、信号调度、模块组装 | appcontroller.h/cpp |
-| **UI层** | CharacterWidget | 立绘显示、鼠标拖拽、气泡锚点计算 | characterwidget.h/cpp |
-| | BubbleWidget | 气泡显示、打字机特效、位置跟随 | bubblewidget.h/cpp/ui |
+| **UI层** | CharacterWidget | 立绘显示、鼠标拖拽、右键菜单 | characterwidget.h/cpp |
+| | BubbleWidget | 气泡显示、打字机特效 | bubblewidget.h/cpp/ui |
+| | ChatWidget | 聊天输入窗口、弹出跟随 | chatwidget.h/cpp |
 | **业务层** | LLMService | DeepSeek请求、多标签协议解析、句子拆分 | llmservice.h/cpp |
 | | TTSService | 语音合成队列、播放队列、模拟双线程 | ttsservice.h/cpp |
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
+| | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
 | **数据层** | ConfigManager | API Key配置、单例模式 | configmanager.h/cpp |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
+| | AnchorStrategy | 锚点位置枚举与配置结构 | anchorstrategy.h |
 
 ### 1.3 架构总览图
 
@@ -33,23 +36,31 @@
 │                    （应用中枢 / 信号调度中心）                          │
 │                                                                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │ CharacterWidget │  │   BubbleWidget  │  │   LLMService    │     │
-│  │  立绘/拖拽       │  │   气泡/打字机    │  │  AI对话/多句解析  │     │
+│  │ CharacterWidget │  │   BubbleWidget  │  │    ChatWidget   │     │
+│  │ 立绘/拖拽/右键菜单 │  │   气泡/打字机    │  │   聊天输入框    │     │
 │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘     │
 │           │                    │                    │              │
-│           │ eventFilter        │                    │              │
-│           │ (attachTo)         │                    ▼              │
-│  ┌────────▼────────┐           │            ┌─────────────┐       │
-│  │AppearanceManager│           │            │ConfigManager│       │
-│  │ 四维状态/换图    │           │            │  单例配置    │       │
-│  └─────────────────┘           │            └─────────────┘       │
-│                                 │                                  │
-│  ┌──────────────────────────────▼───────────────────────────────┐  │
+│           │                    └────────┬───────────┘              │
+│           │                             │                          │
+│           ▼                             ▼                          │
+│  ┌─────────────────┐           ┌─────────────────┐                │
+│  │ AppearanceMgr   │           │  AnchorManager  │                │
+│  │   四维状态/换图   │           │   位置锚点管理    │                │
+│  └─────────────────┘           └────────┬────────┘                │
+│                                         │                          │
+│                                         ▼                          │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                        LLMService                            │  │
+│  │           AI对话/多句解析 → ConfigManager(单例)               │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                        TTSService                            │  │
 │  │  合成队列(Producer)  →  播放队列(Consumer)                    │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                                                     │
 │  核心数据结构：SentenceText (zhText + jaText + rawTags)             │
+│  位置策略：AnchorStrategy (AnchorPosition枚举 + AnchorConfig)       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -124,22 +135,24 @@ connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::ha
 
 ### 2.3 BubbleWidget
 
-**职责**：对话气泡组件，支持打字机特效和位置跟随
+**职责**：对话气泡组件，支持打字机特效
 
 **设计要点**：
 - 独立的无边框顶层窗口（Qt::Tool）
-- 通过 `attachTo()` 与宿主组件解耦绑定
-- 使用 `std::function<QPoint()>` 回调获取位置
-- 用 `eventFilter` 监听宿主移动/大小变化自动跟随
+- 位置跟随由 AnchorManager 统一管理，本组件不再负责位置计算
+- 通过 `bubbleShown()` 信号通知位置管理器更新位置
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `showMessage()` | 显示气泡并启动打字机 | QString text | - |
-| `attachTo()` | 绑定宿主组件和位置回调 | QWidget* master, function\<QPoint()\> provider | - |
+| `showMessage()` | 显示气泡并启动打字机，通知位置管理器 | QString text | - |
 | `typeWriteEffect()` | 逐字显示文本（定时器触发） | - | - |
-| `eventFilter()` | 监听宿主移动/大小变化 | QObject*, QEvent* | bool |
 | `paintEvent()` | 绘制圆角气泡背景 | QPaintEvent* | - |
+
+**信号**：
+| 信号 | 触发时机 | 参数 |
+|------|----------|------|
+| `bubbleShown()` | 气泡显示时，通知位置管理器更新位置 | - |
 
 ---
 
@@ -290,6 +303,56 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 
 ---
 
+### 2.9 AnchorManager
+
+**职责**：位置锚点管理器，统一协调所有跟随角色的Widget位置
+
+**设计要点**：
+- 通过 `eventFilter` 监听 CharacterWidget 的 Move/Resize 事件
+- 支持预定义锚点策略和自定义位置计算函数
+- 立绘切换时通过信号连接自动更新位置
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `registerWidget()` | 注册Widget到预定义锚点位置 | QWidget*, AnchorConfig | - |
+| `registerWidget()` | 注册Widget到自定义位置计算 | QWidget*, function\<QPoint()\> | - |
+| `unregisterWidget()` | 注销Widget | QWidget* | - |
+| `updateAllAnchors()` | 计算并更新所有锚点位置 | - | - |
+| `calculatePosition()` | 根据锚点策略计算目标位置 | QRect, QPoint, QSize, AnchorConfig | QPoint |
+
+**位置更新触发机制**：
+| 触发条件 | 机制 |
+|----------|------|
+| 角色移动 | eventFilter 捕获 QEvent::Move |
+| 角色大小变化 | eventFilter 捕获 QEvent::Resize |
+| 立绘切换 | appearanceChanged / characterPathChanged 信号 |
+| 气泡显示 | bubbleShown 信号 |
+
+---
+
+### 2.10 ChatWidget
+
+**职责**：聊天输入窗口，支持弹出和输入
+
+**设计要点**：
+- 独立的顶层窗口（Qt::Tool）
+- 位置跟随由 AnchorManager 统一管理
+- 回车键提交，自动隐藏
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `popup()` | 弹出聊天窗口并激活 | - | - |
+| `showEvent()` | 显示时自动聚焦输入框 | QShowEvent* | - |
+
+**信号**：
+| 信号 | 触发时机 | 参数 |
+|------|----------|------|
+| `textSubmitted(text)` | 用户提交文本时 | QString |
+
+---
+
 ## 3. 核心数据流
 
 ### 3.1 完整对话流程
@@ -346,17 +409,34 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
     └── AppearanceManager::applyTags(tags)  → 立绘切换
 ```
 
-### 3.2 气泡位置跟随机制
+### 3.2 位置跟随机制（AnchorManager）
 
 ```
-BubbleWidget::attachTo(character, positionProvider)
+AnchorManager::registerWidget(bubble, AnchorConfig{HeadRight})
     │
-    ├── 安装eventFilter到宿主
-    └── 初始位置更新
+    └── 保存Widget + 锚点配置
     │
     ▼
-宿主移动/大小变化 → eventFilter → updatePosition() → move(positionProvider())
+触发条件（任一）：
+    ├── 角色移动 → eventFilter → updateAllAnchors()
+    ├── 角色大小变化 → eventFilter → updateAllAnchors()
+    ├── 立绘切换 → characterPathChanged信号 → updateAllAnchors()
+    └── 气泡显示 → bubbleShown信号 → updateAllAnchors()
+    │
+    ▼
+calculatePosition(visibleRect, characterPos, widgetSize, config)
+    │
+    └── 根据锚点策略计算目标位置
+    │
+    ▼
+widget->move(targetPos)
 ```
+
+**锚点策略配置**：
+| Widget | 锚点位置 | 偏移 |
+|--------|----------|------|
+| BubbleWidget | HeadRight | 默认 |
+| ChatWidget | WaistCenter | (0, 20) |
 
 ---
 
@@ -431,21 +511,30 @@ image/
 
 ### 7.1 隐式耦合问题
 
-| 编号 | 问题 | 位置 | 说明 | 建议 |
-|------|------|------|------|------|
-| IC-001 | 服务定位器反模式 | llmservice.cpp | LLMService 直接调用 `ConfigManager::instance()` 获取API Key，隐式依赖单例 | 改为构造函数注入apiKey参数 |
-| IC-002 | 上帝控制器 | appcontroller.cpp | AppController 持有全部5个模块实例，建立全部信号连接，模块间隐式依赖其存在 | 短期可接受；长期考虑按功能域拆分子控制器 |
-| IC-003 | TTS服务感知UI关注点 | ttsservice.h | `playAudioAction(zhText, tags)` 同时传递了气泡文本和立绘标签，TTS不应关心appearance | TTS信号只通知"音频就绪"，UI更新由AppController基于SentenceText自行决策 |
-| IC-004 | 控制器直接操作UI | appcontroller.cpp `handleSystemError()` | 控制器直接调 `m_bubble->showMessage()` 和 `m_appearance->applyTags()`，混入UI逻辑 | 错误应通过信号通知，由专门的UI协调层处理 |
+| 编号 | 问题 | 位置 | 说明 | 建议 | 状态 |
+|------|------|------|------|------|------|
+| IC-001 | 服务定位器反模式 | llmservice.cpp | LLMService 直接调用 `ConfigManager::instance()` 获取API Key，隐式依赖单例 | 改为构造函数注入apiKey参数 | ❌ 待修复 |
+| IC-002 | 上帝控制器 | appcontroller.cpp | AppController 持有全部8个模块实例，建立全部信号连接 | 短期可接受；长期考虑按功能域拆分子控制器 | ⚠️ 可接受 |
+| IC-003 | TTS服务感知UI关注点 | ttsservice.h | `playAudioAction(zhText, tags)` 同时传递了气泡文本和立绘标签，TTS不应关心appearance | TTS信号只通知"音频就绪"，UI更新由AppController基于SentenceText自行决策 | ❌ 待修复 |
+| IC-004 | 控制器直接操作UI | appcontroller.cpp `handleSystemError()` | 控制器直接调 `m_bubble->showMessage()` 和 `m_appearance->applyTags()`，混入UI逻辑 | 错误应通过信号通知，由专门的UI协调层处理 | ❌ 待修复 |
+| IC-005 | 位置计算硬编码 | anchormanager.cpp `calculatePosition()` | switch-case硬编码锚点位置，新增位置需修改源码 | 采用策略模式或注册机制，外部扩展锚点策略 | ❌ 待修复 |
+| IC-006 | 位置跟随逻辑重复 | bubblewidget.cpp / chatwidget.cpp | 两者都有独立的 `attachTo()` + `eventFilter()` + `updatePosition()` 逻辑，代码重复约20行 | 统一由AnchorManager管理，移除各Widget的独立跟随逻辑 | ✅ 已修复 |
 
 ### 7.2 代码冗余与死代码
 
-| 编号 | 问题 | 位置 | 说明 |
-|------|------|------|------|
-| RC-001 | 死信号 | characterwidget.h | `characterMoved()` 信号被emit但无人连接，BubbleWidget已通过eventFilter自动跟随 |
-| RC-002 | 立绘双重加载 | characterwidget.cpp + appcontroller.cpp | CharacterWidget构造函数加载硬编码图片，AppController构造函数又调updatePath覆盖 |
-| RC-003 | 重复include | appcontroller.cpp L1-L2 | `#include "appcontroller.h"` 出现两次 |
-| RC-004 | 注释代码残留 | characterwidget.cpp | 约40行被注释的旧LLM/Bubble逻辑，已有新架构替代 |
+| 编号 | 问题 | 位置 | 说明 | 状态 |
+|------|------|------|------|------|
+| RC-001 | 死信号 | characterwidget.h | `characterMoved()` 信号已删除 | ✅ 已修复 |
+| RC-002 | 立绘双重加载 | characterwidget.cpp | 构造函数已不再加载图片 | ✅ 已修复 |
+| RC-003 | 重复include | appcontroller.cpp | 已修复 | ✅ 已修复 |
+| RC-004 | 注释代码残留 | characterwidget.cpp | 已清理 | ✅ 已修复 |
+| RC-005 | 重复include | chatwidget.cpp L2-L3 | `#include <QVBoxLayout>` 出现两次 | ❌ 待修复 |
+| RC-006 | 死方法 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 | ❌ 待删除 |
+| RC-007 | 未使用的接口 | chatwidget.h/cpp | `attachTo()` 方法已存在但未被使用（已改用AnchorManager） | ✅ 已删除 |
+| RC-008 | 未实现的枚举 | anchorstrategy.h | `HeadRight` 枚举值已定义但未在 `calculatePosition()` 中实现 | ✅ 已实现 |
+| RC-009 | 未实现的信号槽 | characterwidget.h | `settingsRequested()` 信号已连接但无处理槽函数 | ❌ 待实现 |
+| RC-010 | 气泡首次显示位置未初始化 | bubblewidget.cpp | 气泡显示时位置未计算，首次移动时突然跳转 | ✅ 已修复（bubbleShown信号） |
+| RC-011 | 立绘切换时位置未更新 | anchormanager.cpp | 立绘切换导致visibleRect变化时未触发位置更新 | ✅ 已修复（characterPathChanged信号连接）
 
 ### 7.3 功能性技术债务
 
@@ -453,12 +542,39 @@ image/
 |--------|------|------|----------|
 | 高 | TTS真实接入 | 接入GPT-SoVITS推理引擎 | 模拟实现 |
 | 高 | 配置持久化 | API Key等配置保存到文件 | 硬编码 |
-| 高 | 用户输入入口 | 右键菜单/输入框 | 硬编码测试 |
+| 高 | 设置界面 | 右键菜单"设置"入口已预留但无实现 | 预留入口 |
 | 高 | 对话历史 | 当前每轮无状态，AI无记忆 | 未实现 |
 | 中 | 系统提示词外部化 | 1000+字符prompt硬编码在源码中 | 待外部化 |
 | 中 | 错误重试 | LLM请求失败后自动重试 | 无 |
+| 中 | AnchorManager析构 | 未清理动态分配的AnchorManager（内存泄漏风险） | 待修复 |
 | 低 | 立绘过渡 | 换图时添加淡入淡出动画 | 无 |
 | 低 | 资源缓存 | 立绘pixmap缓存机制 | 每次重新加载 |
+
+### 7.4 架构演进新模块
+
+| 模块 | 文件 | 职责 | 新增版本 |
+|------|------|------|----------|
+| AnchorManager | anchormanager.h/cpp | 位置锚点管理，统一协调气泡/聊天窗口的位置跟随 | v0.2.1 |
+| AnchorStrategy | anchorstrategy.h | 锚点位置枚举与配置结构 | v0.2.1 |
+| ChatWidget | chatwidget.h/cpp | 聊天输入窗口，支持弹出/跟随 | v0.2.1 |
+
+### 7.5 当前模块关系图（更新）
+
+```
+AppController
+    ├── CharacterWidget（立绘/右键菜单）
+    ├── BubbleWidget（气泡/打字机）
+    ├── ChatWidget（聊天输入框）
+    ├── AnchorManager（位置锚点管理）← 新增
+    ├── LLMService（AI对话/解析）
+    ├── TTSService（语音合成/播放）
+    ├── AppearanceManager（四维状态）
+    └── ConfigManager（单例配置）
+
+AnchorManager 管理：
+    ├── BubbleWidget → TopCenter 位置
+    └── ChatWidget → WaistCenter 位置
+```
 
 ---
 

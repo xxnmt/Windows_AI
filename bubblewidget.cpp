@@ -31,28 +31,15 @@ void BubbleWidget::showMessage(const QString& text)
     m_idex=0;
     ui->label_text->clear();
 
-    setFixedSize(250,120);
-    updatePosition();
+    setFixedSize(250,120);    
+    emit bubbleShown();
     this->show();
     m_timer->start(50);
 
-}
-
-void BubbleWidget::attachTo(QWidget *master, std::function<QPoint ()> positionProvider)
-{
-    if(m_master){
-        m_master->removeEventFilter(this);
-    }
-
-    m_master = master;
-    m_positionProvider = positionProvider;
-
-    if(m_master){
-        m_master->installEventFilter(this);
-        updatePosition();
-    }
 
 }
+
+
 
 void BubbleWidget::paintEvent(QPaintEvent *event)
 {
@@ -64,14 +51,7 @@ void BubbleWidget::paintEvent(QPaintEvent *event)
     painter.fillPath(path,QColor(0,0,0,180));
 }
 
-bool BubbleWidget::eventFilter(QObject *watched, QEvent *event)
-{
-    if(watched == m_master &&(event->type()==QEvent::Resize || event->type()==QEvent::Move)){
-        updatePosition();
 
-    }
-    return QWidget::eventFilter(watched,event);
-}
 
 void BubbleWidget::typeWriteEffect()
 {
@@ -84,10 +64,3 @@ void BubbleWidget::typeWriteEffect()
     }
 }
 
-void BubbleWidget::updatePosition()
-{
-    if (m_master && m_positionProvider) {
-        //执行传入的 Lambda 表达式，瞬间拿到最新的目标挂载点坐标
-        this->move(m_positionProvider());
-    }
-}

@@ -4,12 +4,8 @@
 #include <QWidget>
 #include <QMouseEvent>
 #include <QLabel>
+#include <QContextMenuEvent>
 
-// #include <QNetworkAccessManager>
-// #include <QNetworkReply>
-
-// #include "BubbleWidget.h"
-// #include "llmservice.h"
 
 class CharacterWidget : public QWidget
 {
@@ -22,20 +18,22 @@ public:
     void updatePath(const QString &imagePath);
     //get bubble绘制起始坐标
     QPoint getBubbleAnchorPos() const;
+    QPoint getChatAnchorPos() const;
+    QRect getVisibleRect()const;
 
 signals:
     void userChat( const QString &input);
-    // void characterMoved();
+    void chatRequested();
+    void settingsRequested();
 
 protected:
     //mouseevent Rewrite
     void mousePressEvent(QMouseEvent* event);
     void mouseMoveEvent(QMouseEvent* event);
+    void contextMenuEvent(QContextMenuEvent *event);
 
 private slots:
 
-    // void onMakoReplyReady(const QString &cleanText, const QString &emotion);
-    // void onMakoError(const QString &errorMsg);
 
 private:
     QPoint dragPosition; //鼠标点击时相对坐标

@@ -12,6 +12,10 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 
+#include <QMenu>
+#include <QAction>
+#include <QContextMenuEvent>
+
 CharacterWidget::CharacterWidget(QWidget *parent)
     : QWidget(parent)
 {
@@ -21,47 +25,15 @@ CharacterWidget::CharacterWidget(QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
 
     imageLabel = new QLabel(this);
-    // speakBubble = new BubbleWidget();
-
-
-    //test photo path
-    // QString imagePath = ":/image/far/schoolUniform/unblushing/happyIdle.png";
-    // QPixmap pixmap(imagePath);
-
-    // if(!pixmap.isNull()) {
-    //     imageLabel->setPixmap(pixmap);
-    //     // 根据图片实际分辨率调整窗口大小
-    //     resize(pixmap.width(), pixmap.height());
-
-    //     //人物真实位置（排除空白背景
-    //     m_visibleRect= calculateVisibleRect(pixmap);
-    //     qDebug()<<"[功能调试]人物边界为:"<<m_visibleRect;
-    // } else {
-    //     imageLabel->setText("未能加载 test1.png，请检查路径！");
-    //     qDebug()<<"未能加载 test1.png，请检查路径！";
-    //     imageLabel->setStyleSheet("color: red; background: white;");
-    // }
 
     //设置布局，让图片填满整个窗口
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0); // 取消边距
     layout->addWidget(imageLabel);
 
-    // m_llmService = new LLMService(this);
-    // connect(m_llmService, &LLMService::replyReady, this, &CharacterWidget::onMakoReplyReady);
-    // connect(m_llmService, &LLMService::internetErrorSignal, this, &CharacterWidget::onMakoError);
-
-    // m_llmService->askDeepSeek("(打招呼)茉子好呀，今天开心吗(请你简单回复10个字以内)");
-    // qDebug()<<"[CharacterWidget]茉子思考中......";
-
-
 }
 
-CharacterWidget::~CharacterWidget() {
-    // if (speakBubble) {
-    //     delete speakBubble;
-    // }
-}
+CharacterWidget::~CharacterWidget() {}
 
 void CharacterWidget::updatePath(const QString &imagePath)
 {
@@ -71,6 +43,7 @@ void CharacterWidget::updatePath(const QString &imagePath)
         resize(pixmap.size());
 
         m_visibleRect = calculateVisibleRect(pixmap);
+        qDebug()<<"[character]扫描位置为："<<m_visibleRect;
 
     }
 }
@@ -78,6 +51,16 @@ void CharacterWidget::updatePath(const QString &imagePath)
 QPoint CharacterWidget::getBubbleAnchorPos() const
 {
     return this->pos() + m_visibleRect.topRight() + QPoint(5, 10);
+}
+
+QPoint CharacterWidget::getChatAnchorPos() const
+{
+    return this->pos() + QPoint(0,m_visibleRect.bottom()+10);
+}
+
+QRect CharacterWidget::getVisibleRect() const
+{
+    return this->m_visibleRect;
 }
 
 
@@ -93,36 +76,26 @@ void CharacterWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if(event->buttons() & Qt::LeftButton){
         move(event->globalPosition().toPoint() - dragPosition);
-
-
-        //speakBubble moveEvent
-        //this->geometry() 返回当前窗口（widget）的几何位置和大小
-        // if (speakBubble && speakBubble->isVisible()) {
-        //     QPoint bubblePos = this->pos()+m_visibleRect.topRight() + QPoint(10, 20);
-        //     speakBubble->move(bubblePos);
-        // }
-        emit characterMoved();
-
         event->accept();
     }
 }
 
-// void CharacterWidget::onMakoReplyReady(const QString &cleanText, const QString &emotion)
-// {
-//     qDebug()<<"[CharacterWidget]收到表情:"<<emotion;
-//     qDebug()<<"[CharacterWidget]收到文本:"<<cleanText;
+void CharacterWidget::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu(this);
+    QAction *chatAction = menu.addAction("和茉子聊天");
+    QAction *settingsAction = menu.addAction("设置");
+    menu.addSeparator();
+    QAction *quitAction= menu.addAction("退出");
 
-//     if(speakBubble){
-//         QPoint bubblePos = this->pos() + m_visibleRect.topRight() + QPoint(5, 10);
-//         speakBubble->move(bubblePos);
-//         speakBubble->showMessage(cleanText);
-//     }
-// }
+    connect(chatAction, &QAction::triggered, this, &CharacterWidget::chatRequested);
+    connect(settingsAction, &QAction::triggered, this, &CharacterWidget::settingsRequested);
 
-// void CharacterWidget::onMakoError(const QString &errorMsg)
-// {
-//     qDebug() << "[CharacterWidget] Internet Error:" << errorMsg;
-// }
+    connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+
+    menu.exec(event->globalPos());
+}
+
 
 QRect CharacterWidget::calculateVisibleRect(const QPixmap &pixmap)
 {
@@ -131,7 +104,7 @@ QRect CharacterWidget::calculateVisibleRect(const QPixmap &pixmap)
     int height = image.height();
     //扫描像素点的透明度（Alpha 通道）
     int left = width, right = 0, top = height, bottom = 0;
-    bool hasAlpha = false;
+    // bool hasAlpha = false;
     for(int y=0;y<height;y++){
         for(int x=0;x<width;x++){
             if (qAlpha(image.pixel(x, y)) > 10) {
@@ -139,7 +112,7 @@ QRect CharacterWidget::calculateVisibleRect(const QPixmap &pixmap)
                 if (x > right)  right = x;
                 if (y < top)    top = y;
                 if (y > bottom) bottom = y;
-                hasAlpha = true;
+                // hasAlpha = true;
             }
         }
     }

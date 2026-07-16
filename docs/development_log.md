@@ -55,12 +55,23 @@
 - 日期：2026-07-16
 - 提交：`7dd8ce4`
 - 内容：
-  - 新增 **AppController**（应用中枢，信号调度
+  - 新增 **AppController**（应用中枢，信号调度）
   - 新增 **AppearanceManager**（四维状态管理，立绘切换）
   - 新增 **TTSService**（生产者-消费者队列，模拟TTS）
   - 新增 **SentenceText** 数据结构
   - LLMService升级：多标签协议解析，多句拆分
   - 系统指令定义完整协议规范
+
+### M7: 位置锚点系统 & Bug修复
+- 日期：2026-07-16
+- 内容：
+  - 新增 **AnchorManager**（位置锚点管理，统一位置跟随）
+  - 新增 **AnchorStrategy**（锚点位置枚举与配置结构）
+  - 新增 **ChatWidget**（聊天输入窗口）
+  - 修复气泡首次显示位置未初始化问题（bubbleShown信号）
+  - 修复立绘切换时位置未更新问题（characterPathChanged信号连接）
+  - 移除 BubbleWidget/ChatWidget 中重复的位置跟随逻辑
+  - 实现 HeadRight 锚点策略
 
 ---
 
@@ -99,6 +110,10 @@
 | 2026-07-15 | BubbleWidget与CharacterWidget紧耦合 | 实现attachTo()+eventFilter解耦 | `88df6b2` |
 | 2026-07-16 | 立绘切换逻辑缺失 | 新增AppearanceManager四维管理状态 | `7dd8ce4` |
 | 2026-07-16 | 单句回复限制，无法多句对话 | LLMService多句拆分+SentenceText结构 | `7dd8ce4` |
+| 2026-07-16 | 气泡首次显示位置未初始化 | 新增bubbleShown信号，连接到updateAllAnchors | v0.2.1 |
+| 2026-07-16 | 立绘切换时位置未更新 | 连接characterPathChanged到updateAllAnchors | v0.2.1 |
+| 2026-07-16 | 位置跟随逻辑重复 | 移除BubbleWidget/ChatWidget的attachTo/eventFilter/updatePosition | v0.2.1 |
+| 2026-07-16 | HeadRight锚点未实现 | 在calculatePosition中补全HeadRight分支 | v0.2.1 |
 
 ---
 
