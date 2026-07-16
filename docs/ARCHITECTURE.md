@@ -25,6 +25,9 @@
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
 | | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
 | **数据层** | ConfigManager | API Key配置、单例模式 | configmanager.h/cpp |
+| **规划中** | TimeManager | 时间监控、服装自动切换 | timemanager.h/cpp（规划中） |
+| | SettingsWidget | 设置界面、配置管理 | settingswidget.h/cpp/ui（规划中） |
+| | ShortcutManager | 全局快捷键管理 | shortcutmanager.h/cpp（规划中） |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
 | | AnchorStrategy | 锚点位置枚举与配置结构 | anchorstrategy.h |
 
@@ -46,18 +49,30 @@
 │  ┌─────────────────┐           ┌─────────────────┐                │
 │  │ AppearanceMgr   │           │  AnchorManager  │                │
 │  │   四维状态/换图   │           │   位置锚点管理    │                │
-│  └─────────────────┘           └────────┬────────┘                │
-│                                         │                          │
-│                                         ▼                          │
+│  └────────┬────────┘           └─────────────────┘                │
+│           │                                                        │
+│           ▼                                                        │
+│  ┌─────────────────┐                                               │
+│  │  TimeManager    │  ← 规划中（v0.3.0）                            │
+│  │ 时间监控/服装切换 │                                               │
+│  └─────────────────┘                                               │
+│                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐  │
 │  │                        LLMService                            │  │
 │  │           AI对话/多句解析 → ConfigManager(单例)               │  │
+│  │           ← AI状态同步机制（方案C）                            │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 │                                                                     │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                        TTSService                            │  │
 │  │  合成队列(Producer)  →  播放队列(Consumer)                    │  │
+│  │  ← GPT-SoVITS真实接入（v0.3.0）                               │  │
 │  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌─────────────────┐  ┌─────────────────┐                         │
+│  │ SettingsWidget  │  │ ShortcutManager │  ← 规划中（v0.3.0）       │
+│  │   设置界面       │  │   全局快捷键管理  │                         │
+│  └─────────────────┘  └─────────────────┘                         │
 │                                                                     │
 │  核心数据结构：SentenceText (zhText + jaText + rawTags)             │
 │  位置策略：AnchorStrategy (AnchorPosition枚举 + AnchorConfig)       │
@@ -350,6 +365,169 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
 | `textSubmitted(text)` | 用户提交文本时 | QString |
+
+---
+
+### 2.11 TimeManager（规划中 · v0.3.0）
+
+**职责**：时间监控与服装自动切换
+
+**设计要点**：
+- 每分钟检查当前时间，判断时间段
+- 时间段变化时自动切换服装
+- 服装切换后触发AI状态同步
+- 支持配置文件自定义时间段和服装映射
+
+**时间段定义**：
+| 时间段 | 时间范围 | 默认服装 |
+|--------|----------|----------|
+| 白天 | 6:00 - 18:00 | schoolUniform |
+| 夜晚 | 18:00 - 6:00 | pajama |
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `start()` | 启动时间监控 | - | - |
+| `getCurrentTimePeriod()` | 获取当前时间段 | - | QString (day/night) |
+| `checkTime()` | 检查时间并触发切换 | - | - |
+| `setTimeConfig()` | 设置时间配置 | TimeConfig | - |
+
+**信号**：
+| 信号 | 触发时机 | 参数 |
+|------|----------|------|
+| `timePeriodChanged(period)` | 时间段变化时 | QString |
+| `clothingAutoChanged(clothing)` | 服装自动切换时 | QString |
+
+**配置结构**：
+```cpp
+struct TimeConfig {
+    bool enabled;           // 是否启用自动切换
+    int dayStartHour;       // 白天开始时间（小时）
+    int dayEndHour;         // 白天结束时间（小时）
+    QString dayClothing;    // 白天服装
+    QString nightClothing;  // 夜晚服装
+};
+```
+
+---
+
+### 2.12 SettingsWidget（规划中 · v0.3.0）
+
+**职责**：设置界面，管理所有配置项
+
+**设计要点**：
+- 权限级别高于右键菜单（设置界面包含所有功能）
+- 配置修改后立即生效并持久化
+- 支持修改快捷键（QShortcut全局绑定）
+- 使用 QTabWidget 分栏管理
+
+**界面结构**：
+```
+├── API配置页
+│   ├── DeepSeek API Key（输入框）
+│   └── GPT-SoVITS服务地址（输入框）
+├── TTS配置页
+│   ├── 启用TTS（开关）
+│   ├── 语速（滑块）
+│   ├── 温度（滑块）
+│   └── 参考音频配置（路径选择）
+├── 外观配置页
+│   ├── 气泡颜色（颜色选择器）
+│   ├── 气泡透明度（滑块）
+│   └── 窗口透明度（滑块）
+├── 时间配置页
+│   ├── 启用自动服装切换（开关）
+│   ├── 白天开始时间（时间选择器）
+│   ├── 白天结束时间（时间选择器）
+│   ├── 白天服装（下拉框）
+│   └── 夜晚服装（下拉框）
+├── 快捷键配置页
+│   ├── 打开聊天（按键绑定）
+│   ├── 打开设置（按键绑定）
+│   └── 打开历史记录（按键绑定）
+└── 记忆配置页
+    ├── 启用记忆（开关）
+    ├── 短期记忆长度（数字输入）
+    └── 自动摘要（开关）
+```
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `loadSettings()` | 从配置文件加载设置 | - | - |
+| `saveSettings()` | 保存设置到配置文件 | - | - |
+| `applySettings()` | 应用设置到各模块 | - | - |
+
+**信号**：
+| 信号 | 触发时机 | 参数 |
+|------|----------|------|
+| `settingsSaved()` | 设置保存时 | - |
+
+---
+
+### 2.13 ShortcutManager（规划中 · v0.3.0）
+
+**职责**：全局快捷键管理
+
+**设计要点**：
+- 使用 QShortcut 绑定全局快捷键（即使窗口不在前台也能触发）
+- 支持配置文件自定义快捷键
+- 快捷键冲突检测
+- 动态更新绑定
+
+**快捷键配置**：
+| 功能 | 默认快捷键 | 说明 |
+|------|------------|------|
+| 打开聊天窗口 | Ctrl+Shift+C | 弹出 ChatWidget |
+| 打开设置界面 | Ctrl+Shift+S | 弹出 SettingsWidget |
+| 打开历史记录 | Ctrl+Shift+H | 弹出历史记录界面 |
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `registerShortcut()` | 注册快捷键 | QString key, QObject* receiver, const char* method | - |
+| `unregisterShortcut()` | 注销快捷键 | QString key | - |
+| `updateShortcuts()` | 根据配置更新所有快捷键 | - | - |
+
+---
+
+### 2.14 AI状态同步机制（方案C · 规划中 · v0.3.0）
+
+**设计要点**：
+- 本地切换服装/表情后，不立即通知AI
+- 下一次对话时，将当前状态追加到系统提示词
+- AI自动感知到状态变化，无需额外token消耗
+
+**实现方式**：
+
+```cpp
+// LLMService中构建系统提示词时动态追加当前状态
+QString LLMService::buildSystemPrompt(const QString& currentState) const
+{
+    QString prompt = 
+        "你叫千岛茉子，今年7岁，性格乖巧可爱偶尔撒娇，请称呼用户为“欧尼酱”。\n"
+        "【当前状态】\n"
+        + currentState + "\n"
+        "【最高指令：多重标签与逐句切分协议】\n"
+        "...";
+    
+    return prompt;
+}
+```
+
+**状态字符串格式**：
+```
+服装：schoolUniform
+心情：happyIdle
+距离：far
+脸红：unblushing
+时间：白天
+```
+
+**同步时机**：
+1. 每次调用 `askDeepSeek()` 前，从 AppearanceManager 获取当前状态
+2. 将状态追加到系统提示词
+3. AI回复时根据当前状态生成符合情境的内容
 
 ---
 

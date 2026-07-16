@@ -136,6 +136,48 @@
 | | `QString getApiKey() const` | 获取API Key |
 | | `void setApiKey(const QString& apiKey)` | 设置API Key |
 
+### TimeManager（规划中 · v0.3.0）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **职责** | 时间监控与服装自动切换 | - |
+| **时间段** | 白天(6:00-18:00)校服 / 夜晚(18:00-6:00)睡衣 | - |
+| **函数签名** | `void start()` | 启动时间监控 |
+| | `QString getCurrentTimePeriod()` | 获取当前时间段 |
+| | `void checkTime()` | 检查时间并触发切换 |
+| **信号** | `void timePeriodChanged(const QString& period)` | 时间段变化 |
+| | `void clothingAutoChanged(const QString& clothing)` | 服装自动切换 |
+
+### SettingsWidget（规划中 · v0.3.0）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **职责** | 设置界面，管理所有配置项 | - |
+| **权限** | 高于右键菜单，包含所有功能 | - |
+| **配置项** | API配置、TTS配置、外观配置、时间配置、快捷键配置、记忆配置 | - |
+| **函数签名** | `void loadSettings()` | 从配置文件加载 |
+| | `void saveSettings()` | 保存到配置文件 |
+| | `void applySettings()` | 应用到各模块 |
+
+### ShortcutManager（规划中 · v0.3.0）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **职责** | 全局快捷键管理 | - |
+| **实现** | QShortcut绑定全局快捷键 | - |
+| **默认快捷键** | Ctrl+Shift+C(聊天)、Ctrl+Shift+S(设置)、Ctrl+Shift+H(历史) | - |
+| **函数签名** | `void registerShortcut(const QString& key, QObject* receiver, const char* method)` | 注册快捷键 |
+| | `void updateShortcuts()` | 根据配置更新 |
+
+### AI状态同步机制（方案C · 规划中 · v0.3.0）
+
+| 特性 | 说明 |
+|------|------|
+| **策略** | 本地切换后，下轮对话时将状态追加到系统提示词 |
+| **状态内容** | 服装、心情、距离、脸红、时间 |
+| **同步时机** | 每次调用askDeepSeek()前 |
+| **优势** | 不额外消耗token，AI自动感知状态变化 |
+
 ### SentenceText
 
 ```cpp
