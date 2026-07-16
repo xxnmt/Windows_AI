@@ -146,8 +146,3 @@ bool AnchorManager::eventFilter(QObject* watched, QEvent* event)
     }
     return QObject::eventFilter(watched, event);
 }
-
-void AnchorManager::onCharacterChanged()
-{
-    updateAllAnchors();
-}

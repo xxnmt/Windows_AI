@@ -6,6 +6,7 @@
 #include "ttsservice.h"
 #include "chatwidget.h"
 #include "anchormanager.h"
+#include "configmanager.h"
 #include <QDebug>
 
 AppController::AppController(QObject *parent)
@@ -13,16 +14,13 @@ AppController::AppController(QObject *parent)
 {
     m_character = new CharacterWidget;
     m_bubble = new BubbleWidget;
-    m_llmService = new LLMService;
+    m_llmService = new LLMService(ConfigManager::instance().getApiKey());
     m_appearance = new AppearanceManager;
     m_ttsService = new TTSService;
     m_chatWidget = new ChatWidget;
 
     m_anchorManager = new AnchorManager(m_character, this);
 
-    //绑定主人 ~ ❤  (已取消，由位置管理器管理)
-    // m_bubble->attachTo(m_character,[this](){ return m_character->getBubbleAnchorPos();});
-    // m_chatWidget->attachTo(m_character,[this](){ return m_character->getBubbleAnchorPos();});
     m_anchorManager->registerWidget(m_bubble, AnchorConfig{AnchorPosition::HeadRight});
 
     m_anchorManager->registerWidget(m_chatWidget, AnchorConfig{AnchorPosition::WaistCenter, QPoint(0, 20)});

@@ -93,7 +93,9 @@
 | 类型 | 名称 | 说明 |
 |------|------|------|
 | **私有变量** | `m_networkManager` | QNetworkAccessManager*，网络请求管理器 |
-| **函数签名** | `void askDeepSeek(const QString& userInput)` | 发起DeepSeek请求（系统指令含多标签协议） |
+| | `m_apiKey` | QString，API Key（构造函数注入） |
+| **函数签名** | `LLMService(const QString& apiKey, QObject* parent)` | 构造函数，接收API Key参数 |
+| | `void askDeepSeek(const QString& userInput)` | 发起DeepSeek请求（系统指令含多标签协议） |
 | | `void onReplyFinished(QNetworkReply* reply)` | 解析回复，拆分为多句SentenceText |
 | **信号** | `void sentenceReady(const QList<SentenceText>& sentence)` | 句子解析完成 |
 | | `void internetErrorSignal(const QString& errorMessage)` | 网络错误 |
@@ -313,6 +315,7 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-07-16 | 修复 LLMService 构造函数中 API Key 未赋值问题（m_apiKey = apiKey） |
 | 2026-07-16 | 修复气泡首次显示位置未初始化问题（新增 bubbleShown 信号） |
 | 2026-07-16 | 修复立绘切换时位置未更新问题（连接 characterPathChanged 到 updateAllAnchors） |
 | 2026-07-16 | 移除 BubbleWidget/ChatWidget 中重复的位置跟随逻辑（attachTo/eventFilter/updatePosition） |

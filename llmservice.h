@@ -11,7 +11,7 @@ class LLMService : public QObject
 {
     Q_OBJECT
 public:
-    explicit LLMService(QObject *parent = nullptr);
+    explicit LLMService(const QString& apiKey, QObject *parent = nullptr);
 
     void askDeepSeek(const QString& userInput);
 
@@ -26,6 +26,7 @@ private slots:
     void onReplyFinished(QNetworkReply* reply);
 private:
     QNetworkAccessManager* m_networkManager;
+    QString m_apiKey; 
 };
 
 #endif // LLMSERVICE_H

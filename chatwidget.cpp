@@ -1,6 +1,5 @@
 #include "chatwidget.h"
 #include <QVBoxLayout>
-#include <QVBoxLayout>
 
 ChatWidget::ChatWidget(QWidget *parent)
     : QWidget{parent}

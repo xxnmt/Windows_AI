@@ -513,7 +513,7 @@ image/
 
 | 编号 | 问题 | 位置 | 说明 | 建议 | 状态 |
 |------|------|------|------|------|------|
-| IC-001 | 服务定位器反模式 | llmservice.cpp | LLMService 直接调用 `ConfigManager::instance()` 获取API Key，隐式依赖单例 | 改为构造函数注入apiKey参数 | ❌ 待修复 |
+| IC-001 | 服务定位器反模式 | llmservice.cpp | LLMService 直接调用 `ConfigManager::instance()` 获取API Key，隐式依赖单例 | 改为构造函数注入apiKey参数 | ✅ 已修复（LLMService构造函数接收apiKey参数） |
 | IC-002 | 上帝控制器 | appcontroller.cpp | AppController 持有全部8个模块实例，建立全部信号连接 | 短期可接受；长期考虑按功能域拆分子控制器 | ⚠️ 可接受 |
 | IC-003 | TTS服务感知UI关注点 | ttsservice.h | `playAudioAction(zhText, tags)` 同时传递了气泡文本和立绘标签，TTS不应关心appearance | TTS信号只通知"音频就绪"，UI更新由AppController基于SentenceText自行决策 | ❌ 待修复 |
 | IC-004 | 控制器直接操作UI | appcontroller.cpp `handleSystemError()` | 控制器直接调 `m_bubble->showMessage()` 和 `m_appearance->applyTags()`，混入UI逻辑 | 错误应通过信号通知，由专门的UI协调层处理 | ❌ 待修复 |

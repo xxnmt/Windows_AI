@@ -21,7 +21,6 @@ public:
     void unregisterWidget(QWidget* widget);
     void updateAllAnchors();
 
-    void onCharacterChanged();
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 

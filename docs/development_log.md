@@ -72,6 +72,8 @@
   - 修复立绘切换时位置未更新问题（characterPathChanged信号连接）
   - 移除 BubbleWidget/ChatWidget 中重复的位置跟随逻辑
   - 实现 HeadRight 锚点策略
+  - 修复 LLMService 构造函数中 API Key 未赋值问题（m_apiKey = apiKey）
+  - 修复 IC-001 服务定位器反模式（LLMService改为构造函数注入apiKey）
 
 ---
 

@@ -1,6 +1,4 @@
 #include "llmservice.h"
-// 引入配置中心获取 Key
-#include "configmanager.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -8,13 +6,13 @@
 #include <QRegularExpressionMatch>
 #include <QDebug>
 
-LLMService::LLMService(QObject *parent):QObject{parent}
+
+LLMService::LLMService(const QString &apiKey, QObject *parent)
 {
     m_networkManager = new QNetworkAccessManager(this);
-
-    connect(m_networkManager,&QNetworkAccessManager::finished,this,&LLMService::onReplyFinished);
-    //注册元数据
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &LLMService::onReplyFinished);
     qRegisterMetaType<QList<SentenceText>>("QList<SentenceText>");
+    m_apiKey=apiKey;
 }
 
 void LLMService::askDeepSeek(const QString &userInput)
@@ -24,7 +22,7 @@ void LLMService::askDeepSeek(const QString &userInput)
 
     request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
     //define YOUR_API_KEY into AI api key
-    QString aotuHeader="Bearer "+ConfigManager::instance().getApiKey();
+    QString aotuHeader="Bearer "+m_apiKey;
     request.setRawHeader("Authorization",aotuHeader.toUtf8());
 
 
