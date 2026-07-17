@@ -1,8 +1,8 @@
 # 架构设计文档
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.1
-> 更新日期：2026-07-16
+> 版本：v0.2.2
+> 更新日期：2026-07-17
 
 ---
 
@@ -310,12 +310,30 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 
 ### 2.8 ConfigManager
 
-**职责**：全局配置管理（单例）
+**职责**：全局配置管理（单例），支持配置文件持久化
 
 **设计要点**：
 - Meyers单例，线程安全
 - 删除拷贝构造和赋值操作
-- 当前仅管理API Key（硬编码，待持久化）
+- 配置文件路径：`app_data/config/setting.json`（应用程序目录下）
+- 首次启动自动创建配置文件，使用默认值
+- JSON结构：`{ "api": { "deepseek_api_key": "...", "gpt_sovits_url": "..." } }`
+
+**配置项**：
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| deepseek_api_key | `sk-placeholder-key` | DeepSeek API密钥 |
+| gpt_sovits_url | `http://127.0.0.1:9880` | GPT-SoVITS服务地址 |
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `loadSetting()` | 从JSON文件加载配置 | - | bool |
+| `saveSetting()` | 保存配置到JSON文件 | - | bool |
+| `getApiKey()` | 获取API Key | - | QString |
+| `setApiKey()` | 设置API Key | QString | - |
+| `getTTSUrl()` | 获取TTS服务地址 | - | QString |
+| `setTTSUrl()` | 设置TTS服务地址 | QString | - |
 
 ---
 
@@ -720,7 +738,7 @@ image/
 | 优先级 | 项目 | 描述 | 当前状态 |
 |--------|------|------|----------|
 | 高 | TTS真实接入 | 接入GPT-SoVITS推理引擎 | 模拟实现 |
-| 高 | 配置持久化 | API Key等配置保存到文件 | 硬编码 |
+| 高 | 配置持久化 | API Key等配置保存到文件 | ✅ 已实现（JSON文件） |
 | 高 | 设置界面 | 右键菜单"设置"入口已预留但无实现 | 预留入口 |
 | 高 | 对话历史 | 当前每轮无状态，AI无记忆 | 未实现 |
 | 中 | 系统提示词外部化 | 1000+字符prompt硬编码在源码中 | 待外部化 |

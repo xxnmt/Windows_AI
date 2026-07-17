@@ -1,8 +1,8 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-16
-> 版本：v0.2.1
+> 日期：2026-07-17
+> 版本：v0.2.2
 > 状态：开发中
 
 ---
@@ -130,11 +130,19 @@
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| **模式** | 单例模式 | - |
+| **模式** | Meyers单例（线程安全） | - |
 | **私有变量** | `m_apiKey` | QString，DeepSeek API Key |
+| | `m_ttsUrl` | QString，GPT-SoVITS服务地址 |
+| | `m_configFilePath` | QString，配置文件路径 |
 | **函数签名** | `static ConfigManager& instance()` | 获取单例 |
 | | `QString getApiKey() const` | 获取API Key |
 | | `void setApiKey(const QString& apiKey)` | 设置API Key |
+| | `QString getTTSUrl() const` | 获取TTS服务地址 |
+| | `void setTTSUrl(const QString& ttsUrl)` | 设置TTS服务地址 |
+| | `bool loadSetting()` | 从JSON文件加载配置 |
+| | `bool saveSetting()` | 保存配置到JSON文件 |
+
+> ✅ 配置文件持久化已实现：首次启动创建 `app_data/config/setting.json`，包含API Key和TTS服务地址，默认值分别为 `sk-placeholder-key` 和 `http://127.0.0.1:9880`。
 
 ### TimeManager（规划中 · v0.3.0）
 
@@ -258,15 +266,15 @@ struct SentenceText {
 | 位置 | 说明 |
 |------|------|
 | TTSService | TTS为模拟实现（QTimer），未接入真实语音合成引擎 |
-| ConfigManager::ConfigManager() | API Key硬编码，未从文件/环境加载 |
 | settingsRequested信号 | 右键菜单"设置"入口已预留但无处理槽函数 |
 
 ### 待开发功能
 
 - [ ] 真实TTS引擎接入（GPT-SoVITS）
 - [ ] 设置界面（API Key配置、音量、速度等）
-- [ ] 配置文件持久化
+- [x] 配置文件持久化 ✅ 已实现（JSON文件）
 - [ ] 对话历史（短期记忆+长期记忆）
+- [ ] 系统提示词外部化
 - [ ] 立绘切换过渡动画
 
 ### 已知代码问题
@@ -276,6 +284,7 @@ struct SentenceText {
 | chatwidget.cpp | 代码已清理，无重复include |
 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 |
 | appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） |
+| llmservice.cpp | 系统提示词硬编码在源码中（1000+字符）
 
 ---
 
@@ -357,6 +366,7 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-07-17 | ConfigManager实现配置文件持久化（app_data/config/setting.json），支持API Key和TTS服务地址的读写 |
 | 2026-07-16 | 修复 LLMService 构造函数中 API Key 未赋值问题（m_apiKey = apiKey） |
 | 2026-07-16 | 修复气泡首次显示位置未初始化问题（新增 bubbleShown 信号） |
 | 2026-07-16 | 修复立绘切换时位置未更新问题（连接 characterPathChanged 到 updateAllAnchors） |

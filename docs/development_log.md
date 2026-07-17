@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-07-16
+> 最后更新：2026-07-17
 
 ---
 
@@ -75,20 +75,29 @@
   - 修复 LLMService 构造函数中 API Key 未赋值问题（m_apiKey = apiKey）
   - 修复 IC-001 服务定位器反模式（LLMService改为构造函数注入apiKey）
 
+### M8: 配置文件持久化
+- 日期：2026-07-17
+- 内容：
+  - ConfigManager实现配置文件读写（JSON格式）
+  - 配置文件路径：`app_data/config/setting.json`
+  - 支持API Key和GPT-SoVITS服务地址的持久化
+  - 首次启动自动创建配置文件，使用默认值
+
 ---
 
 ## 技术债务
 
 | 编号 | 描述 | 状态 | 优先级 | 引入版本 |
 |------|------|------|--------|----------|
-| TD-001 | API Key硬编码在ConfigManager构造函数中 | 待修复 | 高 | v0.1.0 |
-| TD-002 | 立绘路径硬编码（已部分解决，AppearanceManager统一生成） | 进行中 | 高 | v0.1.0 |
+| TD-001 | API Key硬编码在ConfigManager构造函数中 | ✅ 已修复（配置文件持久化） | 高 | v0.1.0 |
+| TD-002 | 立绘路径硬编码（已部分解决，AppearanceManager统一生成） | 已解决 | 高 | v0.1.0 |
 | TD-003 | BubbleWidget位置计算硬编码（已解决，attachTo解耦） | 已解决 | 中 | v0.1.0 |
 | TD-004 | 立绘切换功能未实现（已实现，AppearanceManager） | 已解决 | 高 | v0.1.0 |
 | TD-005 | TTS为模拟实现，未接入真实引擎 | 待修复 | 高 | v0.2.0 |
 | TD-006 | 用户输入入口缺失（硬编码测试文本） | 待修复 | 高 | v0.2.0 |
 | TD-007 | characterwidget.cpp大量注释代码残留 | 待清理 | 中 | v0.2.0 |
 | TD-008 | appcontroller.cpp重复include头文件 | 待修复 | 低 | v0.2.0 |
+| TD-009 | 系统提示词硬编码在LLMService源码中 | 待外部化 | 中 | v0.2.0 |
 
 ---
 
@@ -99,6 +108,8 @@
 | v0.1.0 | 单体式 | CharacterWidget（大而全） | LLM/Bubble/Image全部内嵌 |
 | v0.1.5 | 初步解耦 | CharacterWidget + LLMService | 网络层抽离，信号槽通信 |
 | v0.2.0 | 中央控制器 | AppController + 6个独立模块 | 中枢调度，模块独立，多标签协议 |
+| v0.2.1 | 位置锚点系统 | AnchorManager + ChatWidget | 统一位置跟随，聊天输入窗口 |
+| v0.2.2 | 配置持久化 | ConfigManager（JSON文件） | API Key/TTS地址持久化，首次启动自动创建配置 |
 
 ---
 
@@ -116,6 +127,7 @@
 | 2026-07-16 | 立绘切换时位置未更新 | 连接characterPathChanged到updateAllAnchors | v0.2.1 |
 | 2026-07-16 | 位置跟随逻辑重复 | 移除BubbleWidget/ChatWidget的attachTo/eventFilter/updatePosition | v0.2.1 |
 | 2026-07-16 | HeadRight锚点未实现 | 在calculatePosition中补全HeadRight分支 | v0.2.1 |
+| 2026-07-17 | API Key硬编码 | ConfigManager实现JSON配置文件读写，支持API Key和TTS服务地址持久化 | v0.2.2 |
 
 ---
 
