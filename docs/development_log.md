@@ -96,7 +96,7 @@
 
 | 阶段 | 架构模式 | 核心模块 | 特点 |
 |------|----------|----------|------|
-| v0.1.0 | 单体式 | CharacterWidget（大而全 | LLM/Bubble/Image全部内嵌 |
+| v0.1.0 | 单体式 | CharacterWidget（大而全） | LLM/Bubble/Image全部内嵌 |
 | v0.1.5 | 初步解耦 | CharacterWidget + LLMService | 网络层抽离，信号槽通信 |
 | v0.2.0 | 中央控制器 | AppController + 6个独立模块 | 中枢调度，模块独立，多标签协议 |
 

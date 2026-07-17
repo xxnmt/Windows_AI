@@ -144,7 +144,8 @@ connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::ha
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
 | `userChat(input)` | 用户发起聊天时 | QString input |
-| `characterMoved()` | 窗口位置变化时 | - |
+| `chatRequested()` | 用户请求聊天（右键菜单） | - |
+| `settingsRequested()` | 用户请求设置（右键菜单） | - |
 
 ---
 
@@ -661,7 +662,7 @@ image/
 | **生产者-消费者** | TTSService（合成队列→播放队列） | TTS流水线解耦 |
 | **策略模式** | AppearanceManager（四维组合） | 立绘路径动态生成 |
 | **状态管理** | AppearanceManager | 角色外观状态机 |
-| **事件过滤器** | BubbleWidget::eventFilter | 气泡位置跟随 |
+| **事件过滤器** | AnchorManager::eventFilter | 统一位置跟随 |
 
 ---
 
@@ -750,7 +751,7 @@ AppController
     └── ConfigManager（单例配置）
 
 AnchorManager 管理：
-    ├── BubbleWidget → TopCenter 位置
+    ├── BubbleWidget → HeadRight 位置
     └── ChatWidget → WaistCenter 位置
 ```
 

@@ -34,3 +34,12 @@ moc_predefs.h
 ui_*.h
 qrc_*.cpp
 Windows_AI_autogen/
+
+# 应用数据目录（运行时生成，包含敏感信息）
+app_data/
+!app_data/config/prompt.txt
+!app_data/config/.gitkeep
+!app_data/memory/.gitkeep
+
+# 配置文件（包含 API Key 等敏感信息）
+*.settings

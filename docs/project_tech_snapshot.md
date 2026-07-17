@@ -97,7 +97,7 @@
 | **函数签名** | `LLMService(const QString& apiKey, QObject* parent)` | 构造函数，接收API Key参数 |
 | | `void askDeepSeek(const QString& userInput)` | 发起DeepSeek请求（系统指令含多标签协议） |
 | | `void onReplyFinished(QNetworkReply* reply)` | 解析回复，拆分为多句SentenceText |
-| **信号** | `void sentenceReady(const QList<SentenceText>& sentence)` | 句子解析完成 |
+| **信号** | `void sentenceReady(const QList<SentenceText>& sentences)` | 句子解析完成 |
 | | `void internetErrorSignal(const QString& errorMessage)` | 网络错误 |
 
 ### TTSService
@@ -273,7 +273,7 @@ struct SentenceText {
 
 | 位置 | 问题描述 |
 |------|----------|
-| chatwidget.cpp | `#include <QVBoxLayout>` 出现两次 |
+| chatwidget.cpp | 代码已清理，无重复include |
 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 |
 | appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） |
 
