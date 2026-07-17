@@ -16,6 +16,12 @@ public:
     QString getPath()const;
     void setDefault();
 
+    QString getCurrentStateDescription() const;
+    QString getDistance() const;
+    QString getClothing() const;
+    QString getBlush() const;
+    QString getEmotion() const;
+
 signals:
     void characterPathChanged(const QString &newPath);
 private:

@@ -111,6 +111,16 @@ void ConfigManager::setTTSUrl(const QString &ttsUrl)
     m_ttsUrl=ttsUrl;
 }
 
+QString ConfigManager::getConfigDirPath() const
+{
+    return m_configDirPath;
+}
+
+QString ConfigManager::getConfigFilePath() const
+{
+    return m_configFilePath;
+}
+
 ConfigManager::ConfigManager() {
     initAppDataPath();
     loadSetting();

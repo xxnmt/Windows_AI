@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 日期：2026-07-17
-> 版本：v0.2.2
+> 版本：v0.2.3
 > 状态：开发中
 
 ---
@@ -86,6 +86,11 @@
 | **函数签名** | `void applyTags(const QMap<QString,QString>& tags)` | 应用标签，触发换图 |
 | | `QString getPath() const` | 生成资源路径 |
 | | `void setDefault()` | 重置为默认状态 |
+| | `QString getCurrentStateDescription() const` | 获取当前状态描述字符串（新增） |
+| | `QString getDistance() const` | 获取当前距离（新增） |
+| | `QString getClothing() const` | 获取当前服装（新增） |
+| | `QString getBlush() const` | 获取当前脸红状态（新增） |
+| | `QString getEmotion() const` | 获取当前表情（新增） |
 | **信号** | `void characterPathChanged(const QString& newPath)` | 路径变化信号 |
 
 ### LLMService
@@ -94,11 +99,19 @@
 |------|------|------|
 | **私有变量** | `m_networkManager` | QNetworkAccessManager*，网络请求管理器 |
 | | `m_apiKey` | QString，API Key（构造函数注入） |
-| **函数签名** | `LLMService(const QString& apiKey, QObject* parent)` | 构造函数，接收API Key参数 |
-| | `void askDeepSeek(const QString& userInput)` | 发起DeepSeek请求（系统指令含多标签协议） |
+| | `m_localPromptPath` | QString，提示词文件路径（新增） |
+| | `m_systemPromptCache` | QString，系统提示词缓存（新增） |
+| | `m_stateProvider` | std::function\<QString()\>，状态提供者回调（新增） |
+| **函数签名** | `LLMService(const QString& apiKey, QObject* parent)` | 构造函数，接收API Key参数，初始化提示词文件并加载系统提示词 |
+| | `void askDeepSeek(const QString& userInput)` | 发起DeepSeek请求（系统指令含多标签协议，动态追加状态上下文） |
 | | `void onReplyFinished(QNetworkReply* reply)` | 解析回复，拆分为多句SentenceText |
-| **信号** | `void sentenceReady(const QList<SentenceText>& sentences)` | 句子解析完成 |
+| | `void registerStateProvider(std::function<QString()> provider)` | 注册状态提供者（已实现） |
+| | `void initializePromptFile()` | 初始化提示词文件，首次启动从资源释放默认prompt.txt（已实现） |
+| | `QString loadSystemPrompt()` | 从文件加载系统提示词，失败时回退到资源文件（已实现） |
+| **信号** | `void sentenceReady(const QList<SentenceText>& sentence)` | 句子解析完成（参数名单数，但实际为复数列表） |
 | | `void internetErrorSignal(const QString& errorMessage)` | 网络错误 |
+
+> ⚠️ **已知问题**：`sentenceReady` 信号参数命名为单数 `sentence`，但实际传递的是 `QList<SentenceText>` 复数列表，语义不一致。
 
 ### TTSService
 
@@ -133,16 +146,21 @@
 | **模式** | Meyers单例（线程安全） | - |
 | **私有变量** | `m_apiKey` | QString，DeepSeek API Key |
 | | `m_ttsUrl` | QString，GPT-SoVITS服务地址 |
+| | `m_configDirPath` | QString，配置目录路径（新增） |
 | | `m_configFilePath` | QString，配置文件路径 |
 | **函数签名** | `static ConfigManager& instance()` | 获取单例 |
 | | `QString getApiKey() const` | 获取API Key |
 | | `void setApiKey(const QString& apiKey)` | 设置API Key |
 | | `QString getTTSUrl() const` | 获取TTS服务地址 |
 | | `void setTTSUrl(const QString& ttsUrl)` | 设置TTS服务地址 |
+| | `QString getConfigDirPath() const` | 获取配置目录路径（新增） |
+| | `QString getConfigFilePath() const` | 获取配置文件路径（新增） |
 | | `bool loadSetting()` | 从JSON文件加载配置 |
 | | `bool saveSetting()` | 保存配置到JSON文件 |
 
 > ✅ 配置文件持久化已实现：首次启动创建 `app_data/config/setting.json`，包含API Key和TTS服务地址，默认值分别为 `sk-placeholder-key` 和 `http://127.0.0.1:9880`。
+> 
+> ⚠️ **已知问题**：`setTTSUrl` 参数名拼写错误为 `attsUrl`（应为 `ttsUrl`），但实际功能正常。
 
 ### TimeManager（规划中 · v0.3.0）
 
@@ -177,14 +195,16 @@
 | **函数签名** | `void registerShortcut(const QString& key, QObject* receiver, const char* method)` | 注册快捷键 |
 | | `void updateShortcuts()` | 根据配置更新 |
 
-### AI状态同步机制（方案C · 规划中 · v0.3.0）
+### AI状态同步机制（方案C · 已实现）
 
 | 特性 | 说明 |
 |------|------|
 | **策略** | 本地切换后，下轮对话时将状态追加到系统提示词 |
 | **状态内容** | 服装、心情、距离、脸红、时间 |
-| **同步时机** | 每次调用askDeepSeek()前 |
+| **同步时机** | 每次调用askDeepSeek()前，动态获取并追加 |
 | **优势** | 不额外消耗token，AI自动感知状态变化 |
+| **实现方式** | 通过 `registerStateProvider()` 注册回调，`askDeepSeek()` 中调用获取当前状态 |
+| **状态描述格式** | 距离/服装/脸红状态/当前表情（四维状态） |
 
 ### SentenceText
 
@@ -274,7 +294,8 @@ struct SentenceText {
 - [ ] 设置界面（API Key配置、音量、速度等）
 - [x] 配置文件持久化 ✅ 已实现（JSON文件）
 - [ ] 对话历史（短期记忆+长期记忆）
-- [ ] 系统提示词外部化
+- [x] 系统提示词外部化 ✅ 已实现（prompt.txt文件，首次启动自动释放）
+- [x] AI状态同步机制（方案C）✅ 已实现（状态提供者模式，动态追加到提示词）
 - [ ] 立绘切换过渡动画
 
 ### 已知代码问题
@@ -284,7 +305,9 @@ struct SentenceText {
 | chatwidget.cpp | 代码已清理，无重复include |
 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 |
 | appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） |
-| llmservice.cpp | 系统提示词硬编码在源码中（1000+字符）
+| llmservice.h | `sentenceReady` 信号参数命名为单数 `sentence`，实际传递复数列表 |
+| configmanager.h | `setTTSUrl` 参数名拼写错误为 `attsUrl`（应为 `ttsUrl`） |
+| appearancemanager.cpp | `getCurrentStateDescription()` 返回字符串格式错误（`"当前表情:%"` 应为 `"当前表情:%1"`） |
 
 ---
 
@@ -367,6 +390,10 @@ Windows_AI/
 | 日期 | 变更内容 |
 |------|----------|
 | 2026-07-17 | ConfigManager实现配置文件持久化（app_data/config/setting.json），支持API Key和TTS服务地址的读写 |
+| 2026-07-17 | LLMService实现提示词外部化（prompt.txt），首次启动自动释放默认提示词 |
+| 2026-07-17 | LLMService实现AI状态同步机制（方案C），动态追加当前状态到系统提示词 |
+| 2026-07-17 | AppearanceManager新增状态描述方法（getCurrentStateDescription等），供AI状态同步使用 |
+| 2026-07-17 | 修复DeepSeek API请求格式错误（系统提示词包装为对象而非字符串） |
 | 2026-07-16 | 修复 LLMService 构造函数中 API Key 未赋值问题（m_apiKey = apiKey） |
 | 2026-07-16 | 修复气泡首次显示位置未初始化问题（新增 bubbleShown 信号） |
 | 2026-07-16 | 修复立绘切换时位置未更新问题（连接 characterPathChanged 到 updateAllAnchors） |

@@ -1,7 +1,7 @@
 # 架构设计文档
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.2
+> 版本：v0.2.3
 > 更新日期：2026-07-17
 
 ---
@@ -181,12 +181,17 @@ connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::ha
 - 系统指令包含完整的多标签协议
 - 将回复拆分为多句 SentenceText
 - 每句独立解析 emotion/blush/distance/clothing/ja 标签
+- **状态提供者模式**：通过 `registerStateProvider()` 注册回调，实现AI状态同步（方案C · 已实现）
+- **提示词外部化**：`initializePromptFile()` 和 `loadSystemPrompt()` 已实现，首次启动自动释放默认提示词
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `askDeepSeek()` | 发起DeepSeek API请求 | QString userInput | - |
+| `askDeepSeek()` | 发起DeepSeek API请求，动态追加状态上下文 | QString userInput | - |
 | `onReplyFinished()` | 解析JSON→拆句→提取标签→发信号 | QNetworkReply* | - |
+| `registerStateProvider()` | 注册状态提供者回调 | std::function\<QString()\> | - |
+| `initializePromptFile()` | 初始化提示词文件，首次启动从资源释放默认prompt.txt | - | - |
+| `loadSystemPrompt()` | 从文件加载系统提示词，失败时回退到资源文件 | - | QString |
 
 **多标签协议系统指令（核心）**：
 ```
@@ -214,8 +219,17 @@ QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
 **信号**：
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
-| `sentenceReady(sentences)` | 回复解析完成 | QList\<SentenceText\> |
+| `sentenceReady(sentence)` | 回复解析完成（参数名单数，但实际传递复数列表） | QList\<SentenceText\> |
 | `internetErrorSignal(msg)` | 网络错误 | QString |
+
+**AI状态同步机制（方案C · 已实现）**：
+- 通过 `registerStateProvider()` 注册 AppearanceManager 的状态描述回调
+- 每次调用 `askDeepSeek()` 前，动态获取当前状态并追加到系统提示词
+- 状态包含：距离、服装、脸红状态、当前表情 + 系统时间
+- 无需额外token消耗，AI自动感知状态变化
+- AppController中注册：`m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStateDescription();})`
+
+> ⚠️ **已知问题**：`sentenceReady` 信号参数命名为单数 `sentence`，语义与实际类型 `QList<SentenceText>` 不一致。
 
 ---
 
@@ -260,6 +274,7 @@ LLM回复 → [TTS合成队列] → (合成中) → [播放队列] → (播放�
 - blush 有退热机制（未显式指定时自动 unblushing）
 - 路径变化时才发出 `characterPathChanged` 信号（防抖）
 - 路径格式与资源目录结构严格对应
+- **状态描述输出**：提供 `getCurrentStateDescription()` 用于AI状态同步
 
 **状态机**：
 ```
@@ -281,11 +296,18 @@ LLM回复 → [TTS合成队列] → (合成中) → [播放队列] → (播放�
 | `getPath()` | 生成当前资源路径 | - | QString |
 | `setDefault()` | 重置为默认状态 | - | - |
 | `checkPathAndUpdate()` | 路径变化检查+发信号（防抖） | - | - |
+| `getCurrentStateDescription()` | 获取当前状态描述字符串（用于AI状态同步） | - | QString |
+| `getDistance()` | 获取当前距离 | - | QString |
+| `getClothing()` | 获取当前服装 | - | QString |
+| `getBlush()` | 获取当前脸红状态 | - | QString |
+| `getEmotion()` | 获取当前表情 | - | QString |
 
 **信号**：
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
 | `characterPathChanged(newPath)` | 立绘路径变化时 | QString |
+
+> ⚠️ **已知问题**：`getCurrentStateDescription()` 返回字符串格式错误，`"当前表情:%"` 少一个 `%` 占位符，应为 `"当前表情:%1"`。
 
 ---
 
@@ -318,6 +340,7 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 - 配置文件路径：`app_data/config/setting.json`（应用程序目录下）
 - 首次启动自动创建配置文件，使用默认值
 - JSON结构：`{ "api": { "deepseek_api_key": "...", "gpt_sovits_url": "..." } }`
+- **配置目录管理**：自动创建 `app_data/config/` 目录
 
 **配置项**：
 | 配置项 | 默认值 | 说明 |
@@ -334,6 +357,10 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 | `setApiKey()` | 设置API Key | QString | - |
 | `getTTSUrl()` | 获取TTS服务地址 | - | QString |
 | `setTTSUrl()` | 设置TTS服务地址 | QString | - |
+| `getConfigDirPath()` | 获取配置目录路径 | - | QString |
+| `getConfigFilePath()` | 获取配置文件路径 | - | QString |
+
+> ⚠️ **已知问题**：`setTTSUrl()` 参数名在头文件中拼写错误为 `attsUrl`（应为 `ttsUrl`），但实际功能正常。
 
 ---
 
@@ -510,7 +537,7 @@ struct TimeConfig {
 
 ---
 
-### 2.14 AI状态同步机制（方案C · 规划中 · v0.3.0）
+### 2.14 AI状态同步机制（方案C · 已实现）
 
 **设计要点**：
 - 本地切换服装/表情后，不立即通知AI
@@ -521,32 +548,35 @@ struct TimeConfig {
 
 ```cpp
 // LLMService中构建系统提示词时动态追加当前状态
-QString LLMService::buildSystemPrompt(const QString& currentState) const
+QString LLMService::askDeepSeek(const QString& userInput)
 {
-    QString prompt = 
-        "你叫千岛茉子，今年7岁，性格乖巧可爱偶尔撒娇，请称呼用户为“欧尼酱”。\n"
-        "【当前状态】\n"
-        + currentState + "\n"
-        "【最高指令：多重标签与逐句切分协议】\n"
-        "...";
-    
-    return prompt;
+    QString finalSystemPrompt = m_systemPromptCache;
+    if (m_stateProvider) {
+        QString currentUiState = m_stateProvider();
+        finalSystemPrompt += QString("\n\n【注意：千岛茉子当前的最新实时状态上下文】\n%1\n当前现实世界系统时间: %2\n...")
+            .arg(currentUiState, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+    }
+    // ... 构建请求并发送
 }
 ```
 
 **状态字符串格式**：
 ```
-服装：schoolUniform
-心情：happyIdle
 距离：far
-脸红：unblushing
-时间：白天
+服装：schoolUniform
+脸红状态：unblushing
+当前表情：happyIdle
 ```
 
 **同步时机**：
 1. 每次调用 `askDeepSeek()` 前，从 AppearanceManager 获取当前状态
 2. 将状态追加到系统提示词
 3. AI回复时根据当前状态生成符合情境的内容
+
+**注册方式**（AppController构造函数）：
+```cpp
+m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStateDescription();});
+```
 
 ---
 
@@ -741,7 +771,8 @@ image/
 | 高 | 配置持久化 | API Key等配置保存到文件 | ✅ 已实现（JSON文件） |
 | 高 | 设置界面 | 右键菜单"设置"入口已预留但无实现 | 预留入口 |
 | 高 | 对话历史 | 当前每轮无状态，AI无记忆 | 未实现 |
-| 中 | 系统提示词外部化 | 1000+字符prompt硬编码在源码中 | 待外部化 |
+| 中 | 系统提示词外部化 | 1000+字符prompt硬编码在源码中 | ✅ 已实现（prompt.txt文件，首次启动自动释放） |
+| 中 | AI状态同步机制 | 本地状态变化同步到AI（方案C） | ✅ 已实现（状态提供者模式，动态追加到提示词） |
 | 中 | 错误重试 | LLM请求失败后自动重试 | 无 |
 | 中 | AnchorManager析构 | 未清理动态分配的AnchorManager（内存泄漏风险） | 待修复 |
 | 低 | 立绘过渡 | 换图时添加淡入淡出动画 | 无 |

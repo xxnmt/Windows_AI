@@ -37,7 +37,7 @@ void AppearanceManager::applyTags(const QMap<QString, QString> &tags)
 QString AppearanceManager::getPath() const
 {
     return QString(":/image/%1/%2/%3/%4.png")
-    .arg(m_distance)
+        .arg(m_distance)
         .arg(m_clothing)
         .arg(m_blush)
         .arg(m_emotion);
@@ -50,6 +50,35 @@ void AppearanceManager::setDefault()
     m_blush    = "unblushing";
     m_emotion  = "happyIdle";
     m_lastPath = getPath();
+}
+
+QString AppearanceManager::getCurrentStateDescription() const
+{
+    return QString("距离:%1\n服装:%2\n脸红状态:%3\n当前表情:%")
+    .arg(m_distance)
+        .arg(m_clothing)
+        .arg(m_blush)
+        .arg(m_emotion);
+}
+
+QString AppearanceManager::getDistance() const
+{
+    return m_distance;
+}
+
+QString AppearanceManager::getClothing() const
+{
+    return m_clothing;
+}
+
+QString AppearanceManager::getBlush() const
+{
+    return m_blush;
+}
+
+QString AppearanceManager::getEmotion() const
+{
+    return m_emotion;
 }
 
 void AppearanceManager::checkPathAndUpdate()

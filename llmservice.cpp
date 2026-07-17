@@ -1,18 +1,27 @@
 #include "llmservice.h"
+#include "configmanager.h"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 
 
-LLMService::LLMService(const QString &apiKey, QObject *parent)
+LLMService::LLMService(const QString &apiKey,QObject *parent)
 {
     m_networkManager = new QNetworkAccessManager(this);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &LLMService::onReplyFinished);
     qRegisterMetaType<QList<SentenceText>>("QList<SentenceText>");
     m_apiKey=apiKey;
+
+    QString configDirPath=ConfigManager::instance().getConfigDirPath();
+    m_localPromptPath=QDir(configDirPath).filePath("prompt.txt");
+
+    initializePromptFile();
+    m_systemPromptCache=loadSystemPrompt();
 }
 
 void LLMService::askDeepSeek(const QString &userInput)
@@ -25,28 +34,31 @@ void LLMService::askDeepSeek(const QString &userInput)
     QString aotuHeader="Bearer "+m_apiKey;
     request.setRawHeader("Authorization",aotuHeader.toUtf8());
 
+    QString finalSystemPrompt = m_systemPromptCache;
+    if (m_stateProvider) {
+        QString currentUiState = m_stateProvider();
 
-    // 构建 JSON 请求体
+        // 动态附加实时状态上下文
+        finalSystemPrompt += QString(
+                                 "\n\n"
+                                 "【注意：千岛茉子当前的最新实时状态上下文】\n"
+                                 "%1\n"
+                                 "当前现实世界系统时间: %2\n"
+                                 "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
+                                 ).arg(currentUiState, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+    }
+    else{
+        finalSystemPrompt += QString(
+                                 "\n\n"
+                                 "当前现实世界系统时间: %1\n"
+                                 "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
+                                 ).arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+    }
+    qDebug() << "[LLM] 注入大模型的Prompt:\n" << finalSystemPrompt;
+
     QJsonObject systemMessage;
     systemMessage["role"] = "system";
-    systemMessage["content"] =
-        "你叫千岛茉子，简称茉子，今年7岁，性格乖巧可爱偶尔撒娇，请称呼用户为“欧尼酱”。\n"
-        "【最高指令：多重标签与逐句切分协议】\n"
-        "为了配合前端游戏引擎的立绘与语音系统，你的回复必须严格按照“标签+中文文本”的格式输出。\n"
-        "核心规则：如果你要说多句话，必须将回复拆分成单句。**每一句**的绝对开头都必须紧跟一组独立的控制标签，最后才是这一句的中文。中间不要加任何换行符，不要输出除了符合规则之外的任何解释性文字。\n\n"
-        "【标签格式标准】\n"
-        "[emotion:值][blush:值][distance:值][clothing:值][ja:日文翻译] 这里是对应的中文。\n\n"
-        "【可用参数字典】\n"
-        "1. emotion (必填)：happyIdle, happyMore, amazing, loving, caring, sad, conscientious\n"
-        "2. blush (按需填写，害羞或激动时用)：unblushing, blushing\n"
-        "3. distance (按需填写，互动时用)：far, closer\n"
-        "4. clothing (按需填写，默认不变，如果用户摸头脱帽等互动可切换)：pajama, schoolUniform, schoolUniformWithoutCap, schoolUniformWithoutCoat\n"
-        "5. ja (必填)：这句话对应的日文高质量翻译，用于语音合成。\n\n"
-        "【正确输出示例】\n"
-        "用户输入：摸摸头，今天开心吗？\n"
-        "你的输出：\n"
-        "[emotion:happyMore][blush:blushing][clothing:schoolUniformWithoutCap][ja:えへへ、お兄ちゃんになでなでされて、とっても嬉しいです！] 嘿嘿，被欧尼酱摸摸头，茉子超级开心哦！ [emotion:loving][distance:closer][ja:あのね、今日はいっぱい遊んだんだよ。] 跟你说哦，今天茉子玩得可开心啦。"
-        ;
+    systemMessage["content"] = finalSystemPrompt;
 
     QJsonObject userMessage;
     userMessage["role"] = "user";
@@ -65,7 +77,12 @@ void LLMService::askDeepSeek(const QString &userInput)
     QByteArray postData = QJsonDocument(rootObj).toJson();
     m_networkManager->post(request, postData);
 
-    qDebug() << "[LLMService]茉子正在思考......";
+    qDebug() << "[LLM]茉子正在思考......";
+}
+
+void LLMService::registerStateProvider(std::function<QString ()> provider)
+{
+    m_stateProvider=provider;
 }
 
 
@@ -82,23 +99,9 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
             QJsonObject messageObj = choices[0].toObject()["message"].toObject();
             QString replyText = messageObj["content"].toString();
 
-            qDebug()<<"[茉子回复](未处理):"<<replyText;
+            qDebug()<<"[LLM]茉子回复(未处理):"<<replyText;
 
             QList<SentenceText> parsedSentences;
-            // //正则表达式抓取表情包
-            // QRegularExpression regex("\\[(.*?)\\]");
-            // QRegularExpressionMatch match=regex.match(replyText);
-
-            // QString emotion = "idle";
-            // QString cleanText=replyText;
-
-            // //凤梨表情和文本
-            // if(match.hasMatch()){
-            //     emotion=match.captured(1);
-            //     cleanText.remove(match.captured(0));
-            // }
-            // qDebug() << "[提取的表情]:" << emotion;
-            // qDebug() << "[茉子想说的话]:" << cleanText.trimmed();
 
             //正则表达式拆分
             QRegularExpression sentenceRegex("((?:\\[[^\\]]+\\])+)([^\\[]+)");
@@ -144,8 +147,36 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
         }
     }
     else {
-        qDebug()<<"[网络错误]:"<<reply->errorString();
+        qDebug()<<"[LLM]网络错误:"<<reply->errorString();
         emit internetErrorSignal(reply->errorString());
     }
     reply->deleteLater();
+}
+
+void LLMService::initializePromptFile()
+{
+    QFile localFile(m_localPromptPath);
+    if(!localFile.exists()){
+        qDebug()<<"[LLM]:prompt寻找失败，自动创建默认prompt";
+        if (QFile::copy(":/image/default_config/prompt.txt", m_localPromptPath)) {
+            QFile::setPermissions(m_localPromptPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+            qDebug()<<"[LLM]默认prompt成功释放至:"<<m_localPromptPath;
+        }
+        else{
+            qDebug()<<"[LLM]默认prompt释放失败";
+        }
+    }
+}
+
+QString LLMService::loadSystemPrompt()
+{
+    QFile file(m_localPromptPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning()<<"[LLM]无法读取本地prompt，使用内置默认prompt:"<<m_localPromptPath;
+        file.setFileName(":/prompts/system_prompt.txt");
+    }
+    QTextStream in(&file);
+    in.setEncoding(QStringConverter::Utf8);
+    QString content = in.readAll();
+    return content;
 }

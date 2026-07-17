@@ -24,6 +24,9 @@ public:
     QString getTTSUrl() const;
     void setTTSUrl(const QString &attsUrl);
 
+    QString getConfigDirPath()const;
+    QString getConfigFilePath()const;
+
 private:
     ConfigManager();
     ~ConfigManager() = default;

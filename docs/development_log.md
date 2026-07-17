@@ -83,6 +83,16 @@
   - 支持API Key和GPT-SoVITS服务地址的持久化
   - 首次启动自动创建配置文件，使用默认值
 
+### M9: AI状态同步机制 & 提示词外部化（已实现）
+- 日期：2026-07-17
+- 内容：
+  - LLMService实现状态提供者模式：`registerStateProvider()` 回调接口，`askDeepSeek()` 中动态追加状态上下文
+  - LLMService实现提示词外部化：`initializePromptFile()` 首次启动自动释放默认prompt.txt，`loadSystemPrompt()` 从文件加载提示词
+  - AppearanceManager新增状态描述方法：`getCurrentStateDescription()`、`getDistance()`、`getClothing()`、`getBlush()`、`getEmotion()`
+  - AppController连接状态提供者：`m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStateDescription();})`
+  - 资源文件新增默认提示词路径：`image/default_config/prompt.txt`
+  - 修复DeepSeek API请求格式错误：系统提示词包装为对象而非字符串
+
 ---
 
 ## 技术债务
@@ -97,7 +107,7 @@
 | TD-006 | 用户输入入口缺失（硬编码测试文本） | 待修复 | 高 | v0.2.0 |
 | TD-007 | characterwidget.cpp大量注释代码残留 | 待清理 | 中 | v0.2.0 |
 | TD-008 | appcontroller.cpp重复include头文件 | 待修复 | 低 | v0.2.0 |
-| TD-009 | 系统提示词硬编码在LLMService源码中 | 待外部化 | 中 | v0.2.0 |
+| TD-009 | 系统提示词硬编码在LLMService源码中 | ✅ 已修复（提示词外部化，prompt.txt文件） | 中 | v0.2.0 |
 
 ---
 
@@ -110,6 +120,7 @@
 | v0.2.0 | 中央控制器 | AppController + 6个独立模块 | 中枢调度，模块独立，多标签协议 |
 | v0.2.1 | 位置锚点系统 | AnchorManager + ChatWidget | 统一位置跟随，聊天输入窗口 |
 | v0.2.2 | 配置持久化 | ConfigManager（JSON文件） | API Key/TTS地址持久化，首次启动自动创建配置 |
+| v0.2.3 | 状态同步 & 提示词外部化 | LLMService + AppearanceManager | 状态提供者模式（动态追加状态），提示词外部化（prompt.txt），DeepSeek API格式修复 |
 
 ---
 
@@ -128,6 +139,8 @@
 | 2026-07-16 | 位置跟随逻辑重复 | 移除BubbleWidget/ChatWidget的attachTo/eventFilter/updatePosition | v0.2.1 |
 | 2026-07-16 | HeadRight锚点未实现 | 在calculatePosition中补全HeadRight分支 | v0.2.1 |
 | 2026-07-17 | API Key硬编码 | ConfigManager实现JSON配置文件读写，支持API Key和TTS服务地址持久化 | v0.2.2 |
+| 2026-07-17 | AI状态同步机制缺失 | LLMService实现状态提供者模式，AppearanceManager新增状态描述方法，动态追加状态到提示词 | v0.2.3 |
+| 2026-07-17 | 提示词外部化框架缺失 | LLMService实现initializePromptFile()和loadSystemPrompt()，首次启动自动释放默认提示词 | v0.2.3 |
 
 ---
 

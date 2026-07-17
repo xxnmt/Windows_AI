@@ -20,10 +20,12 @@ AppController::AppController(QObject *parent)
     m_chatWidget = new ChatWidget;
 
     m_anchorManager = new AnchorManager(m_character, this);
-
+    //ui绑定
     m_anchorManager->registerWidget(m_bubble, AnchorConfig{AnchorPosition::HeadRight});
 
     m_anchorManager->registerWidget(m_chatWidget, AnchorConfig{AnchorPosition::WaistCenter, QPoint(0, 20)});
+    //业务绑定
+    m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStateDescription();});
 
     initConnections();
 

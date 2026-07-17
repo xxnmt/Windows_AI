@@ -1,5 +1,6 @@
 ﻿<RCC>
-    <qresource prefix="/">        <file>image/closer/pajama/blushing/happyIdle.png</file>
+    <qresource prefix="/">
+        <file>image/closer/pajama/blushing/happyIdle.png</file>
         <file>image/closer/pajama/blushing/happyMore.png</file>
         <file>image/closer/pajama/blushing/amazing.png</file>
         <file>image/closer/pajama/blushing/loving.png</file>
@@ -111,5 +112,6 @@
         <file>image/far/schoolUniformWithoutCoat/unblushing/caring.png</file>
         <file>image/far/schoolUniformWithoutCoat/unblushing/sad.png</file>
         <file>image/far/schoolUniformWithoutCoat/unblushing/conscientious.png</file>
+        <file>image/default_config/prompt.txt</file>
     </qresource>
 </RCC>
