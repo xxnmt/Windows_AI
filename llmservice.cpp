@@ -50,6 +50,7 @@ void LLMService::askDeepSeek(const QString &userInput)
     else{
         finalSystemPrompt += QString(
                                  "\n\n"
+                                 "【注意：千岛茉子当前的最新实时状态上下文】\n"
                                  "当前现实世界系统时间: %1\n"
                                  "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
                                  ).arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
@@ -69,7 +70,7 @@ void LLMService::askDeepSeek(const QString &userInput)
     messagesArray.append(userMessage);
 
     QJsonObject rootObj;
-    rootObj["model"] = "deepseek-chat";
+    rootObj["model"] = "deepseek-v4-flash";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.7;
 
