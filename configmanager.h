@@ -22,7 +22,7 @@ public:
     void setApiKey(const QString &apiKey);\
 
     QString getTTSUrl() const;
-    void setTTSUrl(const QString &attsUrl);
+    void setTTSUrl(const QString &ttsUrl);
 
     QString getConfigDirPath()const;
     QString getConfigFilePath()const;

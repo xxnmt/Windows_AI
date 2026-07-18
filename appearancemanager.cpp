@@ -54,8 +54,8 @@ void AppearanceManager::setDefault()
 
 QString AppearanceManager::getCurrentStateDescription() const
 {
-    return QString("距离:%1\n服装:%2\n脸红状态:%3\n当前表情:%")
-    .arg(m_distance)
+    return QString("距离:%1\n服装:%2\n脸红状态:%3\n当前表情:%4")
+        .arg(m_distance)
         .arg(m_clothing)
         .arg(m_blush)
         .arg(m_emotion);

@@ -19,7 +19,7 @@ public:
     void registerStateProvider(std::function<QString()> provider);
 
 signals:
-    void sentenceReady(const QList<SentenceText> &sentence);
+    void sentenceReady(const QList<SentenceText> &sentences);
 
     void internetErrorSignal(const QString &errorMessage);
 private slots:
