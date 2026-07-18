@@ -44,4 +44,7 @@ app_data/
 # 配置文件（包含 API Key 等敏感信息）
 *.settings
 
+# 文档目录（已移至 docs-only 分支，本地编辑不上传）
+docs/
+
 
