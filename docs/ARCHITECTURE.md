@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.2.3
-> 更新日期：2026-07-17
+> 更新日期：2026-07-18
 
 ---
 
@@ -307,7 +307,7 @@ LLM回复 → [TTS合成队列] → (合成中) → [播放队列] → (播放�
 |------|----------|------|
 | `characterPathChanged(newPath)` | 立绘路径变化时 | QString |
 
-> ⚠️ **已知问题**：`getCurrentStateDescription()` 返回字符串格式错误，`"当前表情:%"` 少一个 `%` 占位符，应为 `"当前表情:%1"`。
+
 
 ---
 
@@ -360,7 +360,7 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 | `getConfigDirPath()` | 获取配置目录路径 | - | QString |
 | `getConfigFilePath()` | 获取配置文件路径 | - | QString |
 
-> ⚠️ **已知问题**：`setTTSUrl()` 参数名在头文件中拼写错误为 `attsUrl`（应为 `ttsUrl`），但实际功能正常。
+
 
 ---
 
@@ -755,8 +755,8 @@ image/
 | RC-002 | 立绘双重加载 | characterwidget.cpp | 构造函数已不再加载图片 | ✅ 已修复 |
 | RC-003 | 重复include | appcontroller.cpp | 已修复 | ✅ 已修复 |
 | RC-004 | 注释代码残留 | characterwidget.cpp | 已清理 | ✅ 已修复 |
-| RC-005 | 重复include | chatwidget.cpp L2-L3 | `#include <QVBoxLayout>` 出现两次 | ❌ 待修复 |
-| RC-006 | 死方法 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 | ❌ 待删除 |
+| RC-005 | 重复include | chatwidget.cpp | `#include <QVBoxLayout>` 出现两次 | ✅ 已修复 |
+| RC-006 | 死方法 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 | ✅ 已删除 |
 | RC-007 | 未使用的接口 | chatwidget.h/cpp | `attachTo()` 方法已存在但未被使用（已改用AnchorManager） | ✅ 已删除 |
 | RC-008 | 未实现的枚举 | anchorstrategy.h | `HeadRight` 枚举值已定义但未在 `calculatePosition()` 中实现 | ✅ 已实现 |
 | RC-009 | 未实现的信号槽 | characterwidget.h | `settingsRequested()` 信号已连接但无处理槽函数 | ❌ 待实现 |
@@ -768,11 +768,8 @@ image/
 | 优先级 | 项目 | 描述 | 当前状态 |
 |--------|------|------|----------|
 | 高 | TTS真实接入 | 接入GPT-SoVITS推理引擎 | 模拟实现 |
-| 高 | 配置持久化 | API Key等配置保存到文件 | ✅ 已实现（JSON文件） |
 | 高 | 设置界面 | 右键菜单"设置"入口已预留但无实现 | 预留入口 |
 | 高 | 对话历史 | 当前每轮无状态，AI无记忆 | 未实现 |
-| 中 | 系统提示词外部化 | 1000+字符prompt硬编码在源码中 | ✅ 已实现（prompt.txt文件，首次启动自动释放） |
-| 中 | AI状态同步机制 | 本地状态变化同步到AI（方案C） | ✅ 已实现（状态提供者模式，动态追加到提示词） |
 | 中 | 错误重试 | LLM请求失败后自动重试 | 无 |
 | 中 | AnchorManager析构 | 未清理动态分配的AnchorManager（内存泄漏风险） | 待修复 |
 | 低 | 立绘过渡 | 换图时添加淡入淡出动画 | 无 |

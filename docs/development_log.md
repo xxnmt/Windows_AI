@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-07-17
+> 最后更新：2026-07-18
 
 ---
 
@@ -93,6 +93,14 @@
   - 资源文件新增默认提示词路径：`image/default_config/prompt.txt`
   - 修复DeepSeek API请求格式错误：系统提示词包装为对象而非字符串
 
+### M10: Git分支管理配置（已实现）
+- 日期：2026-07-18
+- 内容：
+  - 创建 `docs` 分支（代码+文档，本地开发）
+  - `main` 分支移除docs跟踪（仅代码，用于推送GitHub）
+  - 更新 `.gitignore` 和 `.gitattributes` 配置
+  - 清理已修复的技术债务文档标记
+
 ---
 
 ## 技术债务
@@ -100,13 +108,13 @@
 | 编号 | 描述 | 状态 | 优先级 | 引入版本 |
 |------|------|------|--------|----------|
 | TD-001 | API Key硬编码在ConfigManager构造函数中 | ✅ 已修复（配置文件持久化） | 高 | v0.1.0 |
-| TD-002 | 立绘路径硬编码（已部分解决，AppearanceManager统一生成） | 已解决 | 高 | v0.1.0 |
-| TD-003 | BubbleWidget位置计算硬编码（已解决，attachTo解耦） | 已解决 | 中 | v0.1.0 |
-| TD-004 | 立绘切换功能未实现（已实现，AppearanceManager） | 已解决 | 高 | v0.1.0 |
+| TD-002 | 立绘路径硬编码（已部分解决，AppearanceManager统一生成） | ✅ 已解决 | 高 | v0.1.0 |
+| TD-003 | BubbleWidget位置计算硬编码（已解决，attachTo解耦） | ✅ 已解决 | 中 | v0.1.0 |
+| TD-004 | 立绘切换功能未实现（已实现，AppearanceManager） | ✅ 已解决 | 高 | v0.1.0 |
 | TD-005 | TTS为模拟实现，未接入真实引擎 | 待修复 | 高 | v0.2.0 |
 | TD-006 | 用户输入入口缺失（硬编码测试文本） | 待修复 | 高 | v0.2.0 |
-| TD-007 | characterwidget.cpp大量注释代码残留 | 待清理 | 中 | v0.2.0 |
-| TD-008 | appcontroller.cpp重复include头文件 | 待修复 | 低 | v0.2.0 |
+| TD-007 | characterwidget.cpp大量注释代码残留 | ✅ 已清理 | 中 | v0.2.0 |
+| TD-008 | appcontroller.cpp重复include头文件 | ✅ 已修复 | 低 | v0.2.0 |
 | TD-009 | 系统提示词硬编码在LLMService源码中 | ✅ 已修复（提示词外部化，prompt.txt文件） | 中 | v0.2.0 |
 
 ---

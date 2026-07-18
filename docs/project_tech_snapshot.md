@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-17
+> 日期：2026-07-18
 > 版本：v0.2.3
 > 状态：开发中
 
@@ -159,8 +159,6 @@
 | | `bool saveSetting()` | 保存配置到JSON文件 |
 
 > ✅ 配置文件持久化已实现：首次启动创建 `app_data/config/setting.json`，包含API Key和TTS服务地址，默认值分别为 `sk-placeholder-key` 和 `http://127.0.0.1:9880`。
-> 
-> ⚠️ **已知问题**：`setTTSUrl` 参数名拼写错误为 `attsUrl`（应为 `ttsUrl`），但实际功能正常。
 
 ### TimeManager（规划中 · v0.3.0）
 
@@ -297,17 +295,15 @@ struct SentenceText {
 - [x] 系统提示词外部化 ✅ 已实现（prompt.txt文件，首次启动自动释放）
 - [x] AI状态同步机制（方案C）✅ 已实现（状态提供者模式，动态追加到提示词）
 - [ ] 立绘切换过渡动画
+- [ ] 错误重试机制（LLM请求失败自动重试）
+- [ ] AnchorManager内存泄漏修复（析构函数清理）
 
 ### 已知代码问题
 
 | 位置 | 问题描述 |
 |------|----------|
-| chatwidget.cpp | 代码已清理，无重复include |
-| anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 |
 | appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） |
 | llmservice.h | `sentenceReady` 信号参数命名为单数 `sentence`，实际传递复数列表 |
-| configmanager.h | `setTTSUrl` 参数名拼写错误为 `attsUrl`（应为 `ttsUrl`） |
-| appearancemanager.cpp | `getCurrentStateDescription()` 返回字符串格式错误（`"当前表情:%"` 应为 `"当前表情:%1"`） |
 
 ---
 
