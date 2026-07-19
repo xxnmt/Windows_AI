@@ -43,9 +43,7 @@ void AppController::startApp()
 {
     m_character->show();
 
-    qDebug()<<"[user]:你好呀、茉子，今天开心吗？";
-
-    emit m_character->userChat("你好呀、茉子，今天开心吗？");
+    qDebug()<<"[AppController]:我已启动！";
 
 }
 void AppController::handleMakoReply(const QList<SentenceText> &sentences)
@@ -84,7 +82,6 @@ void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString,
 
 void AppController::initConnections()
 {
-    connect(m_character, &CharacterWidget::userChat, m_llmService, &LLMService::askDeepSeek);
     connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
     connect(m_ttsService, &TTSService::playAudioAction, this, &AppController::onPlayAudioAction);
     connect(m_appearance, &AppearanceManager::characterPathChanged, m_character, &CharacterWidget::updatePath);

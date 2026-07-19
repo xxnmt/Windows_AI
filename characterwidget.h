@@ -22,7 +22,6 @@ public:
     QRect getVisibleRect()const;
 
 signals:
-    void userChat( const QString &input);
     void chatRequested();
     void settingsRequested();
 

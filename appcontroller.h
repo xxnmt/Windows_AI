@@ -27,8 +27,6 @@ private slots:
     void handleMakoReply(const QList<SentenceText> &sentences);
     void handleSystemError(const QString &errorMsg);
     void onPlayAudioAction(const QString &zhText, const QMap<QString, QString> &tags);
-    // void onChatRequested();
-
 signals:
 
 private:
