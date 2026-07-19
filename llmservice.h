@@ -18,6 +18,8 @@ public:
 
     void registerStateProvider(std::function<QString()> provider);
 
+    void setApiKey(const QString &apiKey);
+
 signals:
     void sentenceReady(const QList<SentenceText> &sentences);
 

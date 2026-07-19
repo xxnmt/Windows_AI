@@ -86,6 +86,11 @@ void LLMService::registerStateProvider(std::function<QString ()> provider)
     m_stateProvider=provider;
 }
 
+void LLMService::setApiKey(const QString &apiKey)
+{
+    m_apiKey=apiKey;
+}
+
 
 void LLMService::onReplyFinished(QNetworkReply *reply)
 {

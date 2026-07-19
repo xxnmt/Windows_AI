@@ -7,6 +7,7 @@
 #include "chatwidget.h"
 #include "anchormanager.h"
 #include "configmanager.h"
+#include "settingswidget.h"
 #include <QDebug>
 
 AppController::AppController(QObject *parent)
@@ -18,6 +19,7 @@ AppController::AppController(QObject *parent)
     m_appearance = new AppearanceManager;
     m_ttsService = new TTSService;
     m_chatWidget = new ChatWidget;
+    m_settingsWidget = new SettingsWidget;
 
     m_anchorManager = new AnchorManager(m_character, this);
     //ui绑定
@@ -91,4 +93,8 @@ void AppController::initConnections()
     connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
     connect(m_appearance, &AppearanceManager::characterPathChanged,m_anchorManager, &AnchorManager::updateAllAnchors);
     connect(m_bubble, &BubbleWidget::bubbleShown,m_anchorManager, &AnchorManager::updateAllAnchors);
+
+    connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &SettingsWidget::show);
+    connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
+        m_llmService->setApiKey(ConfigManager::instance().getApiKey());});
 }

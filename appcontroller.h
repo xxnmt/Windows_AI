@@ -13,6 +13,7 @@ class AppearanceManager;
 class TTSService;
 class ChatWidget;
 class AnchorManager;
+class SettingsWidget;
 
 class AppController : public QObject
 {
@@ -39,6 +40,7 @@ private:
     TTSService *m_ttsService;
     ChatWidget *m_chatWidget;
     AnchorManager *m_anchorManager;
+    SettingsWidget *m_settingsWidget;
 };
 
 #endif // APPCONTROLLER_H

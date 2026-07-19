@@ -24,6 +24,7 @@ qt_add_executable(Windows_AI
     chatwidget.h chatwidget.cpp
     anchorstrategy.h
     anchormanager.h anchormanager.cpp
+    settingswidget.h settingswidget.cpp settingswidget.ui
 )
 
 target_link_libraries(Windows_AI
