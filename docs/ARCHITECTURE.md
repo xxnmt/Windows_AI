@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.2.3
-> 更新日期：2026-07-18
+> 更新日期：2026-07-19
 
 ---
 
@@ -103,8 +103,8 @@
 
 **信号槽连接清单**（全部在构造函数中建立）：
 ```cpp
-// 用户输入 → LLM请求
-connect(m_character, &CharacterWidget::userChat, m_llmService, &LLMService::askDeepSeek);
+// 用户输入 → LLM请求（通过ChatWidget）
+connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
 
 // LLM回复 → AppController → TTS队列
 connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
@@ -143,7 +143,6 @@ connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::ha
 **信号**：
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
-| `userChat(input)` | 用户发起聊天时 | QString input |
 | `chatRequested()` | 用户请求聊天（右键菜单） | - |
 | `settingsRequested()` | 用户请求设置（右键菜单） | - |
 
@@ -588,7 +587,7 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 1. 用户输入
    │
    ▼
-2. CharacterWidget::userChat(input)  [信号]
+2. CharacterWidget::chatRequested()  [信号] → ChatWidget::popup() → 用户输入 → textSubmitted(input)
    │
    ▼
 3. LLMService::askDeepSeek(input)

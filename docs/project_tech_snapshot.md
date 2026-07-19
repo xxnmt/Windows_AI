@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-18
+> 日期：2026-07-19
 > 版本：v0.2.3
 > 状态：开发中
 
@@ -20,7 +20,7 @@
 | | `m_ttsService` | TTSService*，TTS服务 |
 | | `m_chatWidget` | ChatWidget*，聊天输入窗口（新增） |
 | | `m_anchorManager` | AnchorManager*，位置锚点管理（新增） |
-| **函数签名** | `void startApp()` | 启动应用，显示角色并触发首次对话 |
+| **函数签名** | `void startApp()` | 启动应用，显示角色 |
 | | `void handleMakoReply(const QList<SentenceText>& sentences)` | 处理AI回复，交给TTS队列 |
 | | `void handleSystemError(const QString& errorMsg)` | 统一错误处理 |
 | | `void onPlayAudioAction(const QString& zhText, const QMap<QString,QString>& tags)` | 播放同步：更新气泡+立绘 |
@@ -38,8 +38,7 @@
 | | `QPoint getChatAnchorPos() const` | 获取聊天窗口锚点坐标（新增） |
 | | `QRect getVisibleRect() const` | 获取立绘有效区域（新增，供AnchorManager使用） |
 | | `QRect calculateVisibleRect(const QPixmap& pixmap)` | 计算立绘有效区域 |
-| **信号** | `void userChat(const QString& input)` | 用户发起聊天 |
-| | `void chatRequested()` | 用户请求聊天（右键菜单触发，新增） |
+| **信号** | `void chatRequested()` | 用户请求聊天（右键菜单触发） |
 | | `void settingsRequested()` | 用户请求设置（右键菜单触发，新增） |
 
 ### AnchorManager（新增·位置锚点管理）
@@ -258,7 +257,6 @@ struct SentenceText {
 
 | 发送方 | 信号 | 接收方 | 槽 |
 |--------|------|--------|-----|
-| CharacterWidget | `userChat(input)` | LLMService | `askDeepSeek()` |
 | CharacterWidget | `chatRequested()` | ChatWidget | `popup()` |
 | ChatWidget | `textSubmitted(text)` | LLMService | `askDeepSeek()` |
 | LLMService | `sentenceReady(sentences)` | AppController | `handleMakoReply()` |
