@@ -1,0 +1,318 @@
+# 开发路线图
+
+> 项目：Windows_AI 桌面看板娘（桌宠）
+> 版本：v0.2.3
+> 更新日期：2026-07-19
+
+---
+
+## 项目愿景
+
+打造一款功能完善、交互丰富的桌面看板娘应用，支持AI对话、立绘切换、语音交互、智能助手等核心功能。
+
+---
+
+## 版本规划
+
+### v0.1.0 - 基础版本
+**状态**：✅ 已完成
+
+- [x] 浮动角色窗口（无边框、透明背景、置顶）
+- [x] 鼠标拖拽移动
+- [x] DeepSeek AI对话集成
+- [x] 对话气泡显示
+- [x] 打字机特效
+- [x] 立绘有效区域计算
+
+### v0.2.0 - 架构重构 & 多标签协议
+**状态**：✅ 已完成
+
+- [x] AppController中央控制器
+- [x] AppearanceManager四维状态管理
+- [x] TTSService生产者-消费者框架（模拟实现）
+- [x] SentenceText数据结构
+- [x] LLMService多标签协议解析
+- [x] 多句拆分支持
+- [x] 统一图片命名规范（7种emotion）
+- [x] BubbleWidget解耦（attachTo + eventFilter）
+- [x] 立绘切换系统（emotion/blush/distance/clothing）
+- [x] 脸红自动退热机制
+
+### v0.3.0 - AI资源管理（优先）
+**状态**：🚧 进行中
+
+**功能清单**：
+- [x] 配置文件持久化（app_data/config/settings.json） ✅ 已实现
+  - [x] API Key存储与读取 ✅
+  - [x] GPT-SoVITS服务地址配置 ✅
+  - [ ] TTS参数配置（语速、温度、参考音频）
+- [x] 系统提示词外部化（app_data/config/prompt.txt） ✅ 已实现
+  - [x] 框架预留：LLMService预留 `loadSystemPrompt()` 方法 ✅
+  - [x] 提示词从文件加载 ✅
+  - [x] 支持动态追加当前状态（方案C） ✅
+- [x] AI状态同步机制（方案C：本地切换后在下轮对话同步给AI） ✅ 已实现
+  - [x] 框架预留：LLMService状态提供者模式 ✅
+  - [x] 框架预留：AppearanceManager状态描述方法 ✅
+  - [x] 框架预留：AppController连接状态提供者 ✅
+  - [x] 实际实现：动态构建包含状态的系统提示词 ✅
+- [ ] 设置界面（SettingsWidget）
+  - [ ] API配置页
+  - [ ] 记忆配置页
+- [x] 配置目录结构建立（app_data/config/） ✅ 已实现
+
+**技术任务**：
+- [x] ConfigManager支持从文件加载/保存（JSON格式） ✅ 已实现
+- [x] LLMService状态提供者模式（框架预留） ✅ 已实现
+- [x] AppearanceManager状态描述方法（框架预留） ✅ 已实现
+- [x] LLMService支持动态构建系统提示词 ✅ 已实现
+- [ ] 创建SettingsWidget设置界面
+- [ ] 更新.gitignore规则（配置目录追踪但内容不上传）
+
+**预计时间**：2-3周
+
+### v0.4.0 - AI记忆系统（次优先）
+**状态**：📋 待开始
+
+**功能清单**：
+- [ ] 分层记忆系统
+  - [ ] 短期记忆（最近N轮对话上下文，内存）
+  - [ ] 中期记忆（完整对话历史记录，SQLite）
+  - [ ] 长期记忆（重要事件摘要，跨会话记忆）
+- [ ] 对话历史查看界面
+  - [ ] 历史记录列表
+  - [ ] 单条记录详情
+  - [ ] 删除/导出功能
+- [ ] AI记忆写入与读取
+  - [ ] 每次对话后写入历史
+  - [ ] 对话前读取短期记忆
+  - [ ] 定期生成长期记忆摘要
+
+**技术任务**：
+- [ ] 创建MemoryManager记忆管理器
+- [ ] SQLite数据库设计与实现
+- [ ] 历史记录CRUD界面
+- [ ] LLM摘要生成器（提取关键事件）
+
+**预计时间**：3-4周
+
+### v0.5.0 - TTS模块（第三优先）
+**状态**：📋 待开始
+
+**功能清单**：
+- [ ] 真实TTS引擎接入（GPT-SoVITS v2 API）
+- [ ] TTS配置完善
+  - [ ] 启用开关
+  - [ ] 语速/温度调节
+  - [ ] 参考音频配置
+- [ ] 音频播放（Qt Multimedia）
+- [ ] 设置界面TTS配置页
+
+**技术任务**：
+- [ ] TTSService替换模拟实现为真实TTS调用（POST /tts）
+- [ ] 集成Qt Multimedia音频播放
+- [ ] 参考音频路径配置与管理
+
+**预计时间**：2-3周
+
+### v0.6.0 - 设置界面 & 交互增强
+**状态**：📋 待开始
+
+**功能清单**：
+- [ ] 设置界面完善
+  - [ ] 外观配置（气泡样式、窗口透明度）
+  - [ ] 时间配置（自动服装切换）
+  - [ ] 快捷键配置（全局快捷键）
+- [ ] 时间驱动服装切换（白天校服 / 夜晚睡衣）
+- [ ] 右键菜单扩展（服装/表情快捷切换）
+- [ ] 用户输入界面（托盘菜单）
+
+**技术任务**：
+- [ ] 创建TimeManager时间管理器
+- [ ] 创建ShortcutManager全局快捷键管理
+- [ ] 右键菜单扩展
+- [ ] 系统托盘图标
+
+**预计时间**：2-3周
+
+### v0.7.0 - 智能助手 & 性能优化
+**状态**：📋 待开始
+
+**功能清单**：
+- [ ] 点击交互（不同部位触发不同回应）
+- [ ] 立绘切换过渡动画（淡入淡出）
+- [ ] 立绘资源缓存
+- [ ] TTS音频缓存
+- [ ] 天气查询
+- [ ] 多角色支持
+
+**预计时间**：3-4周
+
+---
+
+## 技术债务清理计划
+
+| 编号 | 债务 | 优先级 | 计划版本 | 状态 |
+|------|------|--------|----------|------|
+| TD-001 | API Key硬编码 | 高 | v0.3.0 | ✅ 已修复（配置文件持久化） |
+| TD-010 | AI状态同步机制未实现（方案C） | 高 | v0.3.0 | ✅ 已实现（状态提供者模式） |
+| TD-011 | 记忆系统未实现 | 高 | v0.4.0 | 待实现 |
+| TD-005 | TTS为模拟实现 | 高 | v0.5.0 | 待修复 |
+| TD-012 | 系统提示词硬编码在LLMService源码中 | 中 | v0.3.0 | ✅ 已实现（prompt.txt文件） |
+| TD-006 | 用户输入入口缺失 | 中 | v0.6.0 | ✅ 已修复（ChatWidget实现） |
+| TD-002 | 立绘路径硬编码（AppearanceManager已部分解决） | 中 | v0.2.0 | ✅ 已解决 |
+| TD-007 | characterwidget大量注释代码残留 | 低 | v0.3.0 | ✅ 已清理 |
+| TD-008 | appcontroller重复include | 低 | v0.3.0 | ✅ 已修复 |
+| TD-003 | BubbleWidget位置计算硬编码 | 中 | v0.2.0 | ✅ 已解决 |
+| TD-004 | 立绘切换功能未实现 | 高 | v0.2.0 | ✅ 已解决 |
+
+---
+
+## 架构演进路线
+
+### 阶段1：单体式（v0.1.0）
+
+```
+CharacterWidget（大而全）
+    ├── LLM逻辑
+    ├── BubbleWidget
+    └── 立绘显示
+```
+
+### 阶段2：初步解耦（v0.1.5）
+
+```
+CharacterWidget
+    ├── BubbleWidget
+    └── LLMService（信号槽）
+```
+
+### 阶段3：中央控制器（v0.2.0）
+
+```
+AppController（信号调度中枢）
+    ├── CharacterWidget
+    ├── BubbleWidget
+    ├── LLMService
+    ├── TTSService
+    ├── AppearanceManager
+    └── ConfigManager
+```
+
+### 阶段4：位置锚点系统（v0.2.1）
+
+```
+AppController（信号调度中枢）
+    ├── CharacterWidget（立绘/右键菜单）
+    ├── BubbleWidget（气泡/打字机）
+    ├── ChatWidget（聊天输入框）
+    ├── AnchorManager（位置锚点管理）
+    ├── LLMService（AI对话/解析）
+    ├── TTSService（语音合成/播放）
+    ├── AppearanceManager（四维状态）
+    └── ConfigManager（单例配置）
+
+AnchorManager 管理：
+    ├── BubbleWidget → HeadRight 位置
+    └── ChatWidget → WaistCenter 位置
+```
+
+### 阶段5：配置持久化（v0.2.2）
+
+```
+AppController（信号调度中枢）
+    ├── CharacterWidget（立绘/右键菜单）
+    ├── BubbleWidget（气泡/打字机）
+    ├── ChatWidget（聊天输入框）
+    ├── AnchorManager（位置锚点管理）
+    ├── LLMService（AI对话/解析）
+    ├── TTSService（语音合成/播放）
+    ├── AppearanceManager（四维状态）
+    └── ConfigManager（单例配置 → JSON文件持久化）
+
+配置文件：app_data/config/setting.json
+    ├── api.deepseek_api_key
+    └── api.gpt_sovits_url
+```
+
+### 阶段6：状态同步框架（v0.2.3，当前）
+
+```
+AppController（信号调度中枢）
+    ├── CharacterWidget（立绘/右键菜单）
+    ├── BubbleWidget（气泡/打字机）
+    ├── ChatWidget（聊天输入框）
+    ├── AnchorManager（位置锚点管理）
+    ├── LLMService（AI对话/解析 → 状态提供者模式）
+    │   └── m_stateProvider → AppearanceManager.getCurrentStateDescription()
+    ├── TTSService（语音合成/播放）
+    ├── AppearanceManager（四维状态 → 状态描述输出）
+    └── ConfigManager（单例配置 → JSON文件持久化）
+
+状态同步机制（方案C）：
+    本地状态变化 → askDeepSeek前动态获取状态 → 追加到系统提示词 → AI感知状态
+```
+
+### 阶段7：插件化（v0.5.0+）
+
+```
+Core
+    ├── PluginManager
+    ├── ConfigManager
+    ├── EventBus
+    └── AppController
+
+Plugins
+    ├── CharacterPlugin
+    ├── LLMPlugin
+    ├── TTSPlugin
+    ├── WeatherPlugin
+    └── SchedulePlugin
+```
+
+---
+
+## 依赖规划
+
+| 依赖 | 当前版本 | 计划升级 | 说明 |
+|------|----------|----------|------|
+| Qt | 6.5+ | 6.6+ | 可能用到Qt Multimedia做音频 |
+| CMake | 3.19+ | 3.20+ | - |
+| GPT-SoVITS | - | - | v0.3.0接入TTS引擎 |
+
+---
+
+## 风险评估
+
+| 风险 | 影响 | 概率 | 缓解措施 |
+|------|------|------|----------|
+| DeepSeek API变更 | AI对话功能失效 | 中 | LLMService封装层，便于适配 |
+| TTS服务不可用 | 语音功能失效 | 中 | 支持多TTS引擎切换 |
+| 立绘资源过大 | 打包体积增加 | 低 | 支持资源按需加载/外部资源 |
+| 网络延迟 | 用户体验下降 | 中 | 添加加载状态提示，TTS预合成 |
+| GPT-SoVITS部署复杂 | TTS接入周期长 | 高 | 保留模拟实现，逐步替换 |
+
+---
+
+## 当前进度总览
+
+```
+v0.1.0  ████████████████████ 100%  基础版本
+v0.2.0  ████████████████████ 100%  架构重构 & 多标签协议
+v0.2.1  ████████████████████ 100%  位置锚点系统
+v0.2.2  ████████████████████ 100%  配置持久化
+v0.2.3  ████████████████████ 100%  状态同步框架 & 提示词外部化
+v0.3.0  ████████████████░░░░  70%  AI资源管理（优先）
+v0.4.0  ░░░░░░░░░░░░░░░░░░░░   0%  AI记忆系统（次优先）
+v0.5.0  ░░░░░░░░░░░░░░░░░░░░   0%  TTS模块（第三优先）
+v0.6.0  ░░░░░░░░░░░░░░░░░░░░   0%  设置界面 & 交互增强
+v0.7.0  ░░░░░░░░░░░░░░░░░░░░   0%  智能助手 & 性能优化
+```
+
+---
+
+## 近期任务（Next Up）
+
+1. **设置界面** - SettingsWidget API配置页 & 记忆配置页
+2. **代码清理** - 移除注释代码，修复重复include
+3. **配置文件完善** - 添加更多配置项（TTS参数、外观设置等）
+4. **AI记忆系统** - 开始设计MemoryManager和SQLite数据库
