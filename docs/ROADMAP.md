@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.2.3
-> 更新日期：2026-07-19
+> 更新日期：2026-07-20
 
 ---
 
@@ -55,8 +55,8 @@
   - [x] 框架预留：AppearanceManager状态描述方法 ✅
   - [x] 框架预留：AppController连接状态提供者 ✅
   - [x] 实际实现：动态构建包含状态的系统提示词 ✅
-- [ ] 设置界面（SettingsWidget）
-  - [ ] API配置页
+- [x] 设置界面（SettingsWidget） ✅ 已实现API配置页
+  - [x] API配置页 ✅
   - [ ] 记忆配置页
 - [x] 配置目录结构建立（app_data/config/） ✅ 已实现
 
@@ -65,7 +65,7 @@
 - [x] LLMService状态提供者模式（框架预留） ✅ 已实现
 - [x] AppearanceManager状态描述方法（框架预留） ✅ 已实现
 - [x] LLMService支持动态构建系统提示词 ✅ 已实现
-- [ ] 创建SettingsWidget设置界面
+- [x] 创建SettingsWidget设置界面（API配置页已实现）
 - [ ] 更新.gitignore规则（配置目录追踪但内容不上传）
 
 **预计时间**：2-3周

@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-07-19
+> 最后更新：2026-07-20
 
 ---
 
@@ -100,6 +100,15 @@
   - `main` 分支移除docs跟踪（仅代码，用于推送GitHub）
   - 更新 `.gitignore` 和 `.gitattributes` 配置
   - 清理已修复的技术债务文档标记
+
+### M11: 设置界面实现 & 代码清理（已实现）
+- 日期：2026-07-19
+- 内容：
+  - 新增 SettingsWidget 设置界面（API Key配置页）
+  - 右键菜单"设置"入口已连接到SettingsWidget
+  - 移除 CharacterWidget 中无用的 userChat 信号
+  - 移除 AppController 中注释的自动问候代码
+  - 简化Git分支管理（docs目录重新加入追踪）
 
 ---
 

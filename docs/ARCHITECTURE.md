@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.2.3
-> 更新日期：2026-07-19
+> 更新日期：2026-07-20
 
 ---
 
@@ -26,7 +26,7 @@
 | | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
 | **数据层** | ConfigManager | API Key配置、单例模式 | configmanager.h/cpp |
 | **规划中** | TimeManager | 时间监控、服装自动切换 | timemanager.h/cpp（规划中） |
-| | SettingsWidget | 设置界面、配置管理 | settingswidget.h/cpp/ui（规划中） |
+| | SettingsWidget | 设置界面、配置管理 | settingswidget.h/cpp/ui（已实现API配置页） |
 | | ShortcutManager | 全局快捷键管理 | shortcutmanager.h/cpp（规划中） |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
 | | AnchorStrategy | 锚点位置枚举与配置结构 | anchorstrategy.h |
@@ -96,7 +96,7 @@
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `startApp()` | 启动应用，显示角色并触发首次对话 | - | - |
+| `startApp()` | 启动应用，显示角色（不再自动触发首次对话） | - | - |
 | `handleMakoReply()` | 接收LLM解析结果，入队TTS | QList\<SentenceText\> sentences | - |
 | `handleSystemError()` | 统一错误处理，显示错误气泡+切悲伤立绘 | QString errorMsg | - |
 | `onPlayAudioAction()` | TTS播放同步：更新气泡+立绘 | QString zhText, QMap tags | - |
@@ -106,6 +106,13 @@
 // 用户输入 → LLM请求（通过ChatWidget）
 connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
 
+// 右键菜单 → 设置界面
+connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &SettingsWidget::show);
+
+// 设置保存 → 更新LLMService API Key
+connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
+    m_llmService->setApiKey(ConfigManager::instance().getApiKey());});
+
 // LLM回复 → AppController → TTS队列
 connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
 
@@ -114,6 +121,12 @@ connect(m_ttsService, &TTSService::playAudioAction, this, &AppController::onPlay
 
 // 外观变化 → 角色立绘更新
 connect(m_appearance, &AppearanceManager::characterPathChanged, m_character, &CharacterWidget::updatePath);
+
+// 外观变化 → 位置更新
+connect(m_appearance, &AppearanceManager::characterPathChanged, m_anchorManager, &AnchorManager::updateAllAnchors);
+
+// 气泡显示 → 位置更新
+connect(m_bubble, &BubbleWidget::bubbleShown, m_anchorManager, &AnchorManager::updateAllAnchors);
 
 // 网络错误 → 统一处理
 connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
@@ -456,41 +469,45 @@ struct TimeConfig {
 
 ---
 
-### 2.12 SettingsWidget（规划中 · v0.3.0）
+### 2.12 SettingsWidget（已实现 · API配置页）
 
-**职责**：设置界面，管理所有配置项
+**职责**：设置界面，管理API Key等配置项
 
 **设计要点**：
-- 权限级别高于右键菜单（设置界面包含所有功能）
-- 配置修改后立即生效并持久化
-- 支持修改快捷键（QShortcut全局绑定）
-- 使用 QTabWidget 分栏管理
+- 独立窗口（Qt::Window），支持关闭按钮
+- 显示时自动加载当前配置（重写showEvent）
+- 配置修改后立即保存到配置文件并通知AppController更新
 
-**界面结构**：
+**当前实现**：
+- API Key配置页（输入框 + 保存按钮）
+- 设置保存后发出 `settingsSaved()` 信号
+- AppController接收到信号后更新LLMService的API Key
+
+**规划扩展**：
 ```
-├── API配置页
+├── API配置页（已实现）
 │   ├── DeepSeek API Key（输入框）
 │   └── GPT-SoVITS服务地址（输入框）
-├── TTS配置页
+├── TTS配置页（规划中）
 │   ├── 启用TTS（开关）
 │   ├── 语速（滑块）
 │   ├── 温度（滑块）
 │   └── 参考音频配置（路径选择）
-├── 外观配置页
+├── 外观配置页（规划中）
 │   ├── 气泡颜色（颜色选择器）
 │   ├── 气泡透明度（滑块）
 │   └── 窗口透明度（滑块）
-├── 时间配置页
+├── 时间配置页（规划中）
 │   ├── 启用自动服装切换（开关）
 │   ├── 白天开始时间（时间选择器）
 │   ├── 白天结束时间（时间选择器）
 │   ├── 白天服装（下拉框）
 │   └── 夜晚服装（下拉框）
-├── 快捷键配置页
+├── 快捷键配置页（规划中）
 │   ├── 打开聊天（按键绑定）
 │   ├── 打开设置（按键绑定）
 │   └── 打开历史记录（按键绑定）
-└── 记忆配置页
+└── 记忆配置页（规划中）
     ├── 启用记忆（开关）
     ├── 短期记忆长度（数字输入）
     └── 自动摘要（开关）
@@ -499,9 +516,10 @@ struct TimeConfig {
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `loadSettings()` | 从配置文件加载设置 | - | - |
-| `saveSettings()` | 保存设置到配置文件 | - | - |
-| `applySettings()` | 应用设置到各模块 | - | - |
+| `show()` | 显示设置窗口（重写showEvent自动加载配置） | - | - |
+| `loadSettings()` | 从配置文件加载当前配置 | - | - |
+| `on_btn_saveApiKey_clicked()` | 保存API Key到配置文件 | - | - |
+| `on_btn_saveAll_clicked()` | 保存所有配置并关闭窗口 | - | - |
 
 **信号**：
 | 信号 | 触发时机 | 参数 |
@@ -758,7 +776,7 @@ image/
 | RC-006 | 死方法 | anchormanager.cpp | `onCharacterChanged()` 方法从未被调用 | ✅ 已删除 |
 | RC-007 | 未使用的接口 | chatwidget.h/cpp | `attachTo()` 方法已存在但未被使用（已改用AnchorManager） | ✅ 已删除 |
 | RC-008 | 未实现的枚举 | anchorstrategy.h | `HeadRight` 枚举值已定义但未在 `calculatePosition()` 中实现 | ✅ 已实现 |
-| RC-009 | 未实现的信号槽 | characterwidget.h | `settingsRequested()` 信号已连接但无处理槽函数 | ❌ 待实现 |
+| RC-009 | 未实现的信号槽 | characterwidget.h | `settingsRequested()` 信号已连接到SettingsWidget::show() | ✅ 已实现 |
 | RC-010 | 气泡首次显示位置未初始化 | bubblewidget.cpp | 气泡显示时位置未计算，首次移动时突然跳转 | ✅ 已修复（bubbleShown信号） |
 | RC-011 | 立绘切换时位置未更新 | anchormanager.cpp | 立绘切换导致visibleRect变化时未触发位置更新 | ✅ 已修复（characterPathChanged信号连接）
 

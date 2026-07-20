@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-19
+> 日期：2026-07-20
 > 版本：v0.2.3
 > 状态：开发中
 
@@ -18,9 +18,10 @@
 | | `m_llmService` | LLMService*，AI服务 |
 | | `m_appearance` | AppearanceManager*，外观管理 |
 | | `m_ttsService` | TTSService*，TTS服务 |
-| | `m_chatWidget` | ChatWidget*，聊天输入窗口（新增） |
-| | `m_anchorManager` | AnchorManager*，位置锚点管理（新增） |
-| **函数签名** | `void startApp()` | 启动应用，显示角色 |
+| | `m_chatWidget` | ChatWidget*，聊天输入窗口 |
+| | `m_anchorManager` | AnchorManager*，位置锚点管理 |
+| | `m_settingsWidget` | SettingsWidget*，设置界面（新增） |
+| **函数签名** | `void startApp()` | 启动应用，显示角色（不再自动触发首次对话） |
 | | `void handleMakoReply(const QList<SentenceText>& sentences)` | 处理AI回复，交给TTS队列 |
 | | `void handleSystemError(const QString& errorMsg)` | 统一错误处理 |
 | | `void onPlayAudioAction(const QString& zhText, const QMap<QString,QString>& tags)` | 播放同步：更新气泡+立绘 |
@@ -39,7 +40,7 @@
 | | `QRect getVisibleRect() const` | 获取立绘有效区域（新增，供AnchorManager使用） |
 | | `QRect calculateVisibleRect(const QPixmap& pixmap)` | 计算立绘有效区域 |
 | **信号** | `void chatRequested()` | 用户请求聊天（右键菜单触发） |
-| | `void settingsRequested()` | 用户请求设置（右键菜单触发，新增） |
+| | `void settingsRequested()` | 用户请求设置（右键菜单触发） |
 
 ### AnchorManager（新增·位置锚点管理）
 
@@ -171,16 +172,16 @@
 | **信号** | `void timePeriodChanged(const QString& period)` | 时间段变化 |
 | | `void clothingAutoChanged(const QString& clothing)` | 服装自动切换 |
 
-### SettingsWidget（规划中 · v0.3.0）
+### SettingsWidget（已实现）
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| **职责** | 设置界面，管理所有配置项 | - |
-| **权限** | 高于右键菜单，包含所有功能 | - |
-| **配置项** | API配置、TTS配置、外观配置、时间配置、快捷键配置、记忆配置 | - |
-| **函数签名** | `void loadSettings()` | 从配置文件加载 |
-| | `void saveSettings()` | 保存到配置文件 |
-| | `void applySettings()` | 应用到各模块 |
+| **职责** | 设置界面，管理API Key等配置项 | - |
+| **配置项** | API Key配置 | - |
+| **函数签名** | `void show()` | 显示设置窗口（重写showEvent加载配置） |
+| | `void loadSettings()` | 从配置文件加载当前配置 |
+| | `void on_btn_saveApiKey_clicked()` | 保存API Key到配置文件 |
+| **信号** | `void settingsSaved()` | 设置保存后发出，通知AppController更新LLMService的API Key |
 
 ### ShortcutManager（规划中 · v0.3.0）
 
@@ -258,6 +259,7 @@ struct SentenceText {
 | 发送方 | 信号 | 接收方 | 槽 |
 |--------|------|--------|-----|
 | CharacterWidget | `chatRequested()` | ChatWidget | `popup()` |
+| CharacterWidget | `settingsRequested()` | SettingsWidget | `show()` |
 | ChatWidget | `textSubmitted(text)` | LLMService | `askDeepSeek()` |
 | LLMService | `sentenceReady(sentences)` | AppController | `handleMakoReply()` |
 | LLMService | `internetErrorSignal(msg)` | AppController | `handleSystemError()` |
@@ -265,6 +267,7 @@ struct SentenceText {
 | AppearanceManager | `characterPathChanged(path)` | CharacterWidget | `updatePath()` |
 | AppearanceManager | `characterPathChanged(path)` | AnchorManager | `updateAllAnchors()` |
 | BubbleWidget | `bubbleShown()` | AnchorManager | `updateAllAnchors()` |
+| SettingsWidget | `settingsSaved()` | AppController | 更新LLMService API Key |
 
 ### 位置跟随机制（AnchorManager）
 
@@ -282,12 +285,11 @@ struct SentenceText {
 | 位置 | 说明 |
 |------|------|
 | TTSService | TTS为模拟实现（QTimer），未接入真实语音合成引擎 |
-| settingsRequested信号 | 右键菜单"设置"入口已预留但无处理槽函数 |
 
 ### 待开发功能
 
 - [ ] 真实TTS引擎接入（GPT-SoVITS）
-- [ ] 设置界面（API Key配置、音量、速度等）
+- [ ] 设置界面完善（TTS配置、外观配置、时间配置等）
 - [x] 配置文件持久化 ✅ 已实现（JSON文件）
 - [ ] 对话历史（短期记忆+长期记忆）
 - [x] 系统提示词外部化 ✅ 已实现（prompt.txt文件，首次启动自动释放）
@@ -295,6 +297,8 @@ struct SentenceText {
 - [ ] 立绘切换过渡动画
 - [ ] 错误重试机制（LLM请求失败自动重试）
 - [ ] AnchorManager内存泄漏修复（析构函数清理）
+
+
 
 ### 已知代码问题
 
@@ -342,11 +346,11 @@ Windows_AI/
 │                         AppController                                │
 │                    （应用中枢 / 信号调度中心）                          │
 │                                                                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │
-│  │  Character  │  │   Bubble    │  │   Chat      │                 │
-│  │   Widget    │  │   Widget    │  │   Widget    │                 │
-│  │ 立绘/右键菜单 │  │ 气泡/打字机  │  │ 聊天输入框  │                 │
-│  └─────────────┘  └──────┬──────┘  └──────┬──────┘                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │  Character  │  │   Bubble    │  │   Chat      │  │  Settings   │ │
+│  │   Widget    │  │   Widget    │  │   Widget    │  │   Widget    │ │
+│  │ 立绘/右键菜单 │  │ 气泡/打字机  │  │ 聊天输入框  │  │   设置界面   │ │
+│  └─────────────┘  └──────┬──────┘  └──────┬──────┘  └─────────────┘ │
 │         │                │                │                         │
 │         │                └────────┬───────┘                         │
 │         │                         │                                 │
