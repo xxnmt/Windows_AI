@@ -21,9 +21,9 @@ signals:
 
 
 private slots:
-    void on_btn_saveAll_clicked();
+    void on_btn_configSaveAll_clicked();
 
-    void on_btn_quit_clicked();
+    void on_btn_configQuit_clicked();
 
 
     void on_btn_saveApiKey_clicked();

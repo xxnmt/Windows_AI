@@ -8,6 +8,8 @@
 #include "anchormanager.h"
 #include "configmanager.h"
 #include "settingswidget.h"
+#include "memorymanager.h"
+
 #include <QDebug>
 
 AppController::AppController(QObject *parent)
@@ -20,6 +22,7 @@ AppController::AppController(QObject *parent)
     m_ttsService = new TTSService;
     m_chatWidget = new ChatWidget;
     m_settingsWidget = new SettingsWidget;
+    m_memoryManager = new MemoryManager;
 
     m_anchorManager = new AnchorManager(m_character, this);
     //ui绑定
@@ -48,24 +51,23 @@ void AppController::startApp()
     qDebug()<<"[AppController]:我已启动！";
 
 }
-void AppController::handleMakoReply(const QList<SentenceText> &sentences)
+
+void AppController::handleMakoReply(const QList<SentenceText> &sentences, const QString &rawReply)
 {
+    m_memoryManager->saveQATurn(m_lastUserInput,rawReply,sentences);
     m_ttsService->enqueueSentences(sentences);
+
 }
+
 
 void AppController::handleSystemError(const QString &errorMsg)
 {
-    // 1. 在控制台打印真实的错误信息，方便开发者调试
     qDebug() << "[AppController 拦截到系统错误]：" << errorMsg;
-
-    // 2. 以角色口吻在气泡中向用户反馈错误
     m_bubble->showMessage("啊哦，欧尼酱，网络好像断开了呢，茉子联系不到服务器啦...");
-
-    // 3. (可选) 让茉子切换到一个委屈或惊讶的立绘状态
     QMap<QString, QString> errorTags;
-    errorTags.insert("emotion", "sad"); // 假设你有 sad 这个表情的素材
+    errorTags.insert("emotion", "sad");
     errorTags.insert("blush", "unblushing");
-    m_appearance->applyTags(errorTags); // 触发换图
+    m_appearance->applyTags(errorTags);
 }
 
 void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString, QString> &tags)
@@ -84,17 +86,25 @@ void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString,
 
 void AppController::initConnections()
 {
-    connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
     connect(m_ttsService, &TTSService::playAudioAction, this, &AppController::onPlayAudioAction);
     connect(m_appearance, &AppearanceManager::characterPathChanged, m_character, &CharacterWidget::updatePath);
     connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
 
     connect(m_character, &CharacterWidget::chatRequested, m_chatWidget,&ChatWidget::popup);
-    connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
+    // connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
     connect(m_appearance, &AppearanceManager::characterPathChanged,m_anchorManager, &AnchorManager::updateAllAnchors);
     connect(m_bubble, &BubbleWidget::bubbleShown,m_anchorManager, &AnchorManager::updateAllAnchors);
 
     connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &SettingsWidget::show);
     connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
         m_llmService->setApiKey(ConfigManager::instance().getApiKey());});
+
+    connect(m_llmService,&LLMService::sentenceReady,this,&AppController::handleMakoReply);
+    connect(m_chatWidget,&ChatWidget::textSubmitted,this,[this](const QString &text){
+        m_lastUserInput=text;
+        int memoryLength=15;
+        QList<HistoryTurn> shortTermMemory = m_memoryManager->getHistoryTurn(memoryLength);
+        m_llmService->askDeepSeek(text,shortTermMemory);
+    });
+
 }

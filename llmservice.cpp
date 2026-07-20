@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QFile>
 
+#include "historyturn.h"
+
 
 LLMService::LLMService(const QString &apiKey,QObject *parent)
 {
@@ -24,7 +26,8 @@ LLMService::LLMService(const QString &apiKey,QObject *parent)
     m_systemPromptCache=loadSystemPrompt();
 }
 
-void LLMService::askDeepSeek(const QString &userInput)
+
+void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> &historyQA)
 {
     QUrl url("https://api.deepseek.com/chat/completions");
     QNetworkRequest request(url);
@@ -41,7 +44,7 @@ void LLMService::askDeepSeek(const QString &userInput)
         // 动态附加实时状态上下文
         finalSystemPrompt += QString(
                                  "\n\n"
-                                 "【注意：千岛茉子当前的最新实时状态上下文】\n"
+                                 "【注意：千岛茉子当前的状态】\n"
                                  "%1\n"
                                  "当前现实世界系统时间: %2\n"
                                  "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
@@ -50,24 +53,37 @@ void LLMService::askDeepSeek(const QString &userInput)
     else{
         finalSystemPrompt += QString(
                                  "\n\n"
-                                 "【注意：千岛茉子当前的最新实时状态上下文】\n"
+                                 "【注意：千岛茉子当前的状态】\n"
                                  "当前现实世界系统时间: %1\n"
                                  "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
                                  ).arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
     }
     qDebug() << "[LLM] 注入大模型的Prompt:\n" << finalSystemPrompt;
-
+    QJsonArray messagesArray;
     QJsonObject systemMessage;
     systemMessage["role"] = "system";
     systemMessage["content"] = finalSystemPrompt;
+    messagesArray.append(systemMessage);
 
     QJsonObject userMessage;
     userMessage["role"] = "user";
     userMessage["content"] = userInput;
-
-    QJsonArray messagesArray;
-    messagesArray.append(systemMessage);
     messagesArray.append(userMessage);
+
+    for (const HistoryTurn &turn : historyQA) {
+        //历史用户输入
+        QJsonObject histUserMsg;
+        histUserMsg["role"] = "user";
+        histUserMsg["content"] = turn.userInput;
+        messagesArray.append(histUserMsg);
+
+        //历史茉子回复
+        QJsonObject histMakoMsg;
+        histMakoMsg["role"] = "assistant";
+        histMakoMsg["content"] = turn.rawReply;
+        messagesArray.append(histMakoMsg);
+    }
+    qDebug()<<"[LLM]最终注入的Message:"<<messagesArray;
 
     QJsonObject rootObj;
     rootObj["model"] = "deepseek-v4-flash";
@@ -78,7 +94,7 @@ void LLMService::askDeepSeek(const QString &userInput)
     QByteArray postData = QJsonDocument(rootObj).toJson();
     m_networkManager->post(request, postData);
 
-    qDebug() << "[LLM]茉子正在思考......";
+    qDebug() << "[LLM]茉子带着"<<historyQA.size()<<"轮短期记忆正在思考......";
 }
 
 void LLMService::registerStateProvider(std::function<QString ()> provider)
@@ -149,7 +165,7 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
                 qDebug()<<"[LLM]四维状态变更:"<<s.rawTags;
             }
             //拆完传信号
-            emit sentenceReady(parsedSentences);
+            emit sentenceReady(parsedSentences,replyText);
         }
     }
     else {

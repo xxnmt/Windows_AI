@@ -26,14 +26,14 @@ void SettingsWidget::showEvent(QShowEvent *event)
     loadSettings();
 }
 
-void SettingsWidget::on_btn_saveAll_clicked()
+void SettingsWidget::on_btn_configSaveAll_clicked()
 {
     on_btn_saveApiKey_clicked();
     hide();
 
 }
 
-void SettingsWidget::on_btn_quit_clicked()
+void SettingsWidget::on_btn_configQuit_clicked()
 {
     hide();
 }

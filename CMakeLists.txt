@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(Windows_AI LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Sql REQUIRED)
 
 qt_standard_project_setup()
 
@@ -25,6 +25,8 @@ qt_add_executable(Windows_AI
     anchorstrategy.h
     anchormanager.h anchormanager.cpp
     settingswidget.h settingswidget.cpp settingswidget.ui
+    memorymanager.h memorymanager.cpp
+    historyturn.h
 )
 
 target_link_libraries(Windows_AI
@@ -32,6 +34,7 @@ target_link_libraries(Windows_AI
         Qt::Core
         Qt::Widgets
         Qt::Network
+        Qt::Sql
 )
 
 install(TARGETS Windows_AI

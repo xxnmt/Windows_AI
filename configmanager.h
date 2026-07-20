@@ -26,6 +26,7 @@ public:
 
     QString getConfigDirPath()const;
     QString getConfigFilePath()const;
+    QString getAppDataPath()const;
 
 private:
     ConfigManager();

@@ -121,6 +121,13 @@ QString ConfigManager::getConfigFilePath() const
     return m_configFilePath;
 }
 
+QString ConfigManager::getAppDataPath() const
+{
+    QDir appPath(m_configDirPath);
+    appPath.cdUp();
+    return appPath.absolutePath();
+}
+
 ConfigManager::ConfigManager() {
     initAppDataPath();
     loadSetting();

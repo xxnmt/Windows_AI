@@ -14,6 +14,7 @@ class TTSService;
 class ChatWidget;
 class AnchorManager;
 class SettingsWidget;
+class MemoryManager;
 
 class AppController : public QObject
 {
@@ -25,13 +26,15 @@ public:
     void startApp();
 
 private slots:
-    void handleMakoReply(const QList<SentenceText> &sentences);
+    void handleMakoReply(const QList<SentenceText> &sentences,const QString &rawReply);
     void handleSystemError(const QString &errorMsg);
     void onPlayAudioAction(const QString &zhText, const QMap<QString, QString> &tags);
 signals:
 
 private:
     void initConnections();
+
+    QString m_lastUserInput;
 
     CharacterWidget *m_character;
     BubbleWidget *m_bubble;
@@ -41,6 +44,7 @@ private:
     ChatWidget *m_chatWidget;
     AnchorManager *m_anchorManager;
     SettingsWidget *m_settingsWidget;
+    MemoryManager *m_memoryManager;
 };
 
 #endif // APPCONTROLLER_H

@@ -6,6 +6,7 @@
 #include <QNetworkReply>
 
 #include "sentencedata.h"
+#include "memorymanager.h"
 
 
 class LLMService : public QObject
@@ -14,14 +15,14 @@ class LLMService : public QObject
 public:
     explicit LLMService(const QString& apiKey,QObject *parent = nullptr);
 
-    void askDeepSeek(const QString& userInput);
+    void askDeepSeek(const QString& userInput,const QList<HistoryTurn> &historyQA=QList<HistoryTurn>());
 
     void registerStateProvider(std::function<QString()> provider);
 
     void setApiKey(const QString &apiKey);
 
 signals:
-    void sentenceReady(const QList<SentenceText> &sentences);
+    void sentenceReady(const QList<SentenceText> &sentences,const QString &rwaReply);
 
     void internetErrorSignal(const QString &errorMessage);
 private slots:
