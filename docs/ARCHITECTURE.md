@@ -1,7 +1,7 @@
 # 架构设计文档
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.3
+> 版本：v0.2.4
 > 更新日期：2026-07-20
 
 ---
@@ -25,10 +25,12 @@
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
 | | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
 | **数据层** | ConfigManager | API Key配置、单例模式 | configmanager.h/cpp |
+| | MemoryManager | AI对话历史管理、SQLite数据库 | memorymanager.h/cpp（已实现） |
 | **规划中** | TimeManager | 时间监控、服装自动切换 | timemanager.h/cpp（规划中） |
 | | SettingsWidget | 设置界面、配置管理 | settingswidget.h/cpp/ui（已实现API配置页） |
 | | ShortcutManager | 全局快捷键管理 | shortcutmanager.h/cpp（规划中） |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
+| | HistoryTurn | 对话历史数据结构 | historyturn.h（已实现） |
 | | AnchorStrategy | 锚点位置枚举与配置结构 | anchorstrategy.h |
 
 ### 1.3 架构总览图
@@ -53,7 +55,7 @@
 │           │                                                        │
 │           ▼                                                        │
 │  ┌─────────────────┐                                               │
-│  │  TimeManager    │  ← 规划中（v0.3.0）                            │
+│  │  TimeManager    │  ← 规划中（v0.4.0）                            │
 │  │ 时间监控/服装切换 │                                               │
 │  └─────────────────┘                                               │
 │                                                                     │
@@ -61,20 +63,22 @@
 │  │                        LLMService                            │  │
 │  │           AI对话/多句解析 → ConfigManager(单例)               │  │
 │  │           ← AI状态同步机制（方案C）                            │  │
+│  │           ← MemoryManager(历史上下文)                        │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 │                                                                     │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                        TTSService                            │  │
 │  │  合成队列(Producer)  →  播放队列(Consumer)                    │  │
-│  │  ← GPT-SoVITS真实接入（v0.3.0）                               │  │
+│  │  ← GPT-SoVITS真实接入（v0.5.0）                               │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                                                     │
-│  ┌─────────────────┐  ┌─────────────────┐                         │
-│  │ SettingsWidget  │  │ ShortcutManager │  ← 规划中（v0.3.0）       │
-│  │   设置界面       │  │   全局快捷键管理  │                         │
-│  └─────────────────┘  └─────────────────┘                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐    │
+│  │ SettingsWidget  │  │ ShortcutManager │  │  MemoryManager  │    │
+│  │   设置界面       │  │   全局快捷键管理  │  │   AI记忆系统     │    │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘    │
 │                                                                     │
 │  核心数据结构：SentenceText (zhText + jaText + rawTags)             │
+│              HistoryTurn (userInput + rawReply)                     │
 │  位置策略：AnchorStrategy (AnchorPosition枚举 + AnchorConfig)       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -97,14 +101,19 @@
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
 | `startApp()` | 启动应用，显示角色（不再自动触发首次对话） | - | - |
-| `handleMakoReply()` | 接收LLM解析结果，入队TTS | QList\<SentenceText\> sentences | - |
+| `handleMakoReply()` | 接收LLM解析结果，保存记忆+入队TTS | QList\<SentenceText\> sentences, QString rawReply | - |
 | `handleSystemError()` | 统一错误处理，显示错误气泡+切悲伤立绘 | QString errorMsg | - |
 | `onPlayAudioAction()` | TTS播放同步：更新气泡+立绘 | QString zhText, QMap tags | - |
 
 **信号槽连接清单**（全部在构造函数中建立）：
 ```cpp
-// 用户输入 → LLM请求（通过ChatWidget）
-connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
+// 用户输入 → LLM请求（通过ChatWidget，含记忆查询）
+connect(m_chatWidget, &ChatWidget::textSubmitted, this, [this](const QString &text){
+    m_lastUserInput = text;
+    int memoryLength = 15;
+    QList<HistoryTurn> shortTermMemory = m_memoryManager->getHistoryTurn(memoryLength);
+    m_llmService->askDeepSeek(text, shortTermMemory);
+});
 
 // 右键菜单 → 设置界面
 connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &SettingsWidget::show);
@@ -113,7 +122,7 @@ connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &Set
 connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
     m_llmService->setApiKey(ConfigManager::instance().getApiKey());});
 
-// LLM回复 → AppController → TTS队列
+// LLM回复 → AppController → 保存记忆 + 入队TTS
 connect(m_llmService, &LLMService::sentenceReady, this, &AppController::handleMakoReply);
 
 // TTS播放 → 同步UI（气泡+立绘）
@@ -130,6 +139,9 @@ connect(m_bubble, &BubbleWidget::bubbleShown, m_anchorManager, &AnchorManager::u
 
 // 网络错误 → 统一处理
 connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
+
+// 状态提供者注册（AI状态同步）
+m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStateDescription();});
 ```
 
 ---
@@ -199,11 +211,12 @@ connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::ha
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `askDeepSeek()` | 发起DeepSeek API请求，动态追加状态上下文 | QString userInput | - |
-| `onReplyFinished()` | 解析JSON→拆句→提取标签→发信号 | QNetworkReply* | - |
+| `askDeepSeek()` | 发起DeepSeek API请求，动态追加状态上下文，支持传入对话历史 | QString userInput, QList\<HistoryTurn\> historyQA | - |
+| `onReplyFinished()` | 解析JSON→拆句→提取标签→发信号（携带原始回复） | QNetworkReply* | - |
 | `registerStateProvider()` | 注册状态提供者回调 | std::function\<QString()\> | - |
 | `initializePromptFile()` | 初始化提示词文件，首次启动从资源释放默认prompt.txt | - | - |
 | `loadSystemPrompt()` | 从文件加载系统提示词，失败时回退到资源文件 | - | QString |
+| `setApiKey()` | 设置API Key（运行时更新） | QString apiKey | - |
 
 **多标签协议系统指令（核心）**：
 ```
@@ -231,7 +244,7 @@ QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
 **信号**：
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
-| `sentenceReady(sentence)` | 回复解析完成（参数名单数，但实际传递复数列表） | QList\<SentenceText\> |
+| `sentenceReady(sentences, rawReply)` | 回复解析完成，携带原始回复用于保存记忆 | QList\<SentenceText\>, QString |
 | `internetErrorSignal(msg)` | 网络错误 | QString |
 
 **AI状态同步机制（方案C · 已实现）**：
@@ -554,7 +567,49 @@ struct TimeConfig {
 
 ---
 
-### 2.14 AI状态同步机制（方案C · 已实现）
+### 2.14 MemoryManager（已实现 · AI记忆系统）
+
+**职责**：管理AI对话历史记录，支持短期记忆查询与持久化存储
+
+**设计要点**：
+- 使用SQLite数据库存储对话历史，支持跨会话记忆
+- 每次对话后保存用户输入、AI原始回复和解析后的句子数据
+- 对话前读取最近N轮历史作为短期记忆（默认15轮）
+- 数据库路径：`app_data/memory/QianDaoMoZi_memory.db`
+- 支持数据库版本升级（PRAGMA user_version）
+
+**数据库结构**：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
+| timestamp | DATETIME | 创建时间（本地时间） |
+| user_input | TEXT NOT NULL | 用户输入文本 |
+| raw_reply | TEXT NOT NULL | AI原始回复 |
+| parsed_json | TEXT NOT NULL | 解析后的句子JSON |
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `saveQATurn()` | 保存单轮对话记录 | QString userInput, QString rawReply, QList\<SentenceText\> sentences | bool |
+| `getHistoryTurn()` | 获取最近N轮对话历史 | int N | QList\<HistoryTurn\> |
+| `initDatabase()` | 初始化数据库连接，创建表结构 | - | - |
+
+**HistoryTurn数据结构**：
+```cpp
+struct HistoryTurn {
+    QString userInput;   // 用户输入
+    QString rawReply;    // AI原始回复
+};
+```
+
+**记忆流程**：
+```
+用户提交输入 → MemoryManager::getHistoryTurn(15) 获取短期记忆
+    → LLMService::askDeepSeek(userInput, historyQA) 发送请求（含历史上下文）
+    → AI回复 → MemoryManager::saveQATurn(userInput, rawReply, sentences) 保存记忆
+```
+
+### 2.15 AI状态同步机制（方案C · 已实现）
 
 **设计要点**：
 - 本地切换服装/表情后，不立即通知AI
@@ -565,13 +620,17 @@ struct TimeConfig {
 
 ```cpp
 // LLMService中构建系统提示词时动态追加当前状态
-QString LLMService::askDeepSeek(const QString& userInput)
+void LLMService::askDeepSeek(const QString& userInput, const QList<HistoryTurn>& historyQA)
 {
     QString finalSystemPrompt = m_systemPromptCache;
     if (m_stateProvider) {
         QString currentUiState = m_stateProvider();
         finalSystemPrompt += QString("\n\n【注意：千岛茉子当前的最新实时状态上下文】\n%1\n当前现实世界系统时间: %2\n...")
             .arg(currentUiState, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+    }
+    // ... 追加历史对话上下文 ...
+    for (const HistoryTurn &turn : historyQA) {
+        // 追加历史用户输入和AI回复到messages数组
     }
     // ... 构建请求并发送
 }

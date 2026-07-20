@@ -110,6 +110,17 @@
   - 移除 AppController 中注释的自动问候代码
   - 简化Git分支管理（docs目录重新加入追踪）
 
+### M12: AI记忆系统（已实现）
+- 日期：2026-07-19
+- 内容：
+  - 新增 **MemoryManager**（AI记忆系统），使用SQLite数据库存储对话历史
+  - 新增 **HistoryTurn** 数据结构，定义对话历史模型
+  - LLMService::askDeepSeek 新增 historyQA 参数，支持传入对话历史上下文
+  - sentenceReady 信号新增 rawReply 参数，用于保存原始回复
+  - AppController 集成 MemoryManager，实现对话历史的保存与加载（默认15轮短期记忆）
+  - 数据库路径：`app_data/memory/QianDaoMoZi_memory.db`
+  - 数据库结构：chat_history表（id, timestamp, user_input, raw_reply, parsed_json）
+
 ---
 
 ## 技术债务
@@ -125,6 +136,9 @@
 | TD-007 | characterwidget.cpp大量注释代码残留 | ✅ 已清理 | 中 | v0.2.0 |
 | TD-008 | appcontroller.cpp重复include头文件 | ✅ 已修复 | 低 | v0.2.0 |
 | TD-009 | 系统提示词硬编码在LLMService源码中 | ✅ 已修复（提示词外部化，prompt.txt文件） | 中 | v0.2.0 |
+| TD-010 | AI记忆系统未实现 | ✅ 已实现（MemoryManager，SQLite短期记忆） | 高 | v0.2.4 |
+| TD-011 | 对话历史查看界面缺失 | 待实现 | 中 | v0.4.0 |
+| TD-012 | 长期记忆（重要事件摘要）未实现 | 待实现 | 中 | v0.4.0 |
 
 ---
 
@@ -138,6 +152,7 @@
 | v0.2.1 | 位置锚点系统 | AnchorManager + ChatWidget | 统一位置跟随，聊天输入窗口 |
 | v0.2.2 | 配置持久化 | ConfigManager（JSON文件） | API Key/TTS地址持久化，首次启动自动创建配置 |
 | v0.2.3 | 状态同步 & 提示词外部化 | LLMService + AppearanceManager | 状态提供者模式（动态追加状态），提示词外部化（prompt.txt），DeepSeek API格式修复 |
+| v0.2.4 | AI记忆系统 | MemoryManager + HistoryTurn | SQLite数据库存储对话历史，短期记忆查询（默认15轮），LLM对话上下文注入，跨会话记忆支持 |
 
 ---
 

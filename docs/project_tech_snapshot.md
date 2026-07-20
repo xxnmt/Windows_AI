@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 日期：2026-07-20
-> 版本：v0.2.3
+> 版本：v0.2.4
 > 状态：开发中
 
 ---
@@ -20,9 +20,11 @@
 | | `m_ttsService` | TTSService*，TTS服务 |
 | | `m_chatWidget` | ChatWidget*，聊天输入窗口 |
 | | `m_anchorManager` | AnchorManager*，位置锚点管理 |
-| | `m_settingsWidget` | SettingsWidget*，设置界面（新增） |
+| | `m_settingsWidget` | SettingsWidget*，设置界面 |
+| | `m_memoryManager` | MemoryManager*，AI记忆系统（新增） |
+| | `m_lastUserInput` | QString，最后一次用户输入（新增） |
 | **函数签名** | `void startApp()` | 启动应用，显示角色（不再自动触发首次对话） |
-| | `void handleMakoReply(const QList<SentenceText>& sentences)` | 处理AI回复，交给TTS队列 |
+| | `void handleMakoReply(const QList<SentenceText>& sentences, const QString& rawReply)` | 处理AI回复，交给TTS队列并保存记忆 |
 | | `void handleSystemError(const QString& errorMsg)` | 统一错误处理 |
 | | `void onPlayAudioAction(const QString& zhText, const QMap<QString,QString>& tags)` | 播放同步：更新气泡+立绘 |
 | | `void initConnections()` | 集中初始化信号槽连接 |
@@ -99,16 +101,17 @@
 |------|------|------|
 | **私有变量** | `m_networkManager` | QNetworkAccessManager*，网络请求管理器 |
 | | `m_apiKey` | QString，API Key（构造函数注入） |
-| | `m_localPromptPath` | QString，提示词文件路径（新增） |
-| | `m_systemPromptCache` | QString，系统提示词缓存（新增） |
-| | `m_stateProvider` | std::function\<QString()\>，状态提供者回调（新增） |
+| | `m_localPromptPath` | QString，提示词文件路径 |
+| | `m_systemPromptCache` | QString，系统提示词缓存 |
+| | `m_stateProvider` | std::function\<QString()\>，状态提供者回调 |
 | **函数签名** | `LLMService(const QString& apiKey, QObject* parent)` | 构造函数，接收API Key参数，初始化提示词文件并加载系统提示词 |
-| | `void askDeepSeek(const QString& userInput)` | 发起DeepSeek请求（系统指令含多标签协议，动态追加状态上下文） |
+| | `void askDeepSeek(const QString& userInput, const QList<HistoryTurn>& historyQA = QList<HistoryTurn>())` | 发起DeepSeek请求（支持传入对话历史，系统指令含多标签协议，动态追加状态上下文） |
 | | `void onReplyFinished(QNetworkReply* reply)` | 解析回复，拆分为多句SentenceText |
 | | `void registerStateProvider(std::function<QString()> provider)` | 注册状态提供者（已实现） |
 | | `void initializePromptFile()` | 初始化提示词文件，首次启动从资源释放默认prompt.txt（已实现） |
 | | `QString loadSystemPrompt()` | 从文件加载系统提示词，失败时回退到资源文件（已实现） |
-| **信号** | `void sentenceReady(const QList<SentenceText>& sentence)` | 句子解析完成（参数名单数，但实际为复数列表） |
+| | `void setApiKey(const QString& apiKey)` | 设置API Key（新增） |
+| **信号** | `void sentenceReady(const QList<SentenceText>& sentences, const QString& rawReply)` | 句子解析完成，携带原始回复用于保存记忆 |
 | | `void internetErrorSignal(const QString& errorMessage)` | 网络错误 |
 
 > ⚠️ **已知问题**：`sentenceReady` 信号参数命名为单数 `sentence`，但实际传递的是 `QList<SentenceText>` 复数列表，语义不一致。
@@ -127,6 +130,27 @@
 | **信号** | `void playAudioAction(const QString& zhText, const QMap<QString,QString>& tags)` | 播放同步信号 |
 
 > ⚠️ 当前为模拟实现（QTimer模拟耗时），尚未接入真实TTS引擎。
+
+### MemoryManager（新增·AI记忆系统）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **职责** | 管理AI对话历史记录，支持短期记忆查询 | - |
+| **私有变量** | `m_db` | QSqlDatabase，SQLite数据库连接 |
+| **函数签名** | `bool saveQATurn(const QString& userInput, const QString& rawReply, const QList<SentenceText>& sentences)` | 保存单轮对话（用户输入+原始回复+解析后句子） |
+| | `QList<HistoryTurn> getHistoryTurn(int N)` | 获取最近N轮对话历史 |
+| | `void initDatabase()` | 初始化数据库，创建聊天记录表 |
+| **数据库结构** | chat_history表（id, timestamp, user_input, raw_reply, parsed_json） | - |
+| **数据库路径** | app_data/memory/QianDaoMoZi_memory.db | - |
+
+### HistoryTurn（新增·对话历史数据结构）
+
+```cpp
+struct HistoryTurn {
+    QString userInput;   // 用户输入
+    QString rawReply;    // AI原始回复
+};
+```
 
 ### BubbleWidget
 
@@ -204,6 +228,17 @@
 | **实现方式** | 通过 `registerStateProvider()` 注册回调，`askDeepSeek()` 中调用获取当前状态 |
 | **状态描述格式** | 距离/服装/脸红状态/当前表情（四维状态） |
 
+### AI记忆系统（已实现·短期记忆）
+
+| 特性 | 说明 |
+|------|------|
+| **策略** | 使用SQLite数据库存储对话历史，每次对话前读取最近N轮作为短期记忆 |
+| **记忆长度** | 可配置（当前默认15轮） |
+| **存储内容** | 用户输入、AI原始回复、解析后的句子JSON |
+| **数据库路径** | app_data/memory/QianDaoMoZi_memory.db |
+| **同步时机** | 用户提交输入后，先读取记忆再发送请求；AI回复后保存记忆 |
+| **优势** | 支持跨会话记忆，AI能记住之前的对话内容 |
+
 ### SentenceText
 
 ```cpp
@@ -218,56 +253,65 @@ struct SentenceText {
 
 ## 2. 关键通信逻辑
 
-### AI对话完整流程
+### AI对话完整流程（含记忆系统）
 
 ```
-用户右键 → chatRequested信号 → ChatWidget::popup() → 用户输入 → textSubmitted信号 → LLMService::askDeepSeek
-                                                                                                              │
-                                                                                                              ▼
-                                                                                                    DeepSeek API
-                                                                                                              │
-                                                                                                              ▼
-                                                                                                   onReplyFinished 解析
-                                                                                                              │
-                                                                                               正则拆分多句 + 提取标签
-                                                                                                              │
-                                                                                                              ▼
-                                                                                                   sentenceReady(QList<SentenceText>)
-                                                                                                              │
-                                                                                                              ▼
-                                                                                            AppController::handleMakoReply
-                                                                                                              │
-                                                                                                              ▼
-                                                                                            TTSService::enqueueSentences
-                                                                                                              │
-                                                                                           ┌───────────┴───────────┐
-                                                                                           ▼                       ▼
-                                                                                    合成队列(Producer)       播放队列(Consumer)
-                                                                                           │                       │
-                                                                                           ▼                       ▼
-                                                                                    onMockTtsFinished      playAudioAction信号
-                                                                                                                   │
-                                                                                                                   ▼
-                                                                                                   AppController::onPlayAudioAction
-                                                                                                        ┌──────┴──────┐
-                                                                                                        ▼             ▼
-                                                                                                气泡显示中文    立绘切换状态
+用户右键 → chatRequested信号 → ChatWidget::popup() → 用户输入 → textSubmitted信号
+                                                                    │
+                                                                    ▼
+                                                      AppController lambda (保存m_lastUserInput)
+                                                                    │
+                                                                    ▼
+                                                      MemoryManager::getHistoryTurn(15) 获取短期记忆
+                                                                    │
+                                                                    ▼
+                                                      LLMService::askDeepSeek(userInput, historyQA)
+                                                                    │
+                                                                    ▼
+                                                             DeepSeek API (含历史上下文)
+                                                                    │
+                                                                    ▼
+                                                          onReplyFinished 解析
+                                                                    │
+                                                           正则拆分多句 + 提取标签
+                                                                    │
+                                                                    ▼
+                                                      sentenceReady(QList<SentenceText>, rawReply)
+                                                                    │
+                                                                    ▼
+                                             AppController::handleMakoReply
+                                               ┌────────────────┴────────────────┐
+                                               ▼                                 ▼
+                                        MemoryManager::saveQATurn        TTSService::enqueueSentences
+                                        (保存用户输入+原始回复+解析句子)        │
+                                                          ┌───────────┴───────────┐
+                                                          ▼                       ▼
+                                                   合成队列(Producer)       播放队列(Consumer)
+                                                          │                       │
+                                                          ▼                       ▼
+                                                   onMockTtsFinished      playAudioAction信号
+                                                                                        │
+                                                                                        ▼
+                                                                  AppController::onPlayAudioAction
+                                                                       ┌──────┴──────┐
+                                                                       ▼             ▼
+                                                               气泡显示中文    立绘切换状态
 ```
 
 ### 信号槽连接（AppController中统一管理）
 
-| 发送方 | 信号 | 接收方 | 槽 |
-|--------|------|--------|-----|
+| 发送方 | 信号 | 接收方 | 槽/处理 |
+|--------|------|--------|---------|
 | CharacterWidget | `chatRequested()` | ChatWidget | `popup()` |
 | CharacterWidget | `settingsRequested()` | SettingsWidget | `show()` |
-| ChatWidget | `textSubmitted(text)` | LLMService | `askDeepSeek()` |
-| LLMService | `sentenceReady(sentences)` | AppController | `handleMakoReply()` |
+| ChatWidget | `textSubmitted(text)` | AppController lambda | 保存输入→读取记忆→调用askDeepSeek |
+| LLMService | `sentenceReady(sentences, rawReply)` | AppController | `handleMakoReply()` |
 | LLMService | `internetErrorSignal(msg)` | AppController | `handleSystemError()` |
 | TTSService | `playAudioAction(zhText, tags)` | AppController | `onPlayAudioAction()` |
 | AppearanceManager | `characterPathChanged(path)` | CharacterWidget | `updatePath()` |
 | AppearanceManager | `characterPathChanged(path)` | AnchorManager | `updateAllAnchors()` |
 | BubbleWidget | `bubbleShown()` | AnchorManager | `updateAllAnchors()` |
-| SettingsWidget | `settingsSaved()` | AppController | 更新LLMService API Key |
+| SettingsWidget | `settingsSaved()` | AppController lambda | 更新LLMService API Key |
 
 ### 位置跟随机制（AnchorManager）
 
@@ -291,7 +335,8 @@ struct SentenceText {
 - [ ] 真实TTS引擎接入（GPT-SoVITS）
 - [ ] 设置界面完善（TTS配置、外观配置、时间配置等）
 - [x] 配置文件持久化 ✅ 已实现（JSON文件）
-- [ ] 对话历史（短期记忆+长期记忆）
+- [x] AI记忆系统（短期记忆）✅ 已实现（SQLite数据库，MemoryManager）
+- [ ] AI记忆系统（中期/长期记忆）
 - [x] 系统提示词外部化 ✅ 已实现（prompt.txt文件，首次启动自动释放）
 - [x] AI状态同步机制（方案C）✅ 已实现（状态提供者模式，动态追加到提示词）
 - [ ] 立绘切换过渡动画
@@ -322,19 +367,23 @@ Windows_AI/
 ├── CMakeLists.txt           # 构建配置
 ├── image.qrc                # 资源文件
 ├── appcontroller.h/cpp      # 应用中枢
-├── anchormanager.h/cpp      # 位置锚点管理（新增）
-├── anchorstrategy.h         # 锚点策略（新增）
-├── chatwidget.h/cpp         # 聊天输入窗口（新增）
+├── anchormanager.h/cpp      # 位置锚点管理
+├── anchorstrategy.h         # 锚点策略
+├── chatwidget.h/cpp         # 聊天输入窗口
 ├── sentencedata.h           # 句子数据结构
 ├── appearancemanager.h/cpp  # 外观管理器
 ├── ttsservice.h/cpp         # TTS语音服务
 ├── llmservice.h/cpp         # AI服务模块
 ├── configmanager.h/cpp      # 配置管理器
-├── characterwidget.h/cpp    # 角色主组件（已瘦身）
+├── memorymanager.h/cpp      # AI记忆系统（新增）
+├── historyturn.h            # 对话历史数据结构（新增）
+├── characterwidget.h/cpp    # 角色主组件
 ├── bubblewidget.h/cpp/ui    # 气泡组件
+├── settingswidget.h/cpp/ui  # 设置界面
 └── image/                   # 立绘资源目录
     ├── closer/              # 近景
-    └── far/                 # 远景
+    ├── far/                 # 远景
+    └── default_config/      # 默认配置（prompt.txt）
 ```
 
 ---
@@ -371,13 +420,13 @@ Windows_AI/
 │  │  合成队列(Producer)  →  播放队列(Consumer)                    │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                                                     │
-│  ┌─────────────┐                                                   │
-│  │ Appearance  │                                                   │
-│  │   Manager   │                                                   │
-│  │ 四维状态管理 │                                                   │
-│  └─────────────┘                                                   │
+│  ┌─────────────┐  ┌─────────────┐                                  │
+│  │ Appearance  │  │  Memory     │                                  │
+│  │   Manager   │  │   Manager   │                                  │
+│  │ 四维状态管理 │  │  AI记忆系统  │                                  │
+│  └─────────────┘  └─────────────┘                                  │
 │                                                                     │
-│  SentenceText 数据结构（贯穿 LLM → TTS → UI）                        │
+│  SentenceText / HistoryTurn 数据结构（贯穿 LLM → Memory → UI）        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -387,6 +436,13 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-07-19 | 新增 MemoryManager（AI记忆系统），使用SQLite数据库存储对话历史 |
+| 2026-07-19 | 新增 HistoryTurn 数据结构，定义对话历史模型 |
+| 2026-07-19 | LLMService::askDeepSeek 新增 historyQA 参数，支持传入对话历史上下文 |
+| 2026-07-19 | sentenceReady 信号新增 rawReply 参数，用于保存原始回复 |
+| 2026-07-19 | AppController 集成 MemoryManager，实现对话历史的保存与加载（默认15轮短期记忆） |
+| 2026-07-19 | 移除 CharacterWidget 中无用的 userChat 信号和自动问候代码 |
+| 2026-07-19 | 新增 SettingsWidget 设置界面（API配置页），右键菜单"设置"入口已连接 |
 | 2026-07-17 | ConfigManager实现配置文件持久化（app_data/config/setting.json），支持API Key和TTS服务地址的读写 |
 | 2026-07-17 | LLMService实现提示词外部化（prompt.txt），首次启动自动释放默认提示词 |
 | 2026-07-17 | LLMService实现AI状态同步机制（方案C），动态追加当前状态到系统提示词 |
