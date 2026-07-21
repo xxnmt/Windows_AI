@@ -10,6 +10,7 @@ public:
         static ConfigManager instance;
         return instance;
     }
+
     bool loadSetting();
     bool saveSetting();
 
@@ -19,14 +20,18 @@ public:
     void operator=(const ConfigManager&) = delete;
 
     QString getApiKey() const;
-    void setApiKey(const QString &apiKey);\
+    void setApiKey(const QString &apiKey);
 
     QString getTTSUrl() const;
     void setTTSUrl(const QString &ttsUrl);
 
+    int getShortMemoryLength();
+    void setShortMemoryLength(const int length);
+
     QString getConfigDirPath()const;
     QString getConfigFilePath()const;
     QString getAppDataPath()const;
+    QString getMemoryPath()const;
 
 private:
     ConfigManager();
@@ -36,6 +41,8 @@ private:
 
     QString m_apiKey;
     QString m_ttsUrl;
+
+    int m_shortMemoryLength=15;
 
     QString m_configDirPath;
     QString m_configFilePath;

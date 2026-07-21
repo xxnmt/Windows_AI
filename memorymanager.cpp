@@ -11,10 +11,10 @@
 
 #include "configmanager.h"
 #include "historyturn.h"
-MemoryManager::MemoryManager(QObject *parent)
+MemoryManager::MemoryManager(const QString &dbFilePath,QObject *parent)
     : QObject{parent}
 {
-    initDatabase();
+    initDatabase(dbFilePath);
 }
 
 MemoryManager::~MemoryManager()
@@ -101,61 +101,113 @@ QList<HistoryTurn> MemoryManager::getHistoryTurn(int N)
     return historyTurnList;
 }
 
-
-
-// bool MemoryManager::addChatRecord(const QString &role,const QString &rawContent,const QString &parsedJson)
-// {
-//     if (!m_db.isOpen()) return false;
-
-//     QSqlQuery query(m_db);
-//     query.prepare("INSERT INTO chat_history (role, raw_content, zh_text, ja_text, tags) "
-//                   "VALUES (:role, :raw_content,:parsed_json)");
-
-//     query.bindValue(":role", role);
-//     query.bindValue(":raw_content", rawContent);
-//     if(parsedJson.isEmpty()){
-//         query.bindValue(":parsed_json", "");
-//     }
-//     else{
-//         query.bindValue(":parsed_json", parsedJson);
-
-//     }
-
-//     if (!query.exec()) {
-//         qDebug()<<"[MemoryManager]插入记录失败:"<<query.lastError().text();
-//         return false;
-//     }
-
-//     return true;
-// }
-
-void MemoryManager::initDatabase()
+QList<HistoryTurn> MemoryManager::getHistoryTurn(int offset, int limit)
 {
-    QString dataPath=ConfigManager::instance().getAppDataPath();
-    QString memoryDataPath=QDir(dataPath).filePath("memory");
-
-    QDir dir;
-    if(!dir.exists(memoryDataPath)){
-        dir.mkpath(memoryDataPath);
-
-        qDebug()<<"[MemoryManager]memory文件不存在，已创建在:"<<memoryDataPath;
+    QList<HistoryTurn> historyList;
+    if(!m_db.open()){
+        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+        return historyList;
     }
-    else{
-        qDebug()<<"[MemoryManager]成功找到memory文件位置:"<<memoryDataPath;
+    QSqlQuery query(m_db);
+    query.prepare(R"(
+        SELECT id, user_input, raw_reply, timestamp
+        FROM chat_history
+        ORDER BY id DESC
+        LIMIT :limit OFFSET :offset
+    )");
+    query.bindValue(":limit", limit);
+    query.bindValue(":offset", offset);
+    if(!query.exec()){
+        qDebug()<<"[MemoryManager]查询失败:"<<query.lastError();
+        return historyList;
+    }
+    while (query.next()) {
+        HistoryTurn turn;
+        turn.id = query.value("id").toInt();
+        turn.userInput = query.value("user_input").toString();
+        turn.rawReply = query.value("raw_reply").toString();
+        turn.timestamp = query.value("timestamp").toDateTime();
+        historyList.append(turn);
+    }
+    return historyList;
+
+}
+
+qlonglong MemoryManager::getTotalHistoryCount()
+{
+    if(!m_db.isOpen()){
+        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+        return 0;
+    }
+    QSqlQuery query(m_db);
+    if (query.exec("SELECT COUNT(*) FROM chat_history")) {
+        if (query.next()) {
+            return query.value(0).toInt();
+        }
+    }
+    return 0;
+}
+
+bool MemoryManager::deleteTurnByID(int id)
+{
+    if(!m_db.isOpen()){
+        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM chat_history WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        qDebug()<<"[MemoryManager]删除id:"<<id<<"的记录失败:"<<query.lastError();
+        return false;
+    }
+    qDebug()<<"[MemoryManager]删除id:"<<id<<"的记录成功";
+    return true;
+}
+
+bool MemoryManager::clearAllHistory()
+{
+    if(!m_db.open()){
+        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM chat_history");
+    if (!query.exec()) {
+        qDebug()<<"[MemoryManager]清空记录失败:"<<query.lastError();
+        return false;
+    }
+    qDebug()<<"[MemoryManager]清空记录成功";
+    return true;
+}
+
+
+void MemoryManager::initDatabase(const QString &dbFilePath)
+{
+    QDir dbDir = QFileInfo(dbFilePath).dir();
+    if (!dbDir.exists()) {
+        if (!dbDir.mkpath(".")) {
+            qCritical() << "[MemoryManager] 无法创建数据库目录:" << dbDir.absolutePath();
+            return;
+        }
     }
 
-    QString dbFilePath=QDir(memoryDataPath).filePath("QianDaoMoZi_memory.db");
 
-    if(QSqlDatabase::contains("qt_sql_default_connection")){
-    m_db=QSqlDatabase::database("qt_sql_default_connection");
+
+    const QString connName = "memory_db_connection";
+    if (QSqlDatabase::contains(connName)) {
+        m_db = QSqlDatabase::database(connName);
     }
-    else{
-        m_db=QSqlDatabase::addDatabase("QSQLITE");
+    else
+    {
+        m_db = QSqlDatabase::addDatabase("QSQLITE", connName);
     }
     m_db.setDatabaseName(dbFilePath);
 
+
     if(!m_db.open()){
-        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError().text();
+        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
         return;
     }
 

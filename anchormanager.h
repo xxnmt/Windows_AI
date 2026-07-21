@@ -15,6 +15,7 @@ class AnchorManager : public QObject {
     Q_OBJECT
 public:
     explicit AnchorManager(CharacterWidget* character, QObject* parent = nullptr);
+    ~AnchorManager();
 
     void registerWidget(QWidget* widget, AnchorConfig config);
     void registerWidget(QWidget* widget, std::function<QPoint()> customCalculator);

@@ -21,8 +21,10 @@ AppController::AppController(QObject *parent)
     m_appearance = new AppearanceManager;
     m_ttsService = new TTSService;
     m_chatWidget = new ChatWidget;
+    m_memoryManager = new MemoryManager(ConfigManager::instance().getMemoryPath());
     m_settingsWidget = new SettingsWidget;
-    m_memoryManager = new MemoryManager;
+    m_settingsWidget->setMemoryManager(m_memoryManager);
+
 
     m_anchorManager = new AnchorManager(m_character, this);
     //ui绑定
@@ -40,8 +42,49 @@ AppController::AppController(QObject *parent)
 
 AppController::~AppController()
 {
-    if (m_character) delete m_character;
-    if (m_bubble) delete m_bubble;
+    //1. 优先析构 AnchorManager（因为它持有了 m_character 及各个 UI 窗口的指针）
+    if (m_anchorManager) {
+        delete m_anchorManager;
+        m_anchorManager = nullptr;
+    }
+
+    // 2. 析构独立 UI 窗口组件
+    if (m_character) {
+        delete m_character;
+        m_character = nullptr;
+    }
+    if (m_bubble) {
+        delete m_bubble;
+        m_bubble = nullptr;
+    }
+    if (m_chatWidget) {
+        delete m_chatWidget;
+        m_chatWidget = nullptr;
+    }
+    if (m_settingsWidget) {
+        delete m_settingsWidget;
+        m_settingsWidget = nullptr;
+    }
+
+    // 3. 析构无 UI 的核心业务服务模块
+    if (m_llmService) {
+        delete m_llmService;
+        m_llmService = nullptr;
+    }
+    if (m_appearance) {
+        delete m_appearance;
+        m_appearance = nullptr;
+    }
+    if (m_ttsService) {
+        delete m_ttsService;
+        m_ttsService = nullptr;
+    }
+    if (m_memoryManager) {
+        delete m_memoryManager;
+        m_memoryManager = nullptr;
+    }
+
+    qDebug()<<"[AppController]:所有中枢资源已安全清理完毕";
 }
 
 void AppController::startApp()
@@ -91,7 +134,7 @@ void AppController::initConnections()
     connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
 
     connect(m_character, &CharacterWidget::chatRequested, m_chatWidget,&ChatWidget::popup);
-    // connect(m_chatWidget, &ChatWidget::textSubmitted, m_llmService, &LLMService::askDeepSeek);
+
     connect(m_appearance, &AppearanceManager::characterPathChanged,m_anchorManager, &AnchorManager::updateAllAnchors);
     connect(m_bubble, &BubbleWidget::bubbleShown,m_anchorManager, &AnchorManager::updateAllAnchors);
 
@@ -102,7 +145,7 @@ void AppController::initConnections()
     connect(m_llmService,&LLMService::sentenceReady,this,&AppController::handleMakoReply);
     connect(m_chatWidget,&ChatWidget::textSubmitted,this,[this](const QString &text){
         m_lastUserInput=text;
-        int memoryLength=15;
+        int memoryLength=ConfigManager::instance().getShortMemoryLength();;
         QList<HistoryTurn> shortTermMemory = m_memoryManager->getHistoryTurn(memoryLength);
         m_llmService->askDeepSeek(text,shortTermMemory);
     });

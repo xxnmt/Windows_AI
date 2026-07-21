@@ -42,21 +42,16 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         QString currentUiState = m_stateProvider();
 
         // 动态附加实时状态上下文
-        finalSystemPrompt += QString(
-                                 "\n\n"
-                                 "【注意：千岛茉子当前的状态】\n"
-                                 "%1\n"
-                                 "当前现实世界系统时间: %2\n"
-                                 "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
-                                 ).arg(currentUiState, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
-    }
-    else{
-        finalSystemPrompt += QString(
-                                 "\n\n"
-                                 "【注意：千岛茉子当前的状态】\n"
-                                 "当前现实世界系统时间: %1\n"
-                                 "请根据上述最新状态（如服装变化、害羞与否、现实时间段），在下面的对话中自然融入你的语气与内容中。"
-                                 ).arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        if (m_stateProvider) {
+            QString currentUiState = m_stateProvider();
+            finalSystemPrompt += "\n\n【茉子当前的状态】\n";
+            finalSystemPrompt += currentUiState;
+            finalSystemPrompt += "\n（这些状态已经生效，你不用重复强调）";
+        }
+        finalSystemPrompt += "\n\n【当前环境信息（仅感知，非话题焦点）】\n";
+        finalSystemPrompt += QString("现在是 %1\n")
+                                 .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+        finalSystemPrompt += "你可以感知时间，但请优先响应用户的实际问题，不要因为时间晚就偏离话题。";
     }
     qDebug() << "[LLM] 注入大模型的Prompt:\n" << finalSystemPrompt;
     QJsonArray messagesArray;

@@ -11,6 +11,12 @@ AnchorManager::AnchorManager(CharacterWidget *character, QObject *parent)
     }
 }
 
+AnchorManager::~AnchorManager()
+{
+    m_anchors.clear();
+    qDebug()<<"[AnchorManager]:已清理位置管理";
+}
+
 void AnchorManager::registerWidget(QWidget *widget, AnchorConfig config)
 {
     if(!widget){
