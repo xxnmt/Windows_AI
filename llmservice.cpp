@@ -60,10 +60,7 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
     systemMessage["content"] = finalSystemPrompt;
     messagesArray.append(systemMessage);
 
-    QJsonObject userMessage;
-    userMessage["role"] = "user";
-    userMessage["content"] = userInput;
-    messagesArray.append(userMessage);
+
 
     for (const HistoryTurn &turn : historyQA) {
         //历史用户输入
@@ -78,6 +75,10 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         histMakoMsg["content"] = turn.rawReply;
         messagesArray.append(histMakoMsg);
     }
+    QJsonObject userMessage;
+    userMessage["role"] = "user";
+    userMessage["content"] = userInput;
+    messagesArray.append(userMessage);
     qDebug()<<"[LLM]最终注入的Message:"<<messagesArray;
 
     QJsonObject rootObj;
