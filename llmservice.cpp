@@ -38,55 +38,57 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
     request.setRawHeader("Authorization",aotuHeader.toUtf8());
 
     QString finalSystemPrompt = m_systemPromptCache;
-    if (m_stateProvider) {
-        QString currentUiState = m_stateProvider();
 
-        // 动态附加实时状态上下文
-        if (m_stateProvider) {
-            QString currentUiState = m_stateProvider();
-            finalSystemPrompt += "\n\n【茉子当前的状态】\n";
-            finalSystemPrompt += currentUiState;
-            finalSystemPrompt += "\n（这些状态已经生效，你不用重复强调）";
-        }
-        finalSystemPrompt += "\n\n【当前环境信息（仅感知，非话题焦点）】\n";
-        finalSystemPrompt += QString("现在是 %1\n")
-                                 .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
-        finalSystemPrompt += "你可以感知时间，但请优先响应用户的实际问题，不要因为时间晚就偏离话题。";
-    }
-    qDebug() << "[LLM] 注入大模型的Prompt:\n" << finalSystemPrompt;
     QJsonArray messagesArray;
+
     QJsonObject systemMessage;
     systemMessage["role"] = "system";
     systemMessage["content"] = finalSystemPrompt;
     messagesArray.append(systemMessage);
 
-
-
     for (const HistoryTurn &turn : historyQA) {
         //历史用户输入
         QJsonObject histUserMsg;
         histUserMsg["role"] = "user";
-        histUserMsg["content"] = turn.userInput;
+        histUserMsg["content"] = QString("[%1]用户:%2")
+                                  .arg(turn.timestamp.toString("HH:mm:ss"),
+                                       turn.userInput);
         messagesArray.append(histUserMsg);
 
         //历史茉子回复
         QJsonObject histMakoMsg;
         histMakoMsg["role"] = "assistant";
-        histMakoMsg["content"] = turn.rawReply;
+        histMakoMsg["content"] = QString("[%1] 茉子: %2")
+                                     .arg(turn.timestamp.toString("HH:mm:ss"),
+                                          turn.rawReply);
         messagesArray.append(histMakoMsg);
+    }
+
+    if (m_stateProvider) {
+        QString currentUiState = m_stateProvider();
+        QJsonObject envMsg;
+        envMsg["role"] = "system";
+        envMsg["content"] = QString(
+                                "[当前环境信息]\n"
+                                "茉子当前状态：\n%1\n"
+                                "现在的时间是 %2\n"
+                                "请根据时间流逝合理感知。"
+                                ).arg(currentUiState,
+                                     QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+        messagesArray.append(envMsg);
     }
     QJsonObject userMessage;
     userMessage["role"] = "user";
     userMessage["content"] = userInput;
     messagesArray.append(userMessage);
-    qDebug()<<"[LLM]最终注入的Message:"<<messagesArray;
+    qDebug().noquote()<<"[LLM]最终注入的Message:"<<QJsonDocument(messagesArray)
+                                                           .toJson(QJsonDocument::Indented);
 
     QJsonObject rootObj;
     rootObj["model"] = "deepseek-v4-flash";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.7;
 
-    // 将 JSON 对象转为字节数据并发送 POST 请求
     QByteArray postData = QJsonDocument(rootObj).toJson();
     m_networkManager->post(request, postData);
 

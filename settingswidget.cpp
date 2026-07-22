@@ -328,8 +328,8 @@ void SettingsWidget::loadHistoryPage(int page)
         userItem->setToolTip(turn.userInput);  // 悬停显示完整内容
         //茉子
         QString replyText = turn.rawReply;
-        if (replyText.length() > 60) {
-            replyText = replyText.left(60) + "...";
+        if (replyText.length() > 600) {
+            replyText = replyText.left(600) + "...";
         }
         QStandardItem *replyItem = new QStandardItem(replyText);
         replyItem->setToolTip(turn.rawReply);

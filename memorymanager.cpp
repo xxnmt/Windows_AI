@@ -9,7 +9,6 @@
 #include <QJsonObject>
 #include <QDebug>
 
-#include "configmanager.h"
 #include "historyturn.h"
 MemoryManager::MemoryManager(const QString &dbFilePath,QObject *parent)
     : QObject{parent}
@@ -80,8 +79,9 @@ QList<HistoryTurn> MemoryManager::getHistoryTurn(int N)
 
     QSqlQuery query(m_db);
     QString sql = R"(
-        SELECT user_input, raw_reply FROM (
-            SELECT id, user_input, raw_reply
+        SELECT user_input, raw_reply,timestamp
+        FROM (
+            SELECT id, user_input, raw_reply,timestamp
             FROM chat_history
             ORDER BY id DESC
             LIMIT :limit
@@ -96,6 +96,7 @@ QList<HistoryTurn> MemoryManager::getHistoryTurn(int N)
         HistoryTurn turn;
         turn.userInput = query.value("user_input").toString();
         turn.rawReply = query.value("raw_reply").toString();
+        turn.timestamp = query.value("timestamp").toDateTime();
         historyTurnList.append(turn);
     }
     return historyTurnList;
