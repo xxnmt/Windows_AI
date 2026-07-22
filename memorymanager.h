@@ -19,16 +19,23 @@ public:
     bool saveQATurn(const QString &userInput,
                           const QString &rawReply,
                           const QList<SentenceText> &sentences);
-
+//历史对话crud
     QList<HistoryTurn> getHistoryTurn(int N);
     QList<HistoryTurn> getHistoryTurn(int offset,int limit);
     qlonglong getTotalHistoryCount();
-
     bool deleteTurnByID(int id);
     bool clearAllHistory();
 
+//用户画像crud
+    bool upsertUserProfile(const QString &key, const QString &value, int tier, int confidenceGain);
+    QList<UserProfile> getActiveUserProfiles(int minConfidence = 20);
+    bool deleteUserProfile(qlonglong id);
+    int scanAndApplyProfileDecay();
 
-signals:
+//记忆摘要crud
+    bool addLongTermSummary(const QString &summaryText, qlonglong coveredEndId, const QString &sourceIdsJson);
+    QList<LongTermSummary> getLatestSummaries(int limit = 5);
+    bool deleteLongTermSummary(qlonglong id);
 
 private:
     void initDatabase(const QString &dbFilePath);

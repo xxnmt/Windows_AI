@@ -50,7 +50,7 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         //历史用户输入
         QJsonObject histUserMsg;
         histUserMsg["role"] = "user";
-        histUserMsg["content"] = QString("[%1]用户:%2")
+        histUserMsg["content"] = QString("[%1]%2")
                                   .arg(turn.timestamp.toString("HH:mm:ss"),
                                        turn.userInput);
         messagesArray.append(histUserMsg);
@@ -58,7 +58,7 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         //历史茉子回复
         QJsonObject histMakoMsg;
         histMakoMsg["role"] = "assistant";
-        histMakoMsg["content"] = QString("[%1] 茉子: %2")
+        histMakoMsg["content"] = QString("[%1]%2")
                                      .arg(turn.timestamp.toString("HH:mm:ss"),
                                           turn.rawReply);
         messagesArray.append(histMakoMsg);
