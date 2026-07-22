@@ -51,6 +51,7 @@ void SettingsWidget::refreshHistoryTurnList()
 {
     if(!m_memoryManager){
         qDebug()<<"[SettingsWidget]:数据库获取失败";
+        return;
     }
     m_totalRecords=m_memoryManager->getTotalHistoryCount();
     m_totalPages=(m_totalRecords+m_pageSize-1)/m_pageSize;
@@ -129,6 +130,7 @@ void SettingsWidget::on_btn_deleteSelectedMemory_clicked()
 {
     if(!m_memoryManager){
         qDebug()<<"[SettingsWidget]:数据库获取失败";
+        return;
     }
     QList<int> ids=getSelectedMemoryIDs();
     if(ids.isEmpty()){
@@ -185,6 +187,7 @@ void SettingsWidget::on_btn_claenAllMemory_clicked()
 {
     if(!m_memoryManager){
         qDebug()<<"[SettingsWidget]:数据库获取失败";
+        return;
     }
     QMessageBox::StandardButton confirm = QMessageBox::question(
         this,
@@ -299,6 +302,7 @@ void SettingsWidget::loadHistoryPage(int page)
 {
     if(!m_memoryManager){
         qDebug()<<"[SettingsWidget]:数据库获取失败";
+        return;
     }
     int offset=page*m_pageSize;
     QList<HistoryTurn> turns =m_memoryManager->getHistoryTurn(offset,m_pageSize);

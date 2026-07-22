@@ -41,8 +41,9 @@ bool ConfigManager::loadSetting()
     }
     else
     {
-        qDebug()<<"[ConfigManger]:配置文件损坏";
-        return saveSetting();
+        qDebug()<<"[ConfigManger]:api配置缺失，使用默认值";
+        m_apiKey = "sk-placeholder-key";
+        m_ttsUrl = "http://127.0.0.1:9880";
     }
 
     if (rootObj.contains("memory") && rootObj["memory"].isObject()) {
@@ -51,8 +52,8 @@ bool ConfigManager::loadSetting()
     }
     else
     {
-        qDebug()<<"[ConfigManger]:配置文件损坏";
-        return saveSetting();
+        qDebug()<<"[ConfigManger]:memory配置缺失，使用默认值";
+        m_shortMemoryLength = 15;
     }
 
     qDebug() << "[ConfigManager] 配置成功自本地加载:" << m_configFilePath;

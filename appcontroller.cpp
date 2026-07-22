@@ -24,7 +24,7 @@ AppController::AppController(QObject *parent)
     m_memoryManager = new MemoryManager(ConfigManager::instance().getMemoryPath());
     m_settingsWidget = new SettingsWidget;
     m_settingsWidget->setMemoryManager(m_memoryManager);
-
+    m_settingsWidget->setMemoryLength(ConfigManager::instance().getShortMemoryLength());
 
     m_anchorManager = new AnchorManager(m_character, this);
     //ui绑定

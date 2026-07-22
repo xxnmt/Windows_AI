@@ -9,15 +9,16 @@
 ## ✨ 功能特性
 
 ### 已实现功能
-- 🎭 **AI 对话**：集成 DeepSeek API，支持多轮对话
+- 🎭 **AI 对话**：集成 DeepSeek API，支持多轮对话（含短期记忆）
 - 🎨 **立绘切换**：支持表情、服装、距离、脸红四维状态切换
 - 💬 **对话气泡**：打字机特效，位置跟随角色
 - 🖱️ **拖拽移动**：支持自由拖动角色窗口
 - 📍 **位置锚点**：气泡和聊天窗口自动跟随角色
+- ⚙️ **AI 资源管理**：配置文件持久化（JSON格式）、系统提示词外部化（prompt.txt）
+- 🧠 **AI 记忆系统**：短期记忆（SQLite数据库，默认15轮）、对话历史管理
+- ⚙️ **设置界面**：API Key配置、记忆长度配置、历史记录管理
 
 ### 开发中功能
-- ⚙️ **AI 资源管理**：配置文件持久化、系统提示词外部化
-- 🧠 **AI 记忆系统**：分层记忆（短期/中期/长期）
 - 🔊 **语音合成**：接入 GPT-SoVITS 推理引擎
 - ⏰ **时间驱动**：自动根据时间切换服装（白天校服 / 夜晚睡衣）
 - ⌨️ **全局快捷键**：支持自定义快捷键
@@ -35,7 +36,7 @@
 - **构建系统**: CMake 3.19+
 - **AI 服务**: DeepSeek API
 - **语音合成**: GPT-SoVITS（规划中）
-- **数据库**: SQLite（规划中）
+- **数据库**: SQLite（已实现，用于对话历史存储）
 
 ## 📦 安装与构建
 
@@ -92,10 +93,21 @@
 {
     "api": {
         "deepseek_api_key": "your-api-key-here",
-        "gpt_sovits_host": "127.0.0.1:9880"
+        "gpt_sovits_url": "http://127.0.0.1:9880"
+    },
+    "memory": {
+        "short_term_length": 15
     }
 }
 ```
+
+### 配置项说明
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `api.deepseek_api_key` | `sk-placeholder-key` | DeepSeek API 密钥 |
+| `api.gpt_sovits_url` | `http://127.0.0.1:9880` | GPT-SoVITS 服务地址 |
+| `memory.short_term_length` | `15` | 短期记忆轮数（AI对话时携带的历史上下文数量） |
 
 ### 获取 DeepSeek API Key
 
@@ -119,10 +131,14 @@ Windows_AI/
 │   └── OutDoc/              # 外部文档（API文档等）
 ├── app_data/                # 应用数据（运行时生成）
 │   ├── config/              # 配置文件
-│   └── memory/              # 记忆数据
+│   │   ├── setting.json     # 配置文件（JSON格式）
+│   │   └── prompt.txt       # 系统提示词
+│   └── memory/              # 记忆数据（SQLite数据库）
+│       └── QianDaoMoZi_memory.db
 ├── image/                   # 立绘资源目录
 │   ├── closer/              # 近景立绘
-│   └── far/                 # 远景立绘
+│   ├── far/                 # 远景立绘
+│   └── default_config/      # 默认配置（prompt.txt）
 ├── image.qrc                # Qt 资源文件
 ├── CMakeLists.txt           # CMake 构建配置
 ├── main.cpp                 # 入口函数
@@ -135,7 +151,10 @@ Windows_AI/
 ├── llmservice.h/cpp         # AI 服务模块
 ├── ttsservice.h/cpp         # TTS 语音服务
 ├── appearancemanager.h/cpp  # 外观管理器
-├── configmanager.h/cpp      # 配置管理器
+├── configmanager.h/cpp      # 配置管理器（单例）
+├── memorymanager.h/cpp      # AI 记忆系统（SQLite）
+├── historyturn.h            # 对话历史数据结构
+├── settingswidget.h/cpp/ui  # 设置界面
 └── sentencedata.h           # 句子数据结构
 ```
 

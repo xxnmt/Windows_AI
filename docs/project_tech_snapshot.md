@@ -138,7 +138,11 @@
 | **职责** | 管理AI对话历史记录，支持短期记忆查询 | - |
 | **私有变量** | `m_db` | QSqlDatabase，SQLite数据库连接 |
 | **函数签名** | `bool saveQATurn(const QString& userInput, const QString& rawReply, const QList<SentenceText>& sentences)` | 保存单轮对话（用户输入+原始回复+解析后句子） |
-| | `QList<HistoryTurn> getHistoryTurn(int N)` | 获取最近N轮对话历史 |
+| | `QList<HistoryTurn> getHistoryTurn(int N)` | 获取最近N轮对话历史（按时间正序） |
+| | `QList<HistoryTurn> getHistoryTurn(int offset, int limit)` | 分页获取对话历史（按时间倒序） |
+| | `qlonglong getTotalHistoryCount()` | 获取历史记录总数 |
+| | `bool deleteTurnByID(int id)` | 根据ID删除单条记录 |
+| | `bool clearAllHistory()` | 清空所有历史记录 |
 | | `void initDatabase()` | 初始化数据库，创建聊天记录表 |
 | **数据库结构** | chat_history表（id, timestamp, user_input, raw_reply, parsed_json） | - |
 | **数据库路径** | app_data/memory/QianDaoMoZi_memory.db | - |
@@ -147,6 +151,8 @@
 
 ```cpp
 struct HistoryTurn {
+    qlonglong id = -1;   // 记录ID（自增主键）
+    QDateTime timestamp; // 创建时间（本地时间）
     QString userInput;   // 用户输入
     QString rawReply;    // AI原始回复
 };
@@ -196,15 +202,22 @@ struct HistoryTurn {
 | **信号** | `void timePeriodChanged(const QString& period)` | 时间段变化 |
 | | `void clothingAutoChanged(const QString& clothing)` | 服装自动切换 |
 
-### SettingsWidget（已实现）
+### SettingsWidget（已实现 · API配置页 + 记忆管理页）
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| **职责** | 设置界面，管理API Key等配置项 | - |
-| **配置项** | API Key配置 | - |
+| **职责** | 设置界面，管理API Key、记忆长度配置和对话历史管理 | - |
+| **配置项** | API Key配置、记忆长度配置、历史记录管理 | - |
 | **函数签名** | `void show()` | 显示设置窗口（重写showEvent加载配置） |
 | | `void loadSettings()` | 从配置文件加载当前配置 |
+| | `void setMemoryManager(MemoryManager* manager)` | 注入MemoryManager实例 |
+| | `void setMemoryLength(int length)` | 初始化记忆长度设置 |
+| | `void refreshHistoryTurnList()` | 刷新历史记录列表 |
+| | `void loadHistoryPage(int page)` | 加载指定页的历史记录 |
 | | `void on_btn_saveApiKey_clicked()` | 保存API Key到配置文件 |
+| | `void on_btn_saveMemoryLength_clicked()` | 保存记忆长度到配置文件 |
+| | `void on_btn_deleteSelectedMemory_clicked()` | 删除选中的历史记录（需API Key验证） |
+| | `void on_btn_claenAllMemory_clicked()` | 清空所有历史记录（需API Key验证） |
 | **信号** | `void settingsSaved()` | 设置保存后发出，通知AppController更新LLMService的API Key |
 
 ### ShortcutManager（规划中 · v0.3.0）

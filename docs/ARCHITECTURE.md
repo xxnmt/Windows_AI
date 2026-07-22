@@ -24,10 +24,10 @@
 | | TTSService | 语音合成队列、播放队列、模拟双线程 | ttsservice.h/cpp |
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
 | | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
-| **数据层** | ConfigManager | API Key配置、单例模式 | configmanager.h/cpp |
-| | MemoryManager | AI对话历史管理、SQLite数据库 | memorymanager.h/cpp（已实现） |
+| **数据层** | ConfigManager | API Key配置、记忆长度配置、单例模式 | configmanager.h/cpp |
+| | MemoryManager | AI对话历史管理、SQLite数据库（已实现） | memorymanager.h/cpp |
 | **规划中** | TimeManager | 时间监控、服装自动切换 | timemanager.h/cpp（规划中） |
-| | SettingsWidget | 设置界面、配置管理 | settingswidget.h/cpp/ui（已实现API配置页） |
+| | SettingsWidget | 设置界面、配置管理、记忆管理（已实现API配置页+记忆管理页） | settingswidget.h/cpp/ui |
 | | ShortcutManager | 全局快捷键管理 | shortcutmanager.h/cpp（规划中） |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
 | | HistoryTurn | 对话历史数据结构 | historyturn.h（已实现） |
@@ -370,20 +370,25 @@ LLMService解析 → AppController中转 → TTSService队列 → playAudioActio
 **配置项**：
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| deepseek_api_key | `sk-placeholder-key` | DeepSeek API密钥 |
-| gpt_sovits_url | `http://127.0.0.1:9880` | GPT-SoVITS服务地址 |
+| api.deepseek_api_key | `sk-placeholder-key` | DeepSeek API密钥 |
+| api.gpt_sovits_url | `http://127.0.0.1:9880` | GPT-SoVITS服务地址 |
+| memory.short_term_length | `15` | 短期记忆轮数 |
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `loadSetting()` | 从JSON文件加载配置 | - | bool |
+| `loadSetting()` | 从JSON文件加载配置，配置缺失时使用默认值 | - | bool |
 | `saveSetting()` | 保存配置到JSON文件 | - | bool |
 | `getApiKey()` | 获取API Key | - | QString |
 | `setApiKey()` | 设置API Key | QString | - |
 | `getTTSUrl()` | 获取TTS服务地址 | - | QString |
 | `setTTSUrl()` | 设置TTS服务地址 | QString | - |
+| `getShortMemoryLength()` | 获取短期记忆长度 | - | int |
+| `setShortMemoryLength()` | 设置短期记忆长度 | int length | - |
 | `getConfigDirPath()` | 获取配置目录路径 | - | QString |
 | `getConfigFilePath()` | 获取配置文件路径 | - | QString |
+| `getMemoryPath()` | 获取数据库文件路径 | - | QString |
+| `getAppDataPath()` | 获取应用数据根目录路径 | - | QString |
 
 
 
@@ -482,25 +487,35 @@ struct TimeConfig {
 
 ---
 
-### 2.12 SettingsWidget（已实现 · API配置页）
+### 2.12 SettingsWidget（已实现 · API配置页 + 记忆管理页）
 
-**职责**：设置界面，管理API Key等配置项
+**职责**：设置界面，管理API Key、记忆长度配置和对话历史管理
 
 **设计要点**：
 - 独立窗口（Qt::Window），支持关闭按钮
 - 显示时自动加载当前配置（重写showEvent）
 - 配置修改后立即保存到配置文件并通知AppController更新
+- 需要通过 `setMemoryManager()` 注入 MemoryManager 实例
+- 需要通过 `setMemoryLength()` 初始化记忆长度设置
 
 **当前实现**：
 - API Key配置页（输入框 + 保存按钮）
+- 记忆长度配置（数字输入框 + 保存按钮）
+- 对话历史管理页（表格展示、分页浏览、单条删除、清空全部）
 - 设置保存后发出 `settingsSaved()` 信号
 - AppController接收到信号后更新LLMService的API Key
+- 历史记录删除需要API Key验证（防止误删）
 
 **规划扩展**：
 ```
 ├── API配置页（已实现）
 │   ├── DeepSeek API Key（输入框）
 │   └── GPT-SoVITS服务地址（输入框）
+├── 记忆配置页（已实现）
+│   ├── 短期记忆长度（数字输入框，默认15）
+│   ├── 历史记录列表（表格，分页浏览）
+│   ├── 删除选中记录（需API Key验证）
+│   └── 清空全部记录（需API Key验证）
 ├── TTS配置页（规划中）
 │   ├── 启用TTS（开关）
 │   ├── 语速（滑块）
@@ -516,14 +531,10 @@ struct TimeConfig {
 │   ├── 白天结束时间（时间选择器）
 │   ├── 白天服装（下拉框）
 │   └── 夜晚服装（下拉框）
-├── 快捷键配置页（规划中）
-│   ├── 打开聊天（按键绑定）
-│   ├── 打开设置（按键绑定）
-│   └── 打开历史记录（按键绑定）
-└── 记忆配置页（规划中）
-    ├── 启用记忆（开关）
-    ├── 短期记忆长度（数字输入）
-    └── 自动摘要（开关）
+└── 快捷键配置页（规划中）
+    ├── 打开聊天（按键绑定）
+    ├── 打开设置（按键绑定）
+    └── 打开历史记录（按键绑定）
 ```
 
 **关键方法**：
@@ -531,8 +542,14 @@ struct TimeConfig {
 |------|------|------|--------|
 | `show()` | 显示设置窗口（重写showEvent自动加载配置） | - | - |
 | `loadSettings()` | 从配置文件加载当前配置 | - | - |
+| `setMemoryManager()` | 注入MemoryManager实例 | MemoryManager* | - |
+| `setMemoryLength()` | 初始化记忆长度设置 | int length | - |
+| `refreshHistoryTurnList()` | 刷新历史记录列表（重新获取总数和当前页） | - | - |
+| `loadHistoryPage()` | 加载指定页的历史记录 | int page | - |
 | `on_btn_saveApiKey_clicked()` | 保存API Key到配置文件 | - | - |
-| `on_btn_saveAll_clicked()` | 保存所有配置并关闭窗口 | - | - |
+| `on_btn_saveMemoryLength_clicked()` | 保存记忆长度到配置文件 | - | - |
+| `on_btn_deleteSelectedMemory_clicked()` | 删除选中的历史记录（需API Key验证） | - | - |
+| `on_btn_claenAllMemory_clicked()` | 清空所有历史记录（需API Key验证） | - | - |
 
 **信号**：
 | 信号 | 触发时机 | 参数 |
@@ -591,12 +608,18 @@ struct TimeConfig {
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
 | `saveQATurn()` | 保存单轮对话记录 | QString userInput, QString rawReply, QList\<SentenceText\> sentences | bool |
-| `getHistoryTurn()` | 获取最近N轮对话历史 | int N | QList\<HistoryTurn\> |
+| `getHistoryTurn(N)` | 获取最近N轮对话历史（按时间正序） | int N | QList\<HistoryTurn\> |
+| `getHistoryTurn(offset, limit)` | 分页获取对话历史（按时间倒序） | int offset, int limit | QList\<HistoryTurn\> |
+| `getTotalHistoryCount()` | 获取历史记录总数 | - | qlonglong |
+| `deleteTurnByID(id)` | 根据ID删除单条记录 | int id | bool |
+| `clearAllHistory()` | 清空所有历史记录 | - | bool |
 | `initDatabase()` | 初始化数据库连接，创建表结构 | - | - |
 
 **HistoryTurn数据结构**：
 ```cpp
 struct HistoryTurn {
+    qlonglong id = -1;   // 记录ID（自增主键）
+    QDateTime timestamp; // 创建时间（本地时间）
     QString userInput;   // 用户输入
     QString rawReply;    // AI原始回复
 };
