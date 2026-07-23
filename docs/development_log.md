@@ -137,8 +137,14 @@
   - 修复SettingsWidget空指针访问问题：四个方法添加空指针检查后的return语句
   - 更新README.md：添加安装说明、使用指南、API参考、已知限制、故障排除章节
   - 更新ARCHITECTURE.md：补充MemoryManager、SettingsWidget完整描述，更新模块关系图
-  - 更新project_tech_snapshot.md：完善数据结构和模块描述
-  - 更新ROADMAP.md：修正v0.4.0进度至80%，标记记忆管理页已实现
+
+### M15: 架构审查与改进建议
+- 日期：2026-07-23
+- 内容：
+  - **职责越界问题**：识别出4个职责越界问题（AppController、SettingsWidget、LLMService、MemoryManager）
+  - **过分耦合问题**：识别出6个耦合问题（直接依赖、双向依赖、隐式耦合、头文件依赖、初始化顺序、循环包含）
+  - **代码质量问题**：识别出6个代码质量问题（内存泄漏、魔法数字、硬编码路径、重复日志、未使用代码、注释不完整）
+  - 更新ARCHITECTURE.md：新增第9章「架构问题分析」和第10章「改进建议」，包含短期、中期、长期改进计划
 
 ---
 
@@ -156,8 +162,12 @@
 | TD-008 | appcontroller.cpp重复include头文件 | ✅ 已修复 | 低 | v0.2.0 |
 | TD-009 | 系统提示词硬编码在LLMService源码中 | ✅ 已修复（提示词外部化，prompt.txt文件） | 中 | v0.2.0 |
 | TD-010 | AI记忆系统未实现 | ✅ 已实现（MemoryManager，SQLite短期记忆） | 高 | v0.2.4 |
-| TD-011 | 对话历史查看界面缺失 | 待实现 | 中 | v0.4.0 |
+| TD-011 | 对话历史查看界面缺失 | ✅ 已实现（SettingsWidget记忆管理页） | 中 | v0.4.0 |
 | TD-012 | 长期记忆（重要事件摘要）未实现 | 待实现 | 中 | v0.4.0 |
+| TD-013 | AppController职责过重（上帝对象） | 待重构 | 高 | v0.2.0 |
+| TD-014 | AnchorManager内存泄漏风险 | 待修复 | 高 | v0.2.1 |
+| TD-015 | LLMService头文件依赖MemoryManager | 待优化 | 中 | v0.2.4 |
+| TD-016 | AppController中魔法数字SUMMARY_THRESHOLD | 待修复 | 中 | v0.2.4 |
 
 ---
 
@@ -173,6 +183,7 @@
 | v0.2.3 | 状态同步 & 提示词外部化 | LLMService + AppearanceManager | 状态提供者模式（动态追加状态），提示词外部化（prompt.txt），DeepSeek API格式修复 |
 | v0.2.4 | AI记忆系统 | MemoryManager + HistoryTurn | SQLite数据库存储对话历史，短期记忆查询（默认15轮），LLM对话上下文注入，跨会话记忆支持 |
 | v0.2.5 | 设置界面完善 | SettingsWidget + MemoryManager | 记忆管理页实现（历史记录查看/删除/清空），分页浏览，API Key验证保护，配置文件损坏降级处理，代码健壮性提升 |
+| v0.2.6 | 架构审查 | ARCHITECTURE.md | 全面审查职责越界和过分耦合问题，新增架构问题分析和改进建议章节，识别16个技术债务项 |
 
 ---
 

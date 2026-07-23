@@ -1,8 +1,8 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-20
-> 版本：v0.2.4
+> 日期：2026-07-23
+> 版本：v0.2.6
 > 状态：开发中
 
 ---
@@ -360,10 +360,22 @@ struct SentenceText {
 
 ### 已知代码问题
 
-| 位置 | 问题描述 |
-|------|----------|
-| appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） |
-| llmservice.h | `sentenceReady` 信号参数命名为单数 `sentence`，实际传递复数列表 |
+| 位置 | 问题描述 | 严重程度 |
+|------|----------|----------|
+| appcontroller.cpp | 未清理动态分配的AnchorManager（内存泄漏风险） | **高** |
+| llmservice.h | `sentenceReady` 信号参数命名为单数 `sentence`，实际传递复数列表 | 中 |
+| appcontroller.cpp | SUMMARY_THRESHOLD魔法数字硬编码 | 中 |
+| llmservice.h | 头文件直接依赖memorymanager.h，增加编译依赖链 | 中 |
+| settingswidget.cpp | on_btn_claenTempMemory_clicked未实现功能 | 低 |
+| memorymanager.cpp | 多处重复的错误日志格式 | 低 |
+
+### 架构问题（详细见ARCHITECTURE.md第9章）
+
+| 问题类型 | 数量 | 说明 |
+|----------|------|------|
+| 职责越界 | 4 | AppController、SettingsWidget、LLMService、MemoryManager职责过重 |
+| 过分耦合 | 6 | 直接依赖、双向依赖、隐式耦合、头文件依赖、初始化顺序、循环包含 |
+| 代码质量 | 6 | 内存泄漏、魔法数字、硬编码路径、重复日志、未使用代码、注释不完整 |
 
 ---
 
@@ -449,6 +461,11 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-07-23 | 架构审查完成，识别16个技术债务项，更新ARCHITECTURE.md新增架构问题分析和改进建议章节 |
+| 2026-07-22 | SettingsWidget新增记忆管理页，支持历史记录分页浏览、单条删除、清空全部 |
+| 2026-07-22 | MemoryManager新增分页查询、计数、删除、清空方法，支持用户画像和长期摘要存储 |
+| 2026-07-22 | 修复ConfigManager配置文件损坏问题，配置缺失时使用默认值 |
+| 2026-07-22 | 修复SettingsWidget空指针访问问题，四个方法添加空指针检查 |
 | 2026-07-19 | 新增 MemoryManager（AI记忆系统），使用SQLite数据库存储对话历史 |
 | 2026-07-19 | 新增 HistoryTurn 数据结构，定义对话历史模型 |
 | 2026-07-19 | LLMService::askDeepSeek 新增 historyQA 参数，支持传入对话历史上下文 |
