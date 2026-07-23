@@ -30,6 +30,7 @@ AppController::AppController(QObject *parent)
     m_settingsWidget->setMemoryManager(m_memoryManager);
     m_settingsWidget->setMemoryLength(ConfigManager::instance().getShortMemoryLength());
     m_memoryManager->scanAndApplyProfileDecay();
+    m_llmService->setMemoryManager(m_memoryManager);
 
     m_anchorManager = new AnchorManager(m_character, this);
     //ui绑定

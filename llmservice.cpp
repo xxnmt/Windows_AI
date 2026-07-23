@@ -8,7 +8,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
-
+#include <QPointer>
 #include "historyturn.h"
 
 
@@ -16,6 +16,8 @@ LLMService::LLMService(const QString &apiKey,QObject *parent)
 {
     m_networkManager = new QNetworkAccessManager(this);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &LLMService::onReplyFinished);
+    m_extractManager=new QNetworkAccessManager(this);
+
     qRegisterMetaType<QList<SentenceText>>("QList<SentenceText>");
     m_apiKey=apiKey;
 
@@ -29,6 +31,8 @@ LLMService::LLMService(const QString &apiKey,QObject *parent)
 
 void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> &historyQA)
 {
+
+
     QUrl url("https://api.deepseek.com/chat/completions");
     QNetworkRequest request(url);
 
@@ -36,31 +40,66 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
     //define YOUR_API_KEY into AI api key
     QString aotuHeader="Bearer "+m_apiKey;
     request.setRawHeader("Authorization",aotuHeader.toUtf8());
+    m_systemPromptCache=loadSystemPrompt();
 
+    //prompt
     QString finalSystemPrompt = m_systemPromptCache;
 
-    QJsonArray messagesArray;
+    // QJsonArray messagesArray;
+    // QJsonObject systemMessage;
+    // systemMessage["role"] = "system";
+    // systemMessage["content"] = finalSystemPrompt;
+    // messagesArray.append(systemMessage);
+    //用户画像
+    if (m_memoryManager) {
+        QList<UserProfile> profiles = m_memoryManager->getActiveUserProfiles(30); // 阈值 30%
+        qDebug()<<"[LLM]画像数量:"<<profiles.size();
+        if (!profiles.isEmpty()) {
+            finalSystemPrompt += "\n\n【关于欧尼酱的长期认知】\n";
+            for (const UserProfile &p : profiles) {
+                finalSystemPrompt += QString("- %1: %2（置信度 %3%）\n")
+                                         .arg(p.key)
+                                         .arg(p.value)
+                                         .arg(p.confidence);
+            }
+        }
+        //记忆摘要
+        QList<LongTermSummary> summaries = m_memoryManager->getLatestSummaries(5);
+        qDebug()<<"[LLM]摘要数量:"<<summaries.size();
+        if (!summaries.isEmpty()) {
+            finalSystemPrompt += "\n【过往重要回忆】\n";
+            for (const auto &s : summaries) {
+                finalSystemPrompt += QString("- %1\n").arg(s.summaryText);
+            }
+        }
+    }
 
+    QJsonArray messagesArray;
     QJsonObject systemMessage;
     systemMessage["role"] = "system";
     systemMessage["content"] = finalSystemPrompt;
     messagesArray.append(systemMessage);
 
+    //短期记忆
+    if (!historyQA.isEmpty()) {
+        QJsonObject historyNote;
+        historyNote["role"] = "system";
+        historyNote["content"] = "以下内容为短期对话记录，其中时间戳供你感知时间，所有回答禁止携带时间戳。";
+        messagesArray.append(historyNote);
+    }
     for (const HistoryTurn &turn : historyQA) {
-        //历史用户输入
+        // 历史用户输入
         QJsonObject histUserMsg;
         histUserMsg["role"] = "user";
-        histUserMsg["content"] = QString("[%1]%2")
-                                  .arg(turn.timestamp.toString("HH:mm:ss"),
-                                       turn.userInput);
+        histUserMsg["name"] = QString("用户 [%1]").arg(turn.timestamp.toString("HH:mm:ss"));
+        histUserMsg["content"] = turn.userInput;
         messagesArray.append(histUserMsg);
 
-        //历史茉子回复
+        // 历史茉子回复
         QJsonObject histMakoMsg;
         histMakoMsg["role"] = "assistant";
-        histMakoMsg["content"] = QString("[%1]%2")
-                                     .arg(turn.timestamp.toString("HH:mm:ss"),
-                                          turn.rawReply);
+        histMakoMsg["name"] = QString("茉子 [%1]").arg(turn.timestamp.toString("HH:mm:ss"));
+        histMakoMsg["content"] = turn.rawReply;
         messagesArray.append(histMakoMsg);
     }
 
@@ -98,6 +137,11 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
 void LLMService::registerStateProvider(std::function<QString ()> provider)
 {
     m_stateProvider=provider;
+}
+
+void LLMService::setMemoryManager(MemoryManager *manager)
+{
+    m_memoryManager=manager;
 }
 
 void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds)
@@ -149,9 +193,16 @@ void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong l
     for (qlonglong id : sourceIds) sourceJsonArray.append(id);
     QString sourceIdsJson = QJsonDocument(sourceJsonArray).toJson(QJsonDocument::Compact);
 
-    QNetworkReply *reply = m_networkManager->post(request, postData);
+    QNetworkReply *reply = m_extractManager->post(request, postData);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, lastEndId, sourceIdsJson]() {
+    QPointer<LLMService> self(this);
+
+    connect(reply, &QNetworkReply::finished, this, [this,self, reply, lastEndId, sourceIdsJson]() {
+        if(self.isNull()) {
+            reply->deleteLater();
+            qDebug()<<"[LLM]摘要捕获异常";
+            return;
+        }
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray responseData = reply->readAll();
             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
@@ -250,6 +301,33 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
     }
     reply->deleteLater();
 }
+
+// void LLMService::onExtractReplyFinished(QNetworkReply *reply)
+// {
+//         if (reply->error() == QNetworkReply::NoError) {
+//             QByteArray responseData = reply->readAll();
+//             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+//             QString replyText = jsonDoc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
+
+//             // 容错处理：清除大模型可能附带的 Markdown 代码块标记 (```json 和 ```)
+//             replyText.replace(QRegularExpression("```json|```", QRegularExpression::CaseInsensitiveOption), "");
+
+//             QJsonDocument resultDoc = QJsonDocument::fromJson(replyText.toUtf8());
+//             if (resultDoc.isObject()) {
+//                 QJsonObject rootObj = resultDoc.object();
+//                 QJsonArray profiles = rootObj["profiles"].toArray();
+//                 QString summary = rootObj["summary"].toString();
+
+//                 qDebug()<<"[LLM]记忆提取成功，画像数:"<< profiles.size()<<"摘要:"<< summary;
+//                 emit memoryExtractionReady(profiles, summary, lastEndId, sourceIdsJson);
+//             } else {
+//                 qDebug()<<"[LLM]记忆提取返回的JSON格式解析失败:"<<replyText;
+//             }
+//         } else {
+//             qDebug()<<"[LLM]记忆提取网络错误:"<<reply->errorString();
+//         }
+//         reply->deleteLater();
+// }
 
 void LLMService::initializePromptFile()
 {

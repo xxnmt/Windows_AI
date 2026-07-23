@@ -19,6 +19,7 @@ public:
     //chat
     void askDeepSeek(const QString& userInput,const QList<HistoryTurn> &historyQA=QList<HistoryTurn>());
     void registerStateProvider(std::function<QString()> provider);
+    void setMemoryManager(MemoryManager *manager);
     //Extract
     void extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds);
 
@@ -31,6 +32,9 @@ signals:
 private slots:
     //finish AI 回复
     void onReplyFinished(QNetworkReply* reply);
+    //extract
+    // void onExtractReplyFinished(QNetworkReply* reply);
+
 private:
     //处理提示词的两个函数
     void initializePromptFile();
@@ -38,11 +42,14 @@ private:
 
 
     QNetworkAccessManager* m_networkManager;
+    QNetworkAccessManager* m_extractManager;
     QString m_apiKey;
 
     QString m_localPromptPath;
     QString m_systemPromptCache;
     std::function<QString()> m_stateProvider;
+
+    MemoryManager *m_memoryManager = nullptr;
 };
 
 #endif // LLMSERVICE_H
