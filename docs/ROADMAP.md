@@ -1,7 +1,7 @@
 # 开发路线图
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.6
+> 版本：v0.4.0
 > 更新日期：2026-07-23
 
 ---
@@ -39,36 +39,36 @@
 - [x] 脸红自动退热机制
 
 ### v0.3.0 - AI资源管理（优先）
-**状态**：🚧 进行中
+**状态**：✅ 已完成
 
 **功能清单**：
-- [x] 配置文件持久化（app_data/config/settings.json） ✅ 已实现
+- [x] 配置文件持久化（app_data/config/settings.json） ✅
   - [x] API Key存储与读取 ✅
   - [x] GPT-SoVITS服务地址配置 ✅
   - [ ] TTS参数配置（语速、温度、参考音频）
-- [x] 系统提示词外部化（app_data/config/prompt.txt） ✅ 已实现
+- [x] 系统提示词外部化（app_data/config/prompt.txt） ✅
   - [x] 框架预留：LLMService预留 `loadSystemPrompt()` 方法 ✅
   - [x] 提示词从文件加载 ✅
   - [x] 支持动态追加当前状态（方案C） ✅
-- [x] AI状态同步机制（方案C：本地切换后在下轮对话同步给AI） ✅ 已实现
+- [x] AI状态同步机制（方案C：本地切换后在下轮对话同步给AI） ✅
   - [x] 框架预留：LLMService状态提供者模式 ✅
   - [x] 框架预留：AppearanceManager状态描述方法 ✅
   - [x] 框架预留：AppController连接状态提供者 ✅
   - [x] 实际实现：动态构建包含状态的系统提示词 ✅
-- [x] 设置界面（SettingsWidget） ✅ 已实现API配置页+记忆管理页
+- [x] 设置界面（SettingsWidget） ✅
   - [x] API配置页 ✅
   - [x] 记忆配置页（记忆长度、历史记录管理）✅
-- [x] 配置目录结构建立（app_data/config/） ✅ 已实现
+- [x] 配置目录结构建立（app_data/config/） ✅
 
 **技术任务**：
-- [x] ConfigManager支持从文件加载/保存（JSON格式） ✅ 已实现
-- [x] LLMService状态提供者模式（框架预留） ✅ 已实现
-- [x] AppearanceManager状态描述方法（框架预留） ✅ 已实现
-- [x] LLMService支持动态构建系统提示词 ✅ 已实现
-- [x] 创建SettingsWidget设置界面（API配置页已实现）
+- [x] ConfigManager支持从文件加载/保存（JSON格式） ✅
+- [x] LLMService状态提供者模式（框架预留） ✅
+- [x] AppearanceManager状态描述方法（框架预留） ✅
+- [x] LLMService支持动态构建系统提示词 ✅
+- [x] 创建SettingsWidget设置界面 ✅
 - [ ] 更新.gitignore规则（配置目录追踪但内容不上传）
 
-**预计时间**：2-3周
+**预计时间**：已完成
 
 ### v0.4.0 - AI记忆系统（次优先）
 **状态**：✅ 已完成（短期记忆+用户画像+长期摘要）
@@ -205,7 +205,7 @@ AppController（信号调度中枢）
     └── ConfigManager
 ```
 
-### 阶段4：位置锚点系统（v0.2.1）
+### 阶段4：AI资源管理（v0.3.0）
 
 ```
 AppController（信号调度中枢）
@@ -213,53 +213,22 @@ AppController（信号调度中枢）
     ├── BubbleWidget（气泡/打字机）
     ├── ChatWidget（聊天输入框）
     ├── AnchorManager（位置锚点管理）
-    ├── LLMService（AI对话/解析）
-    ├── TTSService（语音合成/播放）
-    ├── AppearanceManager（四维状态）
-    └── ConfigManager（单例配置）
-
-AnchorManager 管理：
-    ├── BubbleWidget → HeadRight 位置
-    └── ChatWidget → WaistCenter 位置
-```
-
-### 阶段5：配置持久化（v0.2.2）
-
-```
-AppController（信号调度中枢）
-    ├── CharacterWidget（立绘/右键菜单）
-    ├── BubbleWidget（气泡/打字机）
-    ├── ChatWidget（聊天输入框）
-    ├── AnchorManager（位置锚点管理）
-    ├── LLMService（AI对话/解析）
-    ├── TTSService（语音合成/播放）
-    ├── AppearanceManager（四维状态）
-    └── ConfigManager（单例配置 → JSON文件持久化）
-
-配置文件：app_data/config/setting.json
-    ├── api.deepseek_api_key
-    └── api.gpt_sovits_url
-```
-
-### 阶段6：状态同步框架（v0.2.3）
-
-```
-AppController（信号调度中枢）
-    ├── CharacterWidget（立绘/右键菜单）
-    ├── BubbleWidget（气泡/打字机）
-    ├── ChatWidget（聊天输入框）
-    ├── AnchorManager（位置锚点管理）
-    ├── LLMService（AI对话/解析 → 状态提供者模式）
-    │   └── m_stateProvider → AppearanceManager.getCurrentStateDescription()
+    ├── LLMService（AI对话/解析 → 状态提供者模式 + 提示词外部化）
+    │   ├── m_stateProvider → AppearanceManager.getCurrentStateDescription()
+    │   └── loadSystemPrompt() → prompt.txt文件
     ├── TTSService（语音合成/播放）
     ├── AppearanceManager（四维状态 → 状态描述输出）
     └── ConfigManager（单例配置 → JSON文件持久化）
+
+配置文件：app_data/config/settings.json
+    ├── api.deepseek_api_key
+    └── api.gpt_sovits_url
 
 状态同步机制（方案C）：
     本地状态变化 → askDeepSeek前动态获取状态 → 追加到系统提示词 → AI感知状态
 ```
 
-### 阶段7：AI记忆系统（v0.2.4，当前）
+### 阶段5：AI记忆系统（v0.4.0，当前）
 
 ```
 AppController（信号调度中枢）
@@ -267,18 +236,22 @@ AppController（信号调度中枢）
     ├── BubbleWidget（气泡/打字机）
     ├── ChatWidget（聊天输入框）
     ├── AnchorManager（位置锚点管理）
-    ├── LLMService（AI对话/解析 → 状态提供者模式 + 历史上下文）
+    ├── LLMService（AI对话/解析 → 状态提供者模式 + 记忆注入）
     │   ├── m_stateProvider → AppearanceManager.getCurrentStateDescription()
-    │   └── historyQA → MemoryManager.getHistoryTurn(15)
+    │   ├── historyQA → MemoryManager.getHistoryTurn(15)
+    │   ├── profiles → MemoryManager.getActiveUserProfiles()
+    │   ├── summaries → MemoryManager.getLatestSummaries()
+    │   └── extractMemoryAsync() 后台记忆提取
     ├── TTSService（语音合成/播放）
     ├── AppearanceManager（四维状态 → 状态描述输出）
-    ├── MemoryManager（AI记忆系统 → SQLite数据库）
-    │   ├── saveQATurn() 保存对话
-    │   └── getHistoryTurn(N) 获取短期记忆
+    ├── MemoryManager（AI记忆系统 → SQLite数据库v2）
+    │   ├── chat_history表 → 对话历史（saveQATurn/getHistoryTurn）
+    │   ├── user_profile表 → 用户画像（upsertUserProfile/getActiveUserProfiles/scanAndApplyProfileDecay）
+    │   └── long_term_summary表 → 长期摘要（addLongTermSummary/getLatestSummaries）
     └── ConfigManager（单例配置 → JSON文件持久化）
 
 记忆系统：
-    用户输入 → 读取最近15轮历史 → 注入LLM请求上下文 → AI回复 → 保存对话历史
+    用户输入 → 读取短期记忆+用户画像+长期摘要 → 注入LLM请求上下文 → AI回复 → 保存对话历史 → 触发记忆提取（阈值检测）
 ```
 
 ### 阶段8：插件化（v0.5.0+）
@@ -327,13 +300,7 @@ Plugins
 ```
 v0.1.0  ████████████████████ 100%  基础版本
 v0.2.0  ████████████████████ 100%  架构重构 & 多标签协议
-v0.2.1  ████████████████████ 100%  位置锚点系统
-v0.2.2  ████████████████████ 100%  配置持久化
-v0.2.3  ████████████████████ 100%  状态同步框架 & 提示词外部化
-v0.2.4  ████████████████████ 100%  AI记忆系统（短期记忆）
-v0.2.5  ████████████████████ 100%  设置界面完善
-v0.2.6  ████████████████████ 100%  架构审查
-v0.3.0  ████████████████████ 100%  AI资源管理（优先）
+v0.3.0  ████████████████████ 100%  AI资源管理（位置锚点+配置持久化+状态同步+提示词外部化）
 v0.4.0  ████████████████████ 100%  AI记忆系统（短期记忆+用户画像+长期摘要）
 v0.5.0  ░░░░░░░░░░░░░░░░░░░░   0%  TTS模块（第三优先）
 v0.6.0  ░░░░░░░░░░░░░░░░░░░░   0%  设置界面 & 交互增强

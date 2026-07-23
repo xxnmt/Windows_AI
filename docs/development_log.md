@@ -192,12 +192,8 @@
 | v0.1.0 | 单体式 | CharacterWidget（大而全） | LLM/Bubble/Image全部内嵌 |
 | v0.1.5 | 初步解耦 | CharacterWidget + LLMService | 网络层抽离，信号槽通信 |
 | v0.2.0 | 中央控制器 | AppController + 6个独立模块 | 中枢调度，模块独立，多标签协议 |
-| v0.2.1 | 位置锚点系统 | AnchorManager + ChatWidget | 统一位置跟随，聊天输入窗口 |
-| v0.2.2 | 配置持久化 | ConfigManager（JSON文件） | API Key/TTS地址持久化，首次启动自动创建配置 |
-| v0.2.3 | 状态同步 & 提示词外部化 | LLMService + AppearanceManager | 状态提供者模式（动态追加状态），提示词外部化（prompt.txt），DeepSeek API格式修复 |
-| v0.2.4 | AI记忆系统 | MemoryManager + HistoryTurn | SQLite数据库存储对话历史，短期记忆查询（默认15轮），LLM对话上下文注入，跨会话记忆支持 |
-| v0.2.5 | 设置界面完善 | SettingsWidget + MemoryManager | 记忆管理页实现（历史记录查看/删除/清空），分页浏览，API Key验证保护，配置文件损坏降级处理，代码健壮性提升 |
-| v0.2.6 | 用户画像与长期记忆系统 | MemoryManager + LLMService | 用户画像管理（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、数据库v2升级（user_profile/long_term_summary表）、画像和摘要注入到LLM提示词 |
+| v0.3.0 | AI资源管理 | AnchorManager + ConfigManager + LLMService + AppearanceManager | 位置锚点系统、配置持久化（API Key/TTS地址）、状态提供者模式（动态追加状态）、提示词外部化（prompt.txt）、DeepSeek API格式修复 |
+| v0.4.0 | AI记忆系统 | MemoryManager + LLMService + SettingsWidget | SQLite数据库（chat_history/user_profile/long_term_summary三张表）、短期记忆查询（默认15轮）、用户画像（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、记忆管理界面（查看/删除/清空/分页）、配置文件损坏降级处理、代码健壮性提升 |
 
 ---
 
