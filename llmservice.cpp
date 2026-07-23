@@ -100,6 +100,84 @@ void LLMService::registerStateProvider(std::function<QString ()> provider)
     m_stateProvider=provider;
 }
 
+void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds)
+{
+    if (turns.isEmpty()) {
+        qDebug()<<"[LLM]待摘要turns为空";
+        return;
+    }
+    QUrl url("https://api.deepseek.com/chat/completions");
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", ("Bearer " + m_apiKey).toUtf8());
+    QString extractionPrompt = R"(
+你是一个记忆分析与总结专家。请分析以下给出的多轮用户与AI的对话，提取：
+1. 用户画像 (profiles): 关于用户的已知事实（如职业、偏好、习惯、性格、今日情绪等）。
+   - tier 1: 长期核心事实 (如职业、基本性格、长期爱好)
+   - tier 2: 中期行为模式 (如近期工作安排、本周习惯)
+   - tier 3: 短期临时状态 (如今日心情、刚刚提及的即时打算)
+2. 剧情摘要 (summary): 用一句话概括这段对话的核心内容（50字以内）。
+
+请严格输出合法 JSON，不要包含 markdown 代码块包裹标记（如 ```json），格式规范如下：
+{
+  "profiles": [
+    {"key": "职业", "value": "程序员", "tier": 1},
+    {"key": "今日状态", "value": "在写C++代码", "tier": 3}
+  ],
+  "summary": "用户与AI讨论了长期记忆系统的开发计划。"
+}
+)";
+    QString conversationText;
+    for (const auto &turn : turns) {
+        conversationText += QString("用户: %1\nAI: %2\n---\n").arg(turn.userInput, turn.rawReply);
+    }
+
+    QJsonArray messagesArray;
+    QJsonObject sysMsg; sysMsg["role"] = "system"; sysMsg["content"] = extractionPrompt;
+    QJsonObject userMsg; userMsg["role"] = "user"; userMsg["content"] = conversationText;
+    messagesArray.append(sysMsg);
+    messagesArray.append(userMsg);
+
+    QJsonObject rootObj;
+    rootObj["model"] = "deepseek-v4-flash";
+    rootObj["messages"] = messagesArray;
+    rootObj["temperature"] = 0.3;
+
+    QByteArray postData = QJsonDocument(rootObj).toJson();
+
+    QJsonArray sourceJsonArray;
+    for (qlonglong id : sourceIds) sourceJsonArray.append(id);
+    QString sourceIdsJson = QJsonDocument(sourceJsonArray).toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = m_networkManager->post(request, postData);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, lastEndId, sourceIdsJson]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            QString replyText = jsonDoc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
+
+            // 容错处理：清除大模型可能附带的 Markdown 代码块标记 (```json 和 ```)
+            replyText.replace(QRegularExpression("```json|```", QRegularExpression::CaseInsensitiveOption), "");
+
+            QJsonDocument resultDoc = QJsonDocument::fromJson(replyText.toUtf8());
+            if (resultDoc.isObject()) {
+                QJsonObject rootObj = resultDoc.object();
+                QJsonArray profiles = rootObj["profiles"].toArray();
+                QString summary = rootObj["summary"].toString();
+
+                qDebug()<<"[LLM]记忆提取成功，画像数:"<< profiles.size()<<"摘要:"<< summary;
+                emit memoryExtractionReady(profiles, summary, lastEndId, sourceIdsJson);
+            } else {
+                qDebug()<<"[LLM]记忆提取返回的JSON格式解析失败:"<<replyText;
+            }
+        } else {
+            qDebug()<<"[LLM]记忆提取网络错误:"<<reply->errorString();
+        }
+        reply->deleteLater();
+    });
+}
+
 void LLMService::setApiKey(const QString &apiKey)
 {
     m_apiKey=apiKey;
@@ -163,7 +241,7 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
                 qDebug()<<"[LLM]四维状态变更:"<<s.rawTags;
             }
             //拆完传信号
-            emit sentenceReady(parsedSentences,replyText);
+            emit sentencesReady(parsedSentences,replyText);
         }
     }
     else {

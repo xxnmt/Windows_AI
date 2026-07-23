@@ -11,6 +11,10 @@
 #include "memorymanager.h"
 
 #include <QDebug>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QJsonDocument>
 
 AppController::AppController(QObject *parent)
     : QObject{parent}
@@ -101,6 +105,16 @@ void AppController::handleMakoReply(const QList<SentenceText> &sentences, const 
     m_memoryManager->saveQATurn(m_lastUserInput,rawReply,sentences);
     m_ttsService->enqueueSentences(sentences);
 
+    qlonglong lastEndId = -1;
+    QList<qlonglong> sourceIds;
+    QList<HistoryTurn> unsummarizedTurns = m_memoryManager->getUnsummarizedTurns(lastEndId, sourceIds);
+
+
+    const int SUMMARY_THRESHOLD = ConfigManager::instance().getShortMemoryLength();
+    if (unsummarizedTurns.size() >= SUMMARY_THRESHOLD) {
+        qDebug()<<"[AppController]未摘要对话达到阈值，开始触发后台记忆提取...";
+        m_llmService->extractMemoryAsync(unsummarizedTurns, lastEndId, sourceIds);
+    }
 }
 
 
@@ -143,12 +157,30 @@ void AppController::initConnections()
     connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
         m_llmService->setApiKey(ConfigManager::instance().getApiKey());});
 
-    connect(m_llmService,&LLMService::sentenceReady,this,&AppController::handleMakoReply);
+    connect(m_llmService,&LLMService::sentencesReady,this,&AppController::handleMakoReply);
     connect(m_chatWidget,&ChatWidget::textSubmitted,this,[this](const QString &text){
         m_lastUserInput=text;
         int memoryLength=ConfigManager::instance().getShortMemoryLength();;
         QList<HistoryTurn> shortTermMemory = m_memoryManager->getHistoryTurn(memoryLength);
         m_llmService->askDeepSeek(text,shortTermMemory);
     });
+    connect(m_llmService, &LLMService::memoryExtractionReady, this, [this](const QJsonArray &profiles, const QString &summary, qlonglong lastEndId, const QString &sourceIdsJson) {
 
+        //遍历写入用户画像
+        for (const QJsonValue &val : profiles) {
+            QJsonObject obj = val.toObject();
+            QString key = obj["key"].toString();
+            QString value = obj["value"].toString();
+            int tier = obj["tier"].toInt();
+            //每次提取到相关画像，置信度增加 10
+            m_memoryManager->upsertUserProfile(key, value, tier, 10);
+        }
+
+        //写入长期记忆摘要
+        if (!summary.isEmpty()) {
+            m_memoryManager->addLongTermSummary(summary, lastEndId, sourceIdsJson);
+        }
+
+        qDebug()<<"[AppController]本次记忆提取流程已全部完成";
+    });
 }

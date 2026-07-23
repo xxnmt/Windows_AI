@@ -25,6 +25,7 @@ public:
     qlonglong getTotalHistoryCount();
     bool deleteTurnByID(int id);
     bool clearAllHistory();
+    QList<HistoryTurn> getUnsummarizedTurns(qlonglong &outLastEndId,QList<qlonglong> &outSourceIds);
 
 //用户画像crud
     bool upsertUserProfile(const QString &key, const QString &value, int tier, int confidenceGain);

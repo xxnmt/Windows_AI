@@ -14,17 +14,20 @@ class LLMService : public QObject
     Q_OBJECT
 public:
     explicit LLMService(const QString& apiKey,QObject *parent = nullptr);
-
-    void askDeepSeek(const QString& userInput,const QList<HistoryTurn> &historyQA=QList<HistoryTurn>());
-
-    void registerStateProvider(std::function<QString()> provider);
-
+    //config
     void setApiKey(const QString &apiKey);
+    //chat
+    void askDeepSeek(const QString& userInput,const QList<HistoryTurn> &historyQA=QList<HistoryTurn>());
+    void registerStateProvider(std::function<QString()> provider);
+    //Extract
+    void extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds);
 
 signals:
-    void sentenceReady(const QList<SentenceText> &sentences,const QString &rwaReply);
-
+    //chat
+    void sentencesReady(const QList<SentenceText> &sentences,const QString &rwaReply);
     void internetErrorSignal(const QString &errorMessage);
+    //Extract
+    void memoryExtractionReady(const QJsonArray &profiles, const QString &summary, qlonglong lastEndId, const QString &sourceIdsJson);
 private slots:
     //finish AI 回复
     void onReplyFinished(QNetworkReply* reply);

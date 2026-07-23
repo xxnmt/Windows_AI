@@ -99,6 +99,7 @@ QList<HistoryTurn> MemoryManager::getHistoryTurn(int N)
         turn.timestamp = query.value("timestamp").toDateTime();
         historyTurnList.append(turn);
     }
+    qDebug()<<"[MemoryManager]获取历史记录成功";
     return historyTurnList;
 }
 
@@ -119,7 +120,7 @@ QList<HistoryTurn> MemoryManager::getHistoryTurn(int offset, int limit)
     query.bindValue(":limit", limit);
     query.bindValue(":offset", offset);
     if(!query.exec()){
-        qDebug()<<"[MemoryManager]查询失败:"<<query.lastError();
+        qDebug()<<"[MemoryManager]分页查询失败:"<<query.lastError();
         return historyList;
     }
     while (query.next()) {
@@ -130,6 +131,7 @@ QList<HistoryTurn> MemoryManager::getHistoryTurn(int offset, int limit)
         turn.timestamp = query.value("timestamp").toDateTime();
         historyList.append(turn);
     }
+    qDebug()<<"[MemoryManager]分页查询成功";
     return historyList;
 
 }
@@ -143,9 +145,11 @@ qlonglong MemoryManager::getTotalHistoryCount()
     QSqlQuery query(m_db);
     if (query.exec("SELECT COUNT(*) FROM chat_history")) {
         if (query.next()) {
+                qDebug()<<"[MemoryManager]获取历史总记录数成功";
             return query.value(0).toInt();
         }
     }
+    qDebug()<<"[MemoryManager]获取历史总记录数（0）成功";
     return 0;
 }
 
@@ -183,6 +187,42 @@ bool MemoryManager::clearAllHistory()
     return true;
 }
 
+QList<HistoryTurn> MemoryManager::getUnsummarizedTurns(qlonglong &outLastEndId, QList<qlonglong> &outSourceIds)
+{
+    QList<HistoryTurn> turns;
+    outSourceIds.clear();
+    outLastEndId = -1;
+    if(!m_db.open()){
+        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+        return turns;
+    }
+    QSqlQuery query(m_db);
+    QString sql = R"(
+        SELECT id, user_input, raw_reply
+        FROM chat_history
+        WHERE id > (SELECT COALESCE(MAX(covered_turn_end_id), 0) FROM long_term_summary)
+        ORDER BY id ASC;
+    )";
+    if(query.exec(sql)){
+        while(query.next()){
+            qlonglong id=query.value("id").toLongLong();
+            HistoryTurn turn;
+            turn.id = id;
+            turn.userInput = query.value("user_input").toString();
+            turn.rawReply = query.value("raw_reply").toString();
+
+            turns.append(turn);
+            outSourceIds.append(id);
+            outLastEndId = id;
+        }
+    }
+    else{
+        qDebug()<<"[MemoryManager]获取未摘要历史失败"<<query.lastError();
+    }
+    qDebug()<<"[MemoryManager]获取未摘要历史成功";
+    return turns;
+}
+
 bool MemoryManager::upsertUserProfile(const QString &key, const QString &value, int tier, int confidenceGain)
 {
     if(!m_db.open()){
@@ -211,6 +251,7 @@ bool MemoryManager::upsertUserProfile(const QString &key, const QString &value, 
         qDebug()<<"[MemoryManager]更新用户画像失败:"<<query.lastError();
         return false;
     }
+    qDebug()<<"[MemoryManager]更新用户画像成功";
     return true;
 }
 
@@ -244,6 +285,7 @@ QList<UserProfile> MemoryManager::getActiveUserProfiles(int minConfidence)
         qDebug()<<"[MemoryManager]获取用户画像失败:"<<query.lastError();
         return profiles;
     }
+    qDebug()<<"[MemoryManager]获取用户画像成功";
     return profiles;
 }
 
@@ -260,6 +302,7 @@ bool MemoryManager::deleteUserProfile(qlonglong id)
         qDebug()<<"[MemoryManager]获取记忆摘要失败:"<<query.lastError();
         return false;
     }
+    qDebug()<<"[MemoryManager]获取记忆摘要成功";
     return true;
 }
 
@@ -340,9 +383,10 @@ bool MemoryManager::addLongTermSummary(const QString &summaryText, qlonglong cov
     query.bindValue(":source_ids", sourceIdsJson);
 
     if (!query.exec()) {
-        qDebug()<<"[MemoryManager]add记忆摘要失败:"<<query.lastError();
+        qDebug()<<"[MemoryManager]添加记忆摘要失败:"<<query.lastError();
         return false;
     }
+    qDebug()<<"[MemoryManager]添加记忆摘要成功";
     return true;
 }
 
@@ -389,6 +433,7 @@ QList<LongTermSummary> MemoryManager::getLatestSummaries(int limit)
             return summaries;
         }
     }
+    qDebug()<<"[MemoryManager]获取记忆摘要成功";
     return summaries;
 }
 
@@ -402,9 +447,10 @@ bool MemoryManager::deleteLongTermSummary(qlonglong id)
     query.prepare("DELETE FROM long_term_summary WHERE id = :id");
     query.bindValue(":id", id);
     if (!query.exec()) {
-        qDebug()<<"[MemoryManager]获取记忆摘要失败:"<<query.lastError();
+        qDebug()<<"[MemoryManager]删除记忆摘要失败:"<<query.lastError();
         return false;
     }
+    qDebug()<<"[MemoryManager]删除记忆摘要成功";
     return true;
 }
 
@@ -450,7 +496,7 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
     m_db.transaction();
 
     try {
-        if (currentVersion == 0) {
+        if (currentVersion<1) {
             qDebug()<<"[MemoryManager]没有数据库，正在创建对话记录表:";
             QString createTableSql = R"(
                 CREATE TABLE IF NOT EXISTS chat_history (
@@ -472,7 +518,7 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
         m_db.commit();
         qDebug()<<"[MemoryManager]数据库初始化完成,结构版本为:"<<currentVersion;
 
-        if(currentVersion == 1){
+        if(currentVersion<2){
             qDebug()<<"[MemoryManager]没有更新v2数据库，正在创建用户画像记录表和摘要表:";
             QString createUserProfileSql = R"(
             CREATE TABLE IF NOT EXISTS user_profile (
@@ -511,7 +557,7 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
             }
             query.exec("CREATE INDEX IF NOT EXISTS idx_summary_covered_end ON long_term_summary(covered_turn_end_id);");
             query.exec("CREATE INDEX IF NOT EXISTS idx_summary_is_dirty ON long_term_summary(is_dirty);");
-            if (!query.exec("PRAGMA user_version = 1")){
+            if (!query.exec("PRAGMA user_version = 2")){
                 qDebug()<<"[MomeryManager]v2数据库异常:"<<query.lastError();
             }
             currentVersion = 2;
