@@ -146,6 +146,20 @@
   - **代码质量问题**：识别出6个代码质量问题（内存泄漏、魔法数字、硬编码路径、重复日志、未使用代码、注释不完整）
   - 更新ARCHITECTURE.md：新增第9章「架构问题分析」和第10章「改进建议」，包含短期、中期、长期改进计划
 
+### M16: 用户画像与长期记忆系统（已实现）
+- 日期：2026-07-23
+- 内容：
+  - MemoryManager新增用户画像管理：`upsertUserProfile()`、`getActiveUserProfiles()`、`deleteUserProfile()`
+  - MemoryManager新增长期记忆摘要管理：`addLongTermSummary()`、`getLatestSummaries()`、`deleteLongTermSummary()`
+  - MemoryManager新增置信度衰减机制：`scanAndApplyProfileDecay()`（三级半衰期：Tier1=-0.8/天，Tier2=-5.0/天，Tier3=-25.0/天）
+  - MemoryManager新增未摘要对话查询：`getUnsummarizedTurns()`
+  - LLMService新增记忆提取功能：`extractMemoryAsync()`（异步调用LLM分析对话，提取用户画像和长期摘要）
+  - LLMService新增MemoryManager依赖：`setMemoryManager()`
+  - AppController集成记忆提取流程：`handleMakoReply()`中判断未摘要对话数，触发后台记忆提取；`memoryExtractionReady`信号处理中写入用户画像和长期摘要
+  - LLMService::askDeepSeek()新增用户画像和长期摘要注入：将活跃画像和最新摘要追加到系统提示词
+  - 数据库v2升级：新增user_profile表（含索引）和long_term_summary表（含索引）
+  - AppController启动时调用`scanAndApplyProfileDecay()`进行画像衰减扫描
+
 ---
 
 ## 技术债务
@@ -167,7 +181,7 @@
 | TD-013 | AppController职责过重（上帝对象） | 待重构 | 高 | v0.2.0 |
 | TD-014 | AnchorManager内存泄漏风险 | 待修复 | 高 | v0.2.1 |
 | TD-015 | LLMService头文件依赖MemoryManager | 待优化 | 中 | v0.2.4 |
-| TD-016 | AppController中魔法数字SUMMARY_THRESHOLD | 待修复 | 中 | v0.2.4 |
+| TD-016 | AppController中魔法数字SUMMARY_THRESHOLD | ✅ 非问题（设计意图：摘要轮数=短期记忆轮数） | 低 | v0.2.4 |
 
 ---
 
@@ -183,7 +197,7 @@
 | v0.2.3 | 状态同步 & 提示词外部化 | LLMService + AppearanceManager | 状态提供者模式（动态追加状态），提示词外部化（prompt.txt），DeepSeek API格式修复 |
 | v0.2.4 | AI记忆系统 | MemoryManager + HistoryTurn | SQLite数据库存储对话历史，短期记忆查询（默认15轮），LLM对话上下文注入，跨会话记忆支持 |
 | v0.2.5 | 设置界面完善 | SettingsWidget + MemoryManager | 记忆管理页实现（历史记录查看/删除/清空），分页浏览，API Key验证保护，配置文件损坏降级处理，代码健壮性提升 |
-| v0.2.6 | 架构审查 | ARCHITECTURE.md | 全面审查职责越界和过分耦合问题，新增架构问题分析和改进建议章节，识别16个技术债务项 |
+| v0.2.6 | 用户画像与长期记忆系统 | MemoryManager + LLMService | 用户画像管理（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、数据库v2升级（user_profile/long_term_summary表）、画像和摘要注入到LLM提示词 |
 
 ---
 

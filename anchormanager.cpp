@@ -27,6 +27,8 @@ void AnchorManager::registerWidget(QWidget *widget, AnchorConfig config)
         qDebug()<<"[anchormanager]绑定失败，缺失对象:"<<"m_character";
         return;
     }
+    // widget->setParent(this);
+
     AnchorInfo info;
     info.widget=widget;
     info.config=config;

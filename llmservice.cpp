@@ -9,7 +9,7 @@
 #include <QDir>
 #include <QFile>
 #include <QPointer>
-#include "historyturn.h"
+#include "memorymanager.h"
 
 
 LLMService::LLMService(const QString &apiKey,QObject *parent)

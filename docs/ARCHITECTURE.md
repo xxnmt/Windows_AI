@@ -101,7 +101,7 @@
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
 | `startApp()` | 启动应用，显示角色（不再自动触发首次对话） | - | - |
-| `handleMakoReply()` | 接收LLM解析结果，保存记忆+入队TTS | QList\<SentenceText\> sentences, QString rawReply | - |
+| `handleMakoReply()` | 接收LLM解析结果，保存记忆+入队TTS+触发记忆提取 | QList\<SentenceText\> sentences, QString rawReply | - |
 | `handleSystemError()` | 统一错误处理，显示错误气泡+切悲伤立绘 | QString errorMsg | - |
 | `onPlayAudioAction()` | TTS播放同步：更新气泡+立绘 | QString zhText, QMap tags | - |
 
@@ -213,10 +213,19 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 |------|------|------|--------|
 | `askDeepSeek()` | 发起DeepSeek API请求，动态追加状态上下文，支持传入对话历史 | QString userInput, QList\<HistoryTurn\> historyQA | - |
 | `onReplyFinished()` | 解析JSON→拆句→提取标签→发信号（携带原始回复） | QNetworkReply* | - |
+| `extractMemoryAsync()` | 后台异步提取记忆（用户画像+长期摘要） | QList\<HistoryTurn\> turns, qlonglong lastEndId, QList\<qlonglong\> sourceIds | - |
 | `registerStateProvider()` | 注册状态提供者回调 | std::function\<QString()\> | - |
+| `setMemoryManager()` | 设置MemoryManager实例（用于记忆提取） | MemoryManager* manager | - |
 | `initializePromptFile()` | 初始化提示词文件，首次启动从资源释放默认prompt.txt | - | - |
 | `loadSystemPrompt()` | 从文件加载系统提示词，失败时回退到资源文件 | - | QString |
 | `setApiKey()` | 设置API Key（运行时更新） | QString apiKey | - |
+
+**信号**：
+| 信号 | 触发时机 | 参数 |
+|------|----------|------|
+| `sentencesReady(sentences, rawReply)` | 回复解析完成，携带原始回复用于保存记忆 | QList\<SentenceText\>, QString |
+| `internetErrorSignal(msg)` | 网络错误 | QString |
+| `memoryExtractionReady(profiles, summary, lastEndId, sourceIdsJson)` | 记忆提取完成 | QJsonArray, QString, qlonglong, QString |
 
 **多标签协议系统指令（核心）**：
 ```
@@ -586,16 +595,20 @@ struct TimeConfig {
 
 ### 2.14 MemoryManager（已实现 · AI记忆系统）
 
-**职责**：管理AI对话历史记录，支持短期记忆查询与持久化存储
+**职责**：管理AI对话历史记录、用户画像和长期记忆摘要，支持短期记忆查询与持久化存储
 
 **设计要点**：
-- 使用SQLite数据库存储对话历史，支持跨会话记忆
+- 使用SQLite数据库存储三类数据，支持跨会话记忆
 - 每次对话后保存用户输入、AI原始回复和解析后的句子数据
 - 对话前读取最近N轮历史作为短期记忆（默认15轮）
+- 支持用户画像的置信度衰减机制（三级半衰期）
+- 支持长期记忆摘要的自动生成和管理
 - 数据库路径：`app_data/memory/QianDaoMoZi_memory.db`
 - 支持数据库版本升级（PRAGMA user_version）
 
 **数据库结构**：
+
+**表1：chat_history（对话历史）**
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
@@ -604,7 +617,32 @@ struct TimeConfig {
 | raw_reply | TEXT NOT NULL | AI原始回复 |
 | parsed_json | TEXT NOT NULL | 解析后的句子JSON |
 
+**表2：user_profile（用户画像）**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
+| key | TEXT NOT NULL | 画像属性名 |
+| value | TEXT NOT NULL | 画像属性值 |
+| tier | INTEGER DEFAULT 2 | 半衰期等级（1=长期，2=中期，3=短期） |
+| confidence | INTEGER DEFAULT 50 | 置信度（0-100） |
+| first_seen | DATETIME | 首次记录时间 |
+| last_triggered | DATETIME | 上次触发时间 |
+| session_count | INTEGER DEFAULT 1 | 触发次数 |
+
+**表3：long_term_summary（长期记忆摘要）**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
+| summary_text | TEXT NOT NULL | 摘要内容 |
+| covered_turn_end_id | INTEGER NOT NULL | 覆盖的对话结束ID |
+| source_ids | TEXT NOT NULL | 来源对话ID列表（JSON） |
+| is_dirty | INTEGER DEFAULT 0 | 是否待重建 |
+| created_at | DATETIME | 创建时间 |
+| updated_at | DATETIME | 更新时间 |
+
 **关键方法**：
+
+**对话历史 CRUD**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
 | `saveQATurn()` | 保存单轮对话记录 | QString userInput, QString rawReply, QList\<SentenceText\> sentences | bool |
@@ -613,15 +651,55 @@ struct TimeConfig {
 | `getTotalHistoryCount()` | 获取历史记录总数 | - | qlonglong |
 | `deleteTurnByID(id)` | 根据ID删除单条记录 | int id | bool |
 | `clearAllHistory()` | 清空所有历史记录 | - | bool |
-| `initDatabase()` | 初始化数据库连接，创建表结构 | - | - |
+| `getUnsummarizedTurns()` | 获取未摘要的对话记录 | qlonglong& outLastEndId, QList\<qlonglong\>& outSourceIds | QList\<HistoryTurn\> |
 
-**HistoryTurn数据结构**：
+**用户画像 CRUD**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `upsertUserProfile()` | 插入或更新用户画像 | QString key, QString value, int tier, int confidenceGain | bool |
+| `getActiveUserProfiles()` | 获取活跃用户画像（置信度>=阈值） | int minConfidence | QList\<UserProfile\> |
+| `deleteUserProfile()` | 删除用户画像 | qlonglong id | bool |
+| `scanAndApplyProfileDecay()` | 扫描并应用置信度衰减 | - | int（删除的记录数） |
+
+**长期记忆摘要 CRUD**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `addLongTermSummary()` | 添加长期记忆摘要 | QString summaryText, qlonglong coveredEndId, QString sourceIdsJson | bool |
+| `getLatestSummaries()` | 获取最新的长期摘要 | int limit | QList\<LongTermSummary\> |
+| `deleteLongTermSummary()` | 删除长期记忆摘要 | qlonglong id | bool |
+
+**数据结构**：
+
 ```cpp
+// 对话历史
 struct HistoryTurn {
     qlonglong id = -1;   // 记录ID（自增主键）
     QDateTime timestamp; // 创建时间（本地时间）
     QString userInput;   // 用户输入
     QString rawReply;    // AI原始回复
+};
+
+// 用户画像
+struct UserProfile {
+    qlonglong id = -1;         // 记录ID
+    QString key;               // 画像属性名（如"职业"、"爱好"）
+    QString value;             // 画像属性值（如"程序员"、"游戏"）
+    int tier = 2;              // 半衰期等级
+    int confidence = 50;       // 置信度（0-100）
+    QDateTime firstSeen;       // 首次记录时间
+    QDateTime lastTriggered;   // 上次触发时间
+    int sessionCount = 1;      // 触发次数
+};
+
+// 长期记忆摘要
+struct LongTermSummary {
+    qlonglong id = -1;              // 记录ID
+    QString summaryText;            // 摘要内容
+    qlonglong coveredTurnEndId = -1;// 覆盖的对话结束ID
+    QString sourceIds;              // 来源对话ID列表（JSON）
+    bool isDirty = false;           // 是否待重建
+    QDateTime createdAt;            // 创建时间
+    QDateTime updatedAt;            // 更新时间
 };
 ```
 
@@ -630,7 +708,16 @@ struct HistoryTurn {
 用户提交输入 → MemoryManager::getHistoryTurn(15) 获取短期记忆
     → LLMService::askDeepSeek(userInput, historyQA) 发送请求（含历史上下文）
     → AI回复 → MemoryManager::saveQATurn(userInput, rawReply, sentences) 保存记忆
+    → 判断未摘要对话数 >= 阈值 → LLMService::extractMemoryAsync() 后台提取
+    → 提取结果 → upsertUserProfile() 更新画像 + addLongTermSummary() 添加摘要
 ```
+
+**用户画像衰减机制**：
+- 应用启动时调用 `scanAndApplyProfileDecay()`
+- Tier 1（长期）：-0.8/天（职业、基本性格、长期爱好）
+- Tier 2（中期）：-5.0/天（近期工作安排、本周习惯）
+- Tier 3（短期）：-25.0/天（今日心情、即时打算）
+- 置信度 <= 0 的画像自动删除
 
 ### 2.15 AI状态同步机制（方案C · 已实现）
 
@@ -953,7 +1040,7 @@ AnchorManager 管理：
 | 问题编号 | 问题描述 | 涉及文件 | 严重程度 |
 |----------|----------|----------|----------|
 | Q-001 | 内存泄漏风险：AnchorManager未清理动态分配的对象 | anchormanager.cpp | **高** |
-| Q-002 | 魔法数字：SUMMARY_THRESHOLD硬编码在AppController中 | appcontroller.cpp:113 | **中** |
+| Q-002 | 魔法数字：SUMMARY_THRESHOLD（设计意图：摘要轮数=短期记忆轮数） | appcontroller.cpp:113 | **低（非问题）** |
 | Q-003 | 硬编码路径：MemoryManager中数据库路径拼接方式 | memorymanager.cpp:392 | **中** |
 | Q-004 | 重复日志输出：MemoryManager中多处重复的错误日志格式 | memorymanager.cpp | **低** |
 | Q-005 | 未使用变量：SettingsWidget中on_btn_claenTempMemory_clicked未使用功能 | settingswidget.cpp:122-126 | **低** |

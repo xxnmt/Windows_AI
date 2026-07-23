@@ -6,8 +6,9 @@
 #include <QNetworkReply>
 
 #include "sentencedata.h"
-#include "memorymanager.h"
+#include "historyturn.h"
 
+class MemoryManager;
 
 class LLMService : public QObject
 {
