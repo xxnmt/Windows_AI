@@ -121,6 +121,25 @@
   - 数据库路径：`app_data/memory/QianDaoMoZi_memory.db`
   - 数据库结构：chat_history表（id, timestamp, user_input, raw_reply, parsed_json）
 
+### M13: 设置界面完善（记忆管理页）
+- 日期：2026-07-22
+- 内容：
+  - SettingsWidget新增记忆管理页，支持历史记录查看、分页浏览、单条删除、清空全部
+  - 历史记录删除需要API Key验证，防止误删
+  - HistoryTurn数据结构新增 id 和 timestamp 字段
+  - MemoryManager新增分页查询方法 getHistoryTurn(offset, limit)、计数方法 getTotalHistoryCount()、删除方法 deleteTurnByID() 和 clearAllHistory()
+  - AppController中添加 setMemoryManager() 和 setMemoryLength() 调用，确保SettingsWidget正确获取MemoryManager实例
+
+### M14: 代码修复与文档更新
+- 日期：2026-07-22~2026-07-23
+- 内容：
+  - 修复ConfigManager配置文件损坏问题：配置缺失时使用默认值而非返回false
+  - 修复SettingsWidget空指针访问问题：四个方法添加空指针检查后的return语句
+  - 更新README.md：添加安装说明、使用指南、API参考、已知限制、故障排除章节
+  - 更新ARCHITECTURE.md：补充MemoryManager、SettingsWidget完整描述，更新模块关系图
+  - 更新project_tech_snapshot.md：完善数据结构和模块描述
+  - 更新ROADMAP.md：修正v0.4.0进度至80%，标记记忆管理页已实现
+
 ---
 
 ## 技术债务
@@ -153,6 +172,7 @@
 | v0.2.2 | 配置持久化 | ConfigManager（JSON文件） | API Key/TTS地址持久化，首次启动自动创建配置 |
 | v0.2.3 | 状态同步 & 提示词外部化 | LLMService + AppearanceManager | 状态提供者模式（动态追加状态），提示词外部化（prompt.txt），DeepSeek API格式修复 |
 | v0.2.4 | AI记忆系统 | MemoryManager + HistoryTurn | SQLite数据库存储对话历史，短期记忆查询（默认15轮），LLM对话上下文注入，跨会话记忆支持 |
+| v0.2.5 | 设置界面完善 | SettingsWidget + MemoryManager | 记忆管理页实现（历史记录查看/删除/清空），分页浏览，API Key验证保护，配置文件损坏降级处理，代码健壮性提升 |
 
 ---
 
@@ -173,6 +193,9 @@
 | 2026-07-17 | API Key硬编码 | ConfigManager实现JSON配置文件读写，支持API Key和TTS服务地址持久化 | v0.2.2 |
 | 2026-07-17 | AI状态同步机制缺失 | LLMService实现状态提供者模式，AppearanceManager新增状态描述方法，动态追加状态到提示词 | v0.2.3 |
 | 2026-07-17 | 提示词外部化框架缺失 | LLMService实现initializePromptFile()和loadSystemPrompt()，首次启动自动释放默认提示词 | v0.2.3 |
+| 2026-07-22 | SettingsWidget数据库获取失败 | AppController中添加setMemoryManager()调用，确保SettingsWidget正确获取MemoryManager实例 | v0.2.5 |
+| 2026-07-22 | SettingsWidget空指针解引用 | 在refreshHistoryTurnList、loadHistoryPage、on_btn_deleteSelectedMemory_clicked、on_btn_claenAllMemory_clicked四个方法中添加空指针检查后的return语句 | v0.2.5 |
+| 2026-07-22 | ConfigManager配置文件损坏 | 修改loadSetting()方法，配置缺失时使用默认值并继续执行，而非返回false | v0.2.5 |
 
 ---
 

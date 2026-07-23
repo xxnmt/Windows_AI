@@ -34,7 +34,7 @@
 - **框架**: Qt 6.5+
 - **语言**: C++17
 - **构建系统**: CMake 3.19+
-- **AI 服务**: DeepSeek API
+- **AI 服务**: DeepSeek API (deepseek-v4-flash)
 - **语音合成**: GPT-SoVITS（规划中）
 - **数据库**: SQLite（已实现，用于对话历史存储）
 
@@ -45,49 +45,54 @@
 - Windows 10/11
 - Qt 6.5+（带 Qt Creator 或 qmake）
 - CMake 3.19+
-- Visual Studio 2019/2022（或其他 C++ 编译器）
+- Visual Studio 2019/2022 或 MinGW 编译器
 
 ### 构建步骤
 
-1. **克隆项目**
-   ```bash
-   git clone https://github.com/your-username/Windows_AI.git
-   cd Windows_AI
-   ```
-
-2. **创建构建目录**
-   ```bash
-   mkdir build
-   cd build
-   ```
-
-3. **配置 CMake**
-   ```bash
-   cmake .. -DCMAKE_PREFIX_PATH="你的Qt安装路径"
-   ```
-
-4. **构建项目**
-   ```bash
-   cmake --build . --config Release
-   ```
-
-5. **运行**
-   ```bash
-   ./Release/Windows_AI.exe
-   ```
-
-### Qt Creator 构建
+#### 方法一：使用 Qt Creator（推荐）
 
 1. 打开 Qt Creator
 2. 选择「打开项目」，选择项目根目录的 `CMakeLists.txt`
-3. 配置 Kit（确保 Qt 6.5+）
+3. 配置 Kit（确保 Qt 6.5+，选择合适的编译器）
 4. 点击「构建」按钮
+5. 构建成功后，点击「运行」按钮
+
+#### 方法二：使用命令行
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/your-username/Windows_AI.git
+cd Windows_AI
+
+# 2. 创建构建目录
+mkdir build
+cd build
+
+# 3. 配置 CMake（替换为你的 Qt 安装路径）
+cmake .. -DCMAKE_PREFIX_PATH="C:/Qt/6.5.3/mingw_64"
+
+# 4. 构建项目
+cmake --build . --config Release
+
+# 5. 运行
+./Release/Windows_AI.exe
+```
+
+### 依赖项
+
+项目使用以下 Qt 模块：
+- Qt::Core - 核心功能
+- Qt::Widgets - UI组件
+- Qt::Network - 网络请求（DeepSeek API）
+- Qt::Sql - SQLite数据库（对话历史）
 
 ## ⚙️ 配置
 
-### API Key 配置
+### 配置文件路径
 
-首次运行后，在 `app_data/config/settings.json` 中配置你的 API Key：
+首次运行后，配置文件位于：`app_data/config/setting.json`
+
+### 配置项说明
 
 ```json
 {
@@ -101,8 +106,6 @@
 }
 ```
 
-### 配置项说明
-
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `api.deepseek_api_key` | `sk-placeholder-key` | DeepSeek API 密钥 |
@@ -115,9 +118,39 @@
 2. 注册/登录账号
 3. 创建 API Key
 
-### GPT-SoVITS 配置（规划中）
+### 系统提示词
 
-参考项目文档 `docs/OutDoc/API_DOC.md` 进行配置。
+系统提示词文件位于：`app_data/config/prompt.txt`
+
+首次启动时，会从资源文件自动释放默认提示词。你可以修改此文件来自定义茉子的性格和行为。
+
+## 📖 使用指南
+
+### 基本操作
+
+1. **启动应用**：运行 `Windows_AI.exe`，茉子会出现在桌面上
+2. **拖动移动**：鼠标左键拖动茉子可以移动位置
+3. **右键菜单**：右键点击茉子可以打开菜单（聊天/设置/退出）
+4. **聊天**：选择「和茉子聊天」打开聊天窗口，输入内容后按回车发送
+5. **设置**：选择「设置」打开设置界面，配置API Key和记忆长度
+
+### 对话历史管理
+
+在设置界面的「记忆」标签页中：
+- 查看历史对话记录（分页浏览）
+- 删除选中的记录（需要API Key验证）
+- 清空所有记录（需要API Key验证）
+
+### 立绘状态说明
+
+茉子的立绘支持四维状态切换：
+
+| 维度 | 可选值 | 说明 |
+|------|--------|------|
+| emotion | happyIdle, happyMore, amazing, loving, caring, sad, conscientious | 表情状态 |
+| blush | unblushing, blushing | 脸红状态（自动退热） |
+| distance | far, closer | 距离远近 |
+| clothing | pajama, schoolUniform, schoolUniformWithoutCap, schoolUniformWithoutCoat | 服装类型 |
 
 ## 📁 项目结构
 
@@ -158,12 +191,95 @@ Windows_AI/
 └── sentencedata.h           # 句子数据结构
 ```
 
-## 📖 使用说明
+## � API 参考
 
-1. **启动应用**：运行 `Windows_AI.exe`，茉子会出现在桌面上
-2. **拖动移动**：鼠标左键拖动茉子可以移动位置
-3. **右键菜单**：右键点击茉子可以打开菜单（聊天/设置/退出）
-4. **聊天**：选择「和茉子聊天」或使用快捷键打开聊天窗口
+### DeepSeek API
+
+项目使用 DeepSeek v4 Flash 模型进行 AI 对话。
+
+**请求格式**：
+- **Endpoint**: `https://api.deepseek.com/chat/completions`
+- **Method**: POST
+- **Content-Type**: application/json
+- **Authorization**: Bearer {api_key}
+
+**请求参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| model | string | 模型名称，固定为 "deepseek-v4-flash" |
+| messages | array | 消息数组，包含系统消息、历史对话和用户输入 |
+| temperature | float | 温度参数，默认 0.7 |
+
+**多标签协议**（AI回复格式）：
+```
+[emotion:值][blush:值][distance:值][clothing:值][ja:日文] 中文内容
+```
+
+### GPT-SoVITS API（规划中）
+
+参考项目文档 `docs/OutDoc/API_DOC.md` 进行配置。
+
+## ⚠️ 已知限制
+
+1. **TTS为模拟实现**：当前 TTSService 使用 QTimer 模拟语音合成和播放，尚未接入真实的 GPT-SoVITS 引擎
+2. **无错误重试机制**：LLM 请求失败后不会自动重试，需要用户重新发送
+3. **无网络状态检测**：应用启动时不会检测网络连接状态
+4. **立绘切换无过渡动画**：换图时直接切换，没有淡入淡出效果
+5. **仅支持单角色**：当前仅支持「千岛茉子」一个角色
+
+## 🔧 故障排除
+
+### 问题1：配置文件损坏
+
+**现象**：启动时日志显示 `[ConfigManger]:配置文件损坏`
+
+**解决方案**：
+- 删除 `app_data/config/setting.json` 文件
+- 重新启动应用，会自动创建新的配置文件
+- 或手动编辑配置文件，确保JSON格式正确
+
+### 问题2：API Key 无效
+
+**现象**：发送消息后没有回复，日志显示网络错误
+
+**解决方案**：
+1. 检查 `app_data/config/setting.json` 中的 API Key 是否正确
+2. 确认 API Key 没有过期或被禁用
+3. 在设置界面重新输入并保存 API Key
+
+### 问题3：数据库连接失败
+
+**现象**：日志显示 `[MemoryManager]数据库打开失败`
+
+**解决方案**：
+1. 检查 `app_data/memory/` 目录是否存在
+2. 确保应用有读写该目录的权限
+3. 删除 `app_data/memory/QianDaoMoZi_memory.db` 文件后重新启动
+
+### 问题4：立绘不显示
+
+**现象**：窗口空白，没有显示立绘
+
+**解决方案**：
+1. 检查 Qt 资源文件 `image.qrc` 是否正确配置
+2. 确认立绘图片文件存在于 `image/` 目录中
+3. 检查图片路径是否正确（格式：`:image/{distance}/{clothing}/{blush}/{emotion}.png`）
+
+### 问题5：聊天窗口不弹出
+
+**现象**：右键菜单选择「和茉子聊天」后没有反应
+
+**解决方案**：
+1. 检查 `ChatWidget` 是否正确注册到 `AnchorManager`
+2. 确认 `CharacterWidget::chatRequested()` 信号已连接到 `ChatWidget::popup()`
+
+### 问题6：气泡位置不正确
+
+**现象**：气泡显示位置与角色不匹配
+
+**解决方案**：
+1. 检查 `AnchorManager::calculatePosition()` 中的锚点策略计算
+2. 确认 `CharacterWidget::getVisibleRect()` 正确计算了立绘有效区域
 
 ## 🤝 贡献
 
@@ -171,7 +287,7 @@ Windows_AI/
 
 ## 📄 许可证
 
-MIT License（待完善）
+MIT License
 
 ## 📧 联系方式
 

@@ -1,8 +1,8 @@
 # 架构设计文档
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.2.4
-> 更新日期：2026-07-20
+> 版本：v0.2.5
+> 更新日期：2026-07-23
 
 ---
 
@@ -881,6 +881,9 @@ image/
 | AnchorManager | anchormanager.h/cpp | 位置锚点管理，统一协调气泡/聊天窗口的位置跟随 | v0.2.1 |
 | AnchorStrategy | anchorstrategy.h | 锚点位置枚举与配置结构 | v0.2.1 |
 | ChatWidget | chatwidget.h/cpp | 聊天输入窗口，支持弹出/跟随 | v0.2.1 |
+| MemoryManager | memorymanager.h/cpp | AI记忆系统，SQLite数据库存储对话历史 | v0.2.4 |
+| HistoryTurn | historyturn.h | 对话历史数据结构 | v0.2.4 |
+| SettingsWidget | settingswidget.h/cpp/ui | 设置界面，API配置+记忆管理 | v0.2.4 |
 
 ### 7.5 当前模块关系图（更新）
 
@@ -889,15 +892,23 @@ AppController
     ├── CharacterWidget（立绘/右键菜单）
     ├── BubbleWidget（气泡/打字机）
     ├── ChatWidget（聊天输入框）
-    ├── AnchorManager（位置锚点管理）← 新增
+    ├── SettingsWidget（设置界面）
+    ├── AnchorManager（位置锚点管理）
     ├── LLMService（AI对话/解析）
     ├── TTSService（语音合成/播放）
     ├── AppearanceManager（四维状态）
+    ├── MemoryManager（AI记忆系统）
     └── ConfigManager（单例配置）
 
 AnchorManager 管理：
     ├── BubbleWidget → HeadRight 位置
     └── ChatWidget → WaistCenter 位置
+
+数据流向：
+    ConfigManager → LLMService (API Key)
+    MemoryManager → LLMService (历史上下文)
+    MemoryManager → SettingsWidget (历史记录管理)
+    ConfigManager → SettingsWidget (配置读取/保存)
 ```
 
 ---
