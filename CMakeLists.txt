@@ -27,6 +27,7 @@ qt_add_executable(Windows_AI
     settingswidget.h settingswidget.cpp settingswidget.ui
     memorymanager.h memorymanager.cpp
     historyturn.h
+    ttsreference.h
 )
 
 target_link_libraries(Windows_AI

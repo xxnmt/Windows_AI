@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QSettings>
+
 class ConfigManager
 {
 public:

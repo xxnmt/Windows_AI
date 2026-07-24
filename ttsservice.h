@@ -6,6 +6,8 @@
 #include <QTimer>
 #include "sentencedata.h"
 
+
+
 class TTSService : public QObject
 {
     Q_OBJECT
