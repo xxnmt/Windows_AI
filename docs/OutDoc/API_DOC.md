@@ -467,3 +467,19 @@ v2 API 提供6种文本切分方法（定义在 `GPT_SoVITS/TTS_infer_pack/text_
 | GPU型号含 `16`（非V100）、`P40`、`P10`、`1060`、`1070`、`1080` | 强制使用全精度 |
 | CPU推理 | 强制使用全精度 |
 | 其他GPU | 使用半精度 |
+
+---
+
+## 七、模块直接调用（Qt/C++项目集成）
+
+如果您希望通过 Python 模块直接调用（而非 HTTP API），请参阅独立文档：
+
+**[MODULE_CALL_DOC.md](./MODULE_CALL_DOC.md)**
+
+该文档包含：
+- 常驻后台服务 `tts_daemon.py`（启动时加载模型，持续待命，支持流式输出和音频缓存）
+- 命令行单次调用 `tts_cli.py`
+- Python 模块直接调用示例
+- Qt/C++ 项目集成指南（含完整 C++ 示例代码）
+
+**重要：** 整合包自带 Python 运行环境，必须使用 `runtime\python.exe`，详见独立文档。
