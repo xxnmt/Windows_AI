@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QSettings>
+#include "ttsreference.h"
 
 class ConfigManager
 {
@@ -25,6 +26,22 @@ public:
 
     QString getTTSUrl() const;
     void setTTSUrl(const QString &ttsUrl);
+    QString getTTSMode() const;
+    void setTTSMode(const QString &mode);
+    TTSReference getTTSReference() const;
+    void setTTSReference(const TTSReference &ref);
+
+    QString getGPTWeightsPath() const;
+    void setGPTWeightsPath(const QString &path);
+    QString getSoVITSWeightsPath() const;
+    void setSoVITSWeightsPath(const QString &path);
+
+    QString getGPTSovitsRootPath() const;
+    void setGPTSovitsRootPath(const QString &path);
+    QString getGPTModelDir() const;
+    void setGPTModelDir(const QString &path);
+    QString getSoVITSModelDir() const;
+    void setSoVITSModelDir(const QString &path);
 
     int getShortMemoryLength();
     void setShortMemoryLength(const int length);
@@ -41,12 +58,20 @@ private:
     void initAppDataPath();
 
     QString m_apiKey;
+
     QString m_ttsUrl;
+    QString m_ttsMode = "api";
+    TTSReference m_ttsRef;
+    QString m_gptWeightsPath;
+    QString m_sovitsWeightsPath;
+    QString m_gptSovitsRootPath;
 
     int m_shortMemoryLength=15;
 
     QString m_configDirPath;
     QString m_configFilePath;
+    QString m_gptModelDir;
+    QString m_sovitsModelDir;
 
 
 };

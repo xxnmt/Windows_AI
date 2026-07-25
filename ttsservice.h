@@ -4,9 +4,15 @@
 #include <QObject>
 #include <QQueue>
 #include <QTimer>
+#include <QMediaPlayer>
+#include <QAudioOutput>
 #include "sentencedata.h"
+#include "ittsprovider.h"
 
-
+struct PlayItem {
+    SentenceText sentence;
+    QString audioPath;
+};
 
 class TTSService : public QObject
 {
@@ -14,34 +20,40 @@ class TTSService : public QObject
 public:
     explicit TTSService(QObject *parent = nullptr);
 
-    // 接口：接收 LLM 解析完毕的多句话
+    //接收 LLM 解析完毕的多句话
     void enqueueSentences(const QList<SentenceText> &sentences);
 
+    void reloadProvider();
+    void switchModel(const QString &gptPath, const QString &sovitsPath);
+
 signals:
-    // 通知中枢更新 UI (播放语音的同时，更新气泡中文和立绘状态)
+    //通知中枢更新UI
     void playAudioAction(const QString &zhText, const QMap<QString, QString> &tags);
 
 private slots:
-    // 模拟 TTS 生成线程 (Producer)
+    //TTS生成线程
     void processTtsQueue();
-    void onMockTtsFinished();
+    void onTtsFinished(const QString &audioPath, const SentenceText &sentence);
+    void onTtsFailed(const QString &errorMsg, const SentenceText &sentence);
 
-    // 模拟 音频播放线程 (Consumer)
+    //音频播放线程 (Consumer)
     void processPlayQueue();
+    void onPlaybackStateChanged(QMediaPlayer::PlaybackState state);
     void onMockPlayFinished();
 
 private:
-    // 两个独立队列
+    //两个独立队列
     QQueue<SentenceText> m_ttsQueue;   // 等待合成的队列
-    QQueue<SentenceText> m_playQueue;  // 合成完毕，等待播放的队列
+    QQueue<PlayItem> m_playQueue;  // 合成完毕，等待播放的队列
 
-    // 状态锁
+    //状态锁
     bool m_isSynthesizing;
     bool m_isPlaying;
 
-    // 模拟正在处理的当前句
-    SentenceText m_currentSynthesisSentence;
-    SentenceText m_currentPlaySentence;
+    //模拟正在处理的当前句
+    ITTSProvider *m_provider;          // 当前 TTS 抽象策略
+    QMediaPlayer *m_mediaPlayer;      // 真实音频播放器
+    QAudioOutput *m_audioOutput;
 };
 
 #endif // TTSSERVICE_H

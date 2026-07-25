@@ -11,6 +11,8 @@
 #include <QSqlError>
 #include <QDebug>
 #include <QHeaderView>
+#include <QFileInfoList>
+#include <QDir>
 
 SettingsWidget::SettingsWidget(QWidget *parent)
     : QWidget(parent),
@@ -266,10 +268,13 @@ void SettingsWidget::on_btn_memoryQuit_clicked()
 
 void SettingsWidget::loadSettings()
 {
+    ConfigManager &cfg = ConfigManager::instance();
     ConfigManager &configSettings= ConfigManager::instance();
     ui->lineEdit_apiKey->setText(configSettings.getApiKey());
     ui->spinBox_memoryLength->setValue(configSettings.getShortMemoryLength());
-
+    ui->lineEdit_GPTSovitsFilePath->setText(cfg.getGPTSovitsRootPath());
+    ui->lineEdit_GPTModelFilePath->setText(cfg.getGPTModelDir());
+    ui->lineEdit_sovitsModelFilePath->setText(cfg.getSoVITSModelDir());
 
 }
 
@@ -379,5 +384,180 @@ QList<int> SettingsWidget::getSelectedMemoryIDs()
     }
     qDebug()<<"[SettingsWidget]已选择将要删除的记录id:"<<ids;
     return ids;
+}
+
+
+void SettingsWidget::on_btn_saveGPTSoVitsPath_clicked()
+{
+    QString rootPath = ui->lineEdit_GPTSovitsFilePath->text().trimmed();
+    if (rootPath.isEmpty()) {
+        // QMessageBox::warning(this, "路径为空", "请先输入 GPT‑SoVITS 的安装目录");
+        qDebug()<<"[SettingsWidget]:路径为空,请先输入 GPT‑SoVITS 的安装目录";
+        return;
+    }
+    ConfigManager::instance().setGPTSovitsRootPath(rootPath);
+    ConfigManager::instance().saveSetting();
+    // QMessageBox::information(this, "保存成功", "GPT‑SoVITS 目录已保存");
+    qDebug()<<"[SettingsWidget]:保存成功,GPT‑SoVITS目录已保存"<<rootPath;
+
+}
+
+void SettingsWidget::on_btn_saveGPTModelPath_clicked()
+{
+    QString selected = ui->comboBox_GPTModel->currentText();
+    if (selected.isEmpty()) {
+        // QMessageBox::warning(this, "未选择", "请先选择一个 GPT 模型");
+        qDebug()<<"[Settings]未选择,请先选择一个GPT模型:";
+        return;
+    }
+    QString dirPath = ConfigManager::instance().getGPTModelDir();
+    if (dirPath.isEmpty()) {
+        // QMessageBox::warning(this, "目录未设置", "请先设置 GPT 模型文件夹路径");
+        qDebug()<<"[Settings]目录未设置,请先设置GPT模型文件夹路径:";
+        return;
+    }
+    QString fullPath = QDir(dirPath).filePath(selected);
+    ConfigManager::instance().setGPTWeightsPath(fullPath);
+    qDebug()<<"[Settings]GPT模型已设为:"<<fullPath;
+    // QMessageBox::information(this, "保存成功", "GPT 模型路径已保存");
+}
+
+
+void SettingsWidget::on_btn_saveSoVitsModelPath_clicked()
+{
+    QString selected = ui->comboBox_SoVitsModel->currentText();
+    if (selected.isEmpty()) {
+        // QMessageBox::warning(this, "未选择", "请先选择一个 SoVits 模型");
+        qDebug()<<"[Settings]未选择,请先选择一个SoVits模型:";
+        return;
+    }
+    QString dirPath = ConfigManager::instance().getSoVITSModelDir();
+    if (dirPath.isEmpty()) {
+        // QMessageBox::warning(this, "目录未设置", "请先设置 SoVits 模型文件夹路径");
+        qDebug()<<"[Settings]目录未设置,请先设置SoVits模型文件夹路径:";
+        return;
+    }
+    QString fullPath = QDir(dirPath).filePath(selected);
+    ConfigManager::instance().setSoVITSWeightsPath(fullPath);
+    qDebug()<<"[Settings]SoVits模型已设为:"<<fullPath;
+    // QMessageBox::information(this, "保存成功", "SoVits 模型路径已保存");
+}
+
+
+void SettingsWidget::on_btn_TTSSaveAll_clicked()
+{
+    ConfigManager& cfg = ConfigManager::instance();
+    // 保存两个文件夹路径
+    cfg.setGPTSovitsRootPath(ui->lineEdit_GPTSovitsFilePath->text().trimmed());
+    cfg.setGPTModelDir(ui->lineEdit_GPTModelFilePath->text().trimmed());
+    cfg.setSoVITSModelDir(ui->lineEdit_sovitsModelFilePath->text().trimmed());
+
+    // 保存选中的模型路径
+    QString gptSelected = ui->comboBox_GPTModel->currentText();
+    if (!gptSelected.isEmpty()) {
+        cfg.setGPTWeightsPath(QDir(cfg.getGPTModelDir()).filePath(gptSelected));
+    }
+    QString sovitsSelected = ui->comboBox_SoVitsModel->currentText();
+    if (!sovitsSelected.isEmpty()) {
+        cfg.setSoVITSWeightsPath(QDir(cfg.getSoVITSModelDir()).filePath(sovitsSelected));
+    }
+
+    cfg.saveSetting();
+
+    emit ttsModelSwitchRequested(cfg.getGPTWeightsPath(), cfg.getSoVITSWeightsPath());
+    // QMessageBox::information(this, "保存成功", "TTS 配置已保存，正在切换模型...");
+    qDebug()<<"[SettingsWidget]:保存成功,正在切换模型...";
+}
+
+
+void SettingsWidget::on_btn_TTSQuit_clicked()
+{
+    loadSettings();  // 恢复未保存的修改
+    hide();
+}
+
+
+void SettingsWidget::on_btn_saveGPTPath_clicked()
+{
+    QString dirPath = ui->lineEdit_GPTModelFilePath->text().trimmed();
+    if (dirPath.isEmpty()) {
+        qDebug()<<"[SettingsWidget]GPT模型文件夹路径为空";
+        return;
+    }
+    ConfigManager::instance().setGPTModelDir(dirPath);
+    ConfigManager::instance().saveSetting();
+    qDebug()<<"[SettingsWidget]GPT模型文件夹路径已保存:"<<dirPath;
+}
+
+
+void SettingsWidget::on_btn_loadGPTModel_clicked()
+{
+    QString dirPath = ConfigManager::instance().getGPTModelDir();
+    if (dirPath.isEmpty()) {
+        // QMessageBox::warning(this, "路径未设置", "请先在上方输入 GPT 模型文件夹路径并保存");
+        qDebug()<<"[SettingsWidget]:路径未设置, 请先在上方输入GPT模型文件夹路径并保存";
+        return;
+    }
+    QDir dir(dirPath);
+    if (!dir.exists()) {
+        // QMessageBox::warning(this, "目录不存在", "找不到模型目录：" + dirPath);
+        qDebug()<<"[SettingsWidget]目录不存在, 找不到模型目录："<<dirPath;
+        return;
+    }
+    QStringList filters;
+    filters << "*.ckpt" << "*.pth";
+    QStringList modelFiles = dir.entryList(filters, QDir::Files, QDir::Name);
+    ui->comboBox_GPTModel->clear();
+    if (modelFiles.isEmpty()) {
+        // QMessageBox::information(this, "扫描结果", "未找到模型文件");
+        qDebug()<<"[SettingsWidget]扫描结果:未找到模型文件";
+        return;
+    }
+    ui->comboBox_GPTModel->addItems(modelFiles);
+    // QMessageBox::information(this, "扫描完成", QString("找到 %1 个模型文件").arg(modelFiles.size()));
+    qDebug()<<"[SettingsWidget]扫描完成:找到"<<modelFiles.size()<<"模型文件";
+}
+
+
+void SettingsWidget::on_btn_saveSoVitsPath_clicked()
+{
+    QString dirPath = ui->lineEdit_sovitsModelFilePath->text().trimmed();
+    if (dirPath.isEmpty()) {
+        qDebug()<<"[SettingsWidget]SoVITS模型文件夹路径为空";
+        return;
+    }
+    ConfigManager::instance().setSoVITSModelDir(dirPath);
+    ConfigManager::instance().saveSetting();
+    qDebug()<<"[SettingsWidget]SoVITS模型文件夹路径已保存:"<<dirPath;
+}
+
+
+void SettingsWidget::on_btn_loadSovitsModel_clicked()
+{
+    QString dirPath = ConfigManager::instance().getSoVITSModelDir();
+    if (dirPath.isEmpty()) {
+        // QMessageBox::warning(this, "路径未设置", "请先在上方输入 SoVITS 模型文件夹路径并保存");
+        qDebug()<<"[SettingsWidget]:路径未设置, 请先在上方输入SoVITS模型文件夹路径并保存";
+
+        return;
+    }
+    QDir dir(dirPath);
+    if (!dir.exists()) {
+        // QMessageBox::warning(this, "目录不存在", "找不到模型目录：" + dirPath);
+        qDebug()<<"[SettingsWidget]目录不存在, 找不到模型目录："<<dirPath;
+        return;
+    }
+    QStringList filters;
+    filters << "*.pth" << "*.ckpt";
+    QStringList modelFiles = dir.entryList(filters, QDir::Files, QDir::Name);
+    ui->comboBox_SoVitsModel->clear();
+    if (modelFiles.isEmpty()) {
+        // QMessageBox::information(this, "扫描结果", "未找到模型文件");
+        qDebug()<<"[SettingsWidget]扫描结果:未找到模型文件";
+        return;
+    }
+    ui->comboBox_SoVitsModel->addItems(modelFiles);
+    // QMessageBox::information(this, "扫描完成", QString("找到 %1 个模型文件").arg(modelFiles.size()));
+    qDebug()<<"[SettingsWidget]扫描完成:找到"<<modelFiles.size()<<"模型文件";
 }
 

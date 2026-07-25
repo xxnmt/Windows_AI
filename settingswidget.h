@@ -26,14 +26,14 @@ protected:
     void showEvent(QShowEvent *event)override;
 signals:
     void settingsSaved();
-
+    void ttsModelSwitchRequested(const QString &gptPath, const QString &sovitsPath);
 
 private slots:
     //tab config
     void on_btn_configSaveAll_clicked();
     void on_btn_configQuit_clicked();
     void on_btn_saveApiKey_clicked();
-
+ //tab memory
     void on_btn_saveMemoryLength_clicked();
     void on_btn_claenTempMemory_clicked();
 
@@ -43,6 +43,24 @@ private slots:
     void on_btn_nextMemoryPage_clicked();
     void on_btn_momorySaveAll_clicked();
     void on_btn_memoryQuit_clicked();
+//tab TTs
+    void on_btn_saveGPTSoVitsPath_clicked();
+
+    void on_btn_saveGPTModelPath_clicked();
+
+    void on_btn_saveSoVitsModelPath_clicked();
+
+    void on_btn_TTSSaveAll_clicked();
+
+    void on_btn_TTSQuit_clicked();
+
+    void on_btn_saveGPTPath_clicked();
+
+    void on_btn_loadGPTModel_clicked();
+
+    void on_btn_saveSoVitsPath_clicked();
+
+    void on_btn_loadSovitsModel_clicked();
 
 private:
     Ui::SettingsWidget *ui;

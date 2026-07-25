@@ -184,4 +184,9 @@ void AppController::initConnections()
 
         qDebug()<<"[AppController]本次记忆提取流程已全部完成";
     });
+
+    connect(m_settingsWidget, &SettingsWidget::ttsModelSwitchRequested,
+            this, [this](const QString &gptPath, const QString &sovitsPath) {
+                m_ttsService->switchModel(gptPath, sovitsPath);
+            });
 }

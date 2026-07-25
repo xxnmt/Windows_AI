@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(Windows_AI LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Sql REQUIRED)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Sql REQUIRED Multimedia)
 
 qt_standard_project_setup()
 
@@ -28,6 +28,10 @@ qt_add_executable(Windows_AI
     memorymanager.h memorymanager.cpp
     historyturn.h
     ttsreference.h
+    ittsprovider.h
+    apittsprovider.h apittsprovider.cpp
+    mockttsprovider.h mockttsprovider.cpp
+    ttsreferencemanager.h ttsreferencemanager.cpp
 )
 
 target_link_libraries(Windows_AI
@@ -36,6 +40,7 @@ target_link_libraries(Windows_AI
         Qt::Widgets
         Qt::Network
         Qt::Sql
+        Qt::Multimedia
 )
 
 install(TARGETS Windows_AI
