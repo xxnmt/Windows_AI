@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-07-20
+> 最后更新：2026-07-26
 
 ---
 
@@ -160,6 +160,20 @@
   - 数据库v2升级：新增user_profile表（含索引）和long_term_summary表（含索引）
   - AppController启动时调用`scanAndApplyProfileDecay()`进行画像衰减扫描
 
+### M17: TTS语音系统重构与GPT-SoVITS集成（已完成）
+- 日期：2026-07-25~2026-07-26
+- 内容：
+  - **TTSService重构为策略模式**：新增 `ITTSProvider` 抽象接口，支持多种 TTS 实现
+  - **新增 ApiTTSProvider**：通过 `QNetworkAccessManager` 调用 GPT-SoVITS HTTP API（POST /tts）
+  - **新增 MockTTSProvider**：模拟实现，用于开发测试
+  - **双队列模型优化**：`m_ttsQueue`（待合成）→ `m_playQueue`（待播放），配合状态锁实现合成与播放并发
+  - **集成 Qt Multimedia**：`QMediaPlayer` + `QAudioOutput` 实现音频播放
+  - **TTS 模式配置**：支持 `api` 和 `mock` 两种模式切换（`reloadProvider()` 动态加载）
+  - **参考音频映射**：按情绪状态映射参考音频文件（7种情绪各对应一个 wav 文件）
+  - **临时文件管理**：音频即用即删，不做缓存；播放完成后自动清理
+  - **错误处理**：合成失败时跳过当前句，不阻塞后续队列
+  - **TD-005 技术债务已清理**：TTS 框架、API 接入、双队列、播放全部完成
+
 ---
 
 ## 技术债务
@@ -170,14 +184,14 @@
 | TD-002 | 立绘路径硬编码（已部分解决，AppearanceManager统一生成） | ✅ 已解决 | 高 | v0.1.0 |
 | TD-003 | BubbleWidget位置计算硬编码（已解决，attachTo解耦） | ✅ 已解决 | 中 | v0.1.0 |
 | TD-004 | 立绘切换功能未实现（已实现，AppearanceManager） | ✅ 已解决 | 高 | v0.1.0 |
-| TD-005 | TTS为模拟实现，未接入真实引擎 | 待修复 | 高 | v0.2.0 |
+| TD-005 | TTS为模拟实现，未接入真实引擎 | ✅ 已修复（策略模式+GPT-SoVITS API接入完成） | 高 | v0.2.0 |
 | TD-006 | 用户输入入口缺失（硬编码测试文本） | ✅ 已修复（ChatWidget实现，移除userChat死信号） | 高 | v0.2.0 |
 | TD-007 | characterwidget.cpp大量注释代码残留 | ✅ 已清理 | 中 | v0.2.0 |
 | TD-008 | appcontroller.cpp重复include头文件 | ✅ 已修复 | 低 | v0.2.0 |
 | TD-009 | 系统提示词硬编码在LLMService源码中 | ✅ 已修复（提示词外部化，prompt.txt文件） | 中 | v0.2.0 |
 | TD-010 | AI记忆系统未实现 | ✅ 已实现（MemoryManager，SQLite短期记忆） | 高 | v0.2.4 |
 | TD-011 | 对话历史查看界面缺失 | ✅ 已实现（SettingsWidget记忆管理页） | 中 | v0.4.0 |
-| TD-012 | 长期记忆（重要事件摘要）未实现 | 待实现 | 中 | v0.4.0 |
+| TD-012 | 长期记忆（重要事件摘要）未实现 | ✅ 已实现（LLM自动提取摘要+用户画像） | 中 | v0.4.0 |
 | TD-013 | AppController职责过重（上帝对象） | 待重构 | 高 | v0.2.0 |
 | TD-014 | AnchorManager内存泄漏风险 | 待修复 | 高 | v0.2.1 |
 | TD-015 | LLMService头文件依赖MemoryManager | 待优化 | 中 | v0.2.4 |
@@ -194,6 +208,7 @@
 | v0.2.0 | 中央控制器 | AppController + 6个独立模块 | 中枢调度，模块独立，多标签协议 |
 | v0.3.0 | AI资源管理 | AnchorManager + ConfigManager + LLMService + AppearanceManager | 位置锚点系统、配置持久化（API Key/TTS地址）、状态提供者模式（动态追加状态）、提示词外部化（prompt.txt）、DeepSeek API格式修复 |
 | v0.4.0 | AI记忆系统 | MemoryManager + LLMService + SettingsWidget | SQLite数据库（chat_history/user_profile/long_term_summary三张表）、短期记忆查询（默认15轮）、用户画像（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、记忆管理界面（查看/删除/清空/分页）、配置文件损坏降级处理、代码健壮性提升 |
+| v0.4.1 | TTS策略模式 | TTSService + ITTSProvider + ApiTTSProvider | 策略模式重构TTS、GPT-SoVITS HTTP API接入、双队列模型优化（合成→播放）、Qt Multimedia集成、参考音频情绪映射、错误处理（合成失败跳过不阻塞） |
 
 ---
 
@@ -217,6 +232,7 @@
 | 2026-07-22 | SettingsWidget数据库获取失败 | AppController中添加setMemoryManager()调用，确保SettingsWidget正确获取MemoryManager实例 | v0.2.5 |
 | 2026-07-22 | SettingsWidget空指针解引用 | 在refreshHistoryTurnList、loadHistoryPage、on_btn_deleteSelectedMemory_clicked、on_btn_claenAllMemory_clicked四个方法中添加空指针检查后的return语句 | v0.2.5 |
 | 2026-07-22 | ConfigManager配置文件损坏 | 修改loadSetting()方法，配置缺失时使用默认值并继续执行，而非返回false | v0.2.5 |
+| 2026-07-25 | TTS 400 Bad Request | 定位根因：参考音频文件名不匹配（conscientious_idle_01.wav → conscientious_01.wav），需修改配置中的文件名 | v0.4.1 |
 
 ---
 

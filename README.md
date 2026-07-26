@@ -23,9 +23,89 @@
 - ⚙️ **设置界面**：API Key配置、记忆长度配置、历史记录管理
 
 ### 开发中功能
-- 🔊 **语音合成**：接入 GPT-SoVITS 推理引擎（优先）
+- 🔊 **语音合成**：GPT-SoVITS API 真实接入（已完成基础集成，需优化参考音频和配置）
 - ⏰ **时间驱动**：自动根据时间切换服装（白天校服 / 夜晚睡衣）
 - ⌨️ **全局快捷键**：支持自定义快捷键
+
+### TTS 语音系统说明
+
+#### 架构设计
+
+采用**策略模式 + 双队列模型**：
+
+```
+LLM回复文本 → enqueueSentences() → m_ttsQueue(待合成) → ITTSProvider.synthesize()
+                                                                    ↓
+                                              synthesisFinished → m_playQueue(待播放)
+                                                                    ↓
+                                              processPlayQueue() → QMediaPlayer播放
+```
+
+| 组件 | 职责 |
+|------|------|
+| `TTSService` | 管理双队列、协调合成与播放、清理临时文件 |
+| `ITTSProvider` | 抽象接口，支持多种 TTS 实现 |
+| `ApiTTSProvider` | 通过 HTTP API 调用 GPT-SoVITS 服务 |
+| `MockTTSProvider` | 模拟实现（开发测试用） |
+
+#### TTS 模式切换
+
+在配置文件 `setting.json` 中设置：
+```json
+{
+    "tts": {
+        "mode": "api"
+    }
+}
+```
+
+| 模式 | 说明 |
+|------|------|
+| `api` | 使用 GPT-SoVITS API 真实合成语音 |
+| `mock` | 模拟实现，不发起网络请求 |
+
+#### 参考音频配置
+
+GPT-SoVITS 需要参考音频文件（3-10秒），根据角色情绪状态映射：
+
+| 情绪 | 参考音频文件 |
+|------|-------------|
+| happyIdle | happy_idle_01.wav |
+| happyMore | happy_more_01.wav |
+| amazing | amazing_01.wav |
+| loving | loving_01.wav |
+| caring | caring_01.wav |
+| sad | sad_01.wav |
+| conscientious | conscientious_01.wav |
+
+**参考音频要求**：
+- 格式：WAV（16bit, 32kHz 或 48kHz, mono）
+- 时长：建议 3-10 秒（GPT-SoVITS API_V2 限制 ≤10秒）
+- 存放路径：`app_data/reference_audio/`
+
+#### GPT-SoVITS 部署
+
+1. 克隆 GPT-SoVITS 项目并配置模型
+2. 启动 API 服务：
+```bash
+python api_v2.py -a 127.0.0.1 -p 9880
+```
+3. 确认服务正常：访问 `http://127.0.0.1:9880/docs`
+
+**API 请求示例**：
+```json
+POST /tts
+{
+    "text": "你好，我是千岛茉子",
+    "text_lang": "zh",
+    "ref_audio_path": "path/to/reference.wav",
+    "prompt_text": "参考音频对应的文本",
+    "prompt_lang": "zh",
+    "text_split_method": "cut0",
+    "media_type": "wav",
+    "streaming_mode": false
+}
+```
 
 ### 计划功能（按优先级）
 - 🔧 **架构改进**：拆分 AppController 职责（信号路由、记忆协调、错误处理）
@@ -69,7 +149,8 @@
 - **语言**: C++17
 - **构建系统**: CMake 3.19+
 - **AI 服务**: DeepSeek API (deepseek-v4-flash)
-- **语音合成**: GPT-SoVITS（规划中）
+- **语音合成**: GPT-SoVITS（API 已接入，策略模式封装）
+- **音频播放**: Qt Multimedia（QMediaPlayer + QAudioOutput）
 - **数据库**: SQLite（已实现，用于对话历史、用户画像、长期记忆摘要存储）
 
 ## 📦 安装与构建
@@ -117,8 +198,9 @@ cmake --build . --config Release
 项目使用以下 Qt 模块：
 - Qt::Core - 核心功能
 - Qt::Widgets - UI组件
-- Qt::Network - 网络请求（DeepSeek API）
+- Qt::Network - 网络请求（DeepSeek API、GPT-SoVITS API）
 - Qt::Sql - SQLite数据库（对话历史）
+- Qt::Multimedia - 音频播放（QMediaPlayer、QAudioOutput）
 
 ## ⚙️ 配置
 
@@ -136,6 +218,9 @@ cmake --build . --config Release
     },
     "memory": {
         "short_term_length": 15
+    },
+    "tts": {
+        "mode": "api"
     }
 }
 ```
@@ -145,6 +230,7 @@ cmake --build . --config Release
 | `api.deepseek_api_key` | `sk-placeholder-key` | DeepSeek API 密钥 |
 | `api.gpt_sovits_url` | `http://127.0.0.1:9880` | GPT-SoVITS 服务地址 |
 | `memory.short_term_length` | `15` | 短期记忆轮数（AI对话时携带的历史上下文数量） |
+| `tts.mode` | `api` | TTS 模式：`api`（真实API）或 `mock`（模拟实现） |
 
 ### 获取 DeepSeek API Key
 
@@ -217,8 +303,14 @@ Windows_AI/
 │   ├── config/              # 配置文件
 │   │   ├── setting.json     # 配置文件（JSON格式）
 │   │   └── prompt.txt       # 系统提示词
-│   └── memory/              # 记忆数据（SQLite数据库）
-│       └── QianDaoMoZi_memory.db  # 包含chat_history、user_profile、long_term_summary三张表
+│   ├── memory/              # 记忆数据（SQLite数据库）
+│   │   └── QianDaoMoZi_memory.db  # 包含chat_history、user_profile、long_term_summary三张表
+│   ├── reference_audio/    # 参考音频文件（GPT-SoVITS用）
+│   │   ├── happy_idle_01.wav
+│   │   ├── happy_more_01.wav
+│   │   ├── loving_01.wav
+│   │   └── ...
+│   └── temp_audio/         # TTS合成临时音频（自动清理）
 ├── image/                   # 立绘资源目录
 │   ├── closer/              # 近景立绘
 │   ├── far/                 # 远景立绘
@@ -233,7 +325,10 @@ Windows_AI/
 ├── anchormanager.h/cpp      # 位置锚点管理
 ├── anchorstrategy.h         # 锚点策略枚举
 ├── llmservice.h/cpp         # AI 服务模块
-├── ttsservice.h/cpp         # TTS 语音服务
+├── ttsservice.h/cpp         # TTS 语音服务（双队列+策略模式）
+├── ittsprovider.h           # TTS 抽象接口（策略模式基类）
+├── apittsprovider.h/cpp    # GPT-SoVITS API 实现
+├── mockttsprovider.h/cpp   # Mock 模拟实现
 ├── appearancemanager.h/cpp  # 外观管理器
 ├── configmanager.h/cpp      # 配置管理器（单例）
 ├── memorymanager.h/cpp      # AI 记忆系统（SQLite）
@@ -266,14 +361,44 @@ Windows_AI/
 [emotion:值][blush:值][distance:值][clothing:值][ja:日文] 中文内容
 ```
 
-### GPT-SoVITS API（规划中）
+### GPT-SoVITS API
 
-参考项目文档 `docs/OutDoc/API_DOC.md` 进行配置。
+项目通过 HTTP API 集成 GPT-SoVITS 语音合成引擎。
+
+**请求格式**：
+- **Endpoint**: `http://127.0.0.1:9880/tts`
+- **Method**: POST
+- **Content-Type**: application/json
+
+**请求参数**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| text | string | 待合成文本 |
+| text_lang | string | 文本语言（zh/ja/mix） |
+| ref_audio_path | string | 参考音频文件路径 |
+| prompt_text | string | 参考音频对应的文本 |
+| prompt_lang | string | 参考音频语言 |
+| text_split_method | string | 文本切分方法（cut0/cut5等） |
+| media_type | string | 输出格式（wav/ogg） |
+| streaming_mode | bool | 是否流式传输 |
+
+**响应**：直接返回音频文件二进制流
+
+**错误码**：
+| 状态码 | 原因 | 解决方案 |
+|--------|------|----------|
+| 400 | 参数错误/参考音频不存在/时长超限 | 检查文件路径、确认音频≤10秒 |
+| 404 | 模型文件不存在 | 检查模型路径配置 |
+| 500 | 服务内部错误 | 查看服务端日志 |
+
+### GPT-SoVITS API（详细文档）
+
+参考项目文档 `docs/OutDoc/API_DOC.md` 和 `docs/OutDoc/MODULE_CALL_DOC.md`。
 
 ## ⚠️ 已知限制
 
-1. **TTS为模拟实现**：当前 TTSService 使用 QTimer 模拟语音合成和播放，尚未接入真实的 GPT-SoVITS 引擎
-2. **无错误重试机制**：LLM 请求失败后不会自动重试，需要用户重新发送
+1. **无流式传输**：当前使用非流式模式，长文本合成延迟较高
+2. **无错误重试机制**：API 请求失败后不会自动重试，直接跳过该句
 3. **无网络状态检测**：应用启动时不会检测网络连接状态
 4. **立绘切换无过渡动画**：换图时直接切换，没有淡入淡出效果
 5. **仅支持单角色**：当前仅支持「千岛茉子」一个角色
@@ -331,6 +456,32 @@ Windows_AI/
 **解决方案**：
 1. 检查 `AnchorManager::calculatePosition()` 中的锚点策略计算
 2. 确认 `CharacterWidget::getVisibleRect()` 正确计算了立绘有效区域
+
+### 问题7：TTS 返回 400 Bad Request
+
+**现象**：日志显示 `[ApiTTS]:网络请求失败 "server replied: Bad Request"`
+
+**解决方案**：
+1. **检查参考音频文件是否存在**：
+   ```powershell
+   Test-Path "app_data/reference_audio/conscientious_01.wav"
+   ```
+2. **检查参考音频时长**（需 ≤10 秒）：
+   ```powershell
+   # 估算时长（32kHz采样率）
+   (Get-Item "app_data/reference_audio/loving_01.wav").Length / 64000
+   ```
+3. **检查文件名是否匹配**：参考音频文件名需与情绪对应表一致（如 `conscientious_01.wav`）
+4. **查看 GPT-SoVITS 服务端日志**获取具体错误信息
+
+### 问题8：TTS 合成失败被跳过
+
+**现象**：日志显示 `[TTS]合成失败，跳过`
+
+**解决方案**：
+1. 检查 GPT-SoVITS 服务是否正常运行
+2. 确认 `gpt_sovits_url` 配置正确
+3. 查看服务端日志获取详细错误信息
 
 ## 🤝 贡献
 

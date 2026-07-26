@@ -1,8 +1,8 @@
 # 架构设计文档
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.4.0
-> 更新日期：2026-07-23
+> 版本：v0.4.1
+> 更新日期：2026-07-26
 
 ---
 
@@ -21,7 +21,7 @@
 | | BubbleWidget | 气泡显示、打字机特效 | bubblewidget.h/cpp/ui |
 | | ChatWidget | 聊天输入窗口、弹出跟随 | chatwidget.h/cpp |
 | **业务层** | LLMService | DeepSeek请求、多标签协议解析、句子拆分 | llmservice.h/cpp |
-| | TTSService | 语音合成队列、播放队列、模拟双线程 | ttsservice.h/cpp |
+| | TTSService | 语音合成队列、播放队列、策略模式（ITTSProvider） | ttsservice.h/cpp, ittsprovider.h, apittsprovider.h/cpp |
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
 | | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
 | **数据层** | ConfigManager | API Key配置、记忆长度配置、单例模式 | configmanager.h/cpp |
@@ -68,9 +68,11 @@
 │                                                                     │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                        TTSService                            │  │
-│  │  合成队列(Producer)  →  播放队列(Consumer)                    │  │
-│  │  ← GPT-SoVITS真实接入（v0.5.0）                               │  │
-│  └──────────────────────────────────────────────────────────────┘  │
+│  │  合成队列(Producer) → ITTSProvider(ApiTTSProvider/Mock)      │  │
+│  │  ← GPT-SoVITS API 接入完成（v0.5.0）                         │  │
+│  │  播放队列(Consumer) → QMediaPlayer + playAudioAction信号     │  │
+│  │  临时文件即用即删，不做缓存                                  │  │
+│  └───────────────────────────────────────────────────────────────┘  │
 │                                                                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐    │
 │  │ SettingsWidget  │  │ ShortcutManager │  │  MemoryManager  │    │
@@ -269,33 +271,105 @@ QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
 
 ### 2.5 TTSService
 
-**职责**：TTS语音合成与播放管理（当前为模拟实现）
+**职责**：TTS语音合成与播放管理
 
 **设计要点**：
-- 生产者-消费者模式：合成队列 → 播放队列
-- 双状态锁：`m_isSynthesizing` / `m_isPlaying`
-- 合成与播放可并发（合成下一句时播放上一句）
-- 当前用 QTimer::singleShot 模拟耗时
+- **策略模式**：通过 `ITTSProvider` 抽象接口支持多种 TTS 实现
+- **双队列模型**：合成队列 `m_ttsQueue` → 播放队列 `m_playQueue`
+- **双状态锁**：`m_isSynthesizing` / `m_isPlaying` 控制并发
+- **实时合成**：使用 `ApiTTSProvider` 调用 GPT-SoVITS HTTP API
+- **模拟回退**：`MockTTSProvider` 用于开发测试或 API 不可用时
+- **临时文件管理**：音频即用即删，不做缓存；播放完成后自动清理临时文件
+- **错误隔离**：合成失败时跳过当前句，不阻塞后续队列
+
+**架构图**：
+```
+                    ┌──────────────────────────────────────────┐
+                    │              TTSService                  │
+                    │                                          │
+  SentenceText ───► │  m_ttsQueue (待合成)                     │
+  (enqueueSentences)│      │                                   │
+                    │      ▼                                   │
+                    │  processTtsQueue()                       │
+                    │      │                                   │
+                    │      ▼                                   │
+                    │  ITTSProvider.synthesize()               │
+                    │      │                                   │
+                    │      ▼                                   │
+                    │  synthesisFinished                       │
+                    │      │                                   │
+                    │      ▼                                   │
+                    │  m_playQueue (待播放)                     │
+                    │      │                                   │
+                    │      ▼                                   │
+                    │  processPlayQueue()                      │
+                    │      │                                   │
+                    │      ├──► playAudioAction(zhText, tags)  │ ──► UI更新
+                    │      │                                   │
+                    │      └──► QMediaPlayer::play()           │
+                    │                                          │
+                    │  模式: "api" / "mock"                     │
+                    └──────────────────────────────────────────┘
+```
+
+**ITTSProvider 接口**：
+```cpp
+class ITTSProvider : public QObject {
+    Q_OBJECT
+public:
+    virtual void synthesize(const SentenceText &sentence) = 0;
+    virtual void warmUp() = 0;
+signals:
+    void synthesisFinished(const QString &audioPath, const SentenceText &sentence);
+    void synthesisFailed(const QString &audioPath, const SentenceText &sentence);
+};
+```
+
+**Provider 实现**：
+| 实现类 | 说明 |
+|--------|------|
+| `ApiTTSProvider` | 通过 `QNetworkAccessManager` 调用 GPT-SoVITS HTTP API |
+| `MockTTSProvider` | 模拟实现，直接返回空路径 |
 
 **队列模型**：
 ```
-LLM回复 → [TTS合成队列] → (合成中) → [播放队列] → (播放中) → UI同步
-           Producer                        Consumer
+LLM回复 → m_ttsQueue(待合成) → ApiTTSProvider.synthesize(HTTP POST)
+                                        │
+                                        ▼
+                                  synthesisFinished
+                                        │
+                                        ▼
+                                  m_playQueue(待播放) → processPlayQueue()
+                                        │
+                                        ▼
+                                  playAudioAction信号(UI更新) + QMediaPlayer播放
 ```
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
 | `enqueueSentences()` | 接收多句话，推入合成队列 | QList\<SentenceText\> | - |
-| `processTtsQueue()` | 合成消费者：取出一句开始合成 | - | - |
-| `onMockTtsFinished()` | 合成完成：入播放队列+继续合成 | - | - |
-| `processPlayQueue()` | 播放消费者：取出一句并通知UI | - | - |
-| `onMockPlayFinished()` | 播放完成：继续播放下一句 | - | - |
+| `reloadProvider()` | 根据配置重新加载 TTS Provider | - | - |
+| `switchModel()` | 切换 GPT-SoVITS 模型 | gptPath, sovitsPath | - |
+| `processTtsQueue()` | 取出一句调用 Provider 合成 | - | - |
+| `onTtsFinished()` | 合成完成：入播放队列+继续合成 | audioPath, sentence | - |
+| `onTtsFailed()` | 合成失败：跳过该句，继续合成 | errorMsg, sentence | - |
+| `processPlayQueue()` | 取出一句：发信号+播放音频 | - | - |
+| `onPlaybackStateChanged()` | 播放完成：清理+继续播放下一句 | state | - |
 
 **信号**：
 | 信号 | 触发时机 | 参数 |
 |------|----------|------|
-| `playAudioAction(zhText, tags)` | 播放开始时，用于同步UI | QString, QMap\<QString,QString\> |
+| `playAudioAction(zhText, tags)` | 播放开始时，用于同步UI（气泡文字+立绘标签） | QString, QMap\<QString,QString\> |
+
+**配置**：
+- `tts.mode` = `"api"` → 加载 `ApiTTSProvider`
+- `tts.mode` = `"mock"` → 加载 `MockTTSProvider`（无 Provider 实例）
+
+**设计决策**：
+- **不实现音频缓存**：简化设计，每次合成为独立请求
+- **临时文件即用即删**：播放完成后立即删除，避免磁盘空间泄漏
+- **单合成线程**：同一时间只处理一个合成请求，避免并发问题
 
 ---
 
