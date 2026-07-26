@@ -85,7 +85,10 @@ void TTSService::onTtsFinished(const QString &audioPath, const SentenceText &sen
 
 void TTSService::onTtsFailed(const QString &errorMsg, const SentenceText &sentence)
 {
-    qDebug()<<"[TTS]合成失败，跳过:"<<errorMsg;
+    qDebug()<<"[TTS]合成失败，使用模拟替代:"<<errorMsg;
+    m_isSynthesizing=false;
+    m_playQueue.enqueue({sentence,""});
+    processPlayQueue();
     processTtsQueue();
 }
 
@@ -106,24 +109,32 @@ void TTSService::processPlayQueue()
         QTimer::singleShot(playDuration, this, &TTSService::onMockPlayFinished);
     }
     else{
+        //清理语音文件
+        QString previousFile = m_mediaPlayer->source().toLocalFile();
+        if (!previousFile.isEmpty() && QFile::exists(previousFile)) {
+            QFile::remove(previousFile);
+            qDebug()<<"[TTS]:语音文件清理成功";
+        }
         qDebug()<<"[TTS]UI Ready,开始播放语音:"<<item.sentence.jaText<<item.sentence.zhText;
 
         m_mediaPlayer->setSource(QUrl::fromLocalFile(item.audioPath));
-        m_mediaPlayer->play();
+        QTimer::singleShot(20,this,[this](){
+            m_mediaPlayer->play();
+        });
     }
-
-
 }
 
 void TTSService::onPlaybackStateChanged(QMediaPlayer::PlaybackState state)
 {
-    if(state==QMediaPlayer::StoppedState){
-        qDebug()<<"[TTS]:本句语音播放完毕";
+    if(state!=QMediaPlayer::StoppedState){
+        return;
     }
-    QString playedFile = m_mediaPlayer->source().toLocalFile();
-    if (QFile::exists(playedFile)) {
-        QFile::remove(playedFile);
-    }
+    qDebug()<<"[TTS]:本句语音播放完毕";
+
+    // QString playedFile = m_mediaPlayer->source().toLocalFile();
+    // if (QFile::exists(playedFile)) {
+    //     QFile::remove(playedFile);
+    // }
 
     m_isPlaying = false;
     processPlayQueue();
