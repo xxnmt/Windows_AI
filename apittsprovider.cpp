@@ -29,15 +29,69 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
 
     TTSReference ref=TTSReferenceManager::instance().getReferenceForEmotion(sentence.rawTags.value("emotion"));
 
-    QJsonObject json;
-    json["text"] = sentence.jaText;
-    json["text_lang"] = "ja"; // 基于句子数据的日文文本合成
-    json["ref_audio_path"] = ref.audioFilePath;
-    json["prompt_text"] = ref.promptText;
-    json["prompt_lang"] = ref.promptLanguage;
-    json["text_split_method"] = "cut0";
-    json["media_type"] = "wav";
-    json["streaming_mode"] = false;
+    QJsonObject json; 
+    
+    // ---------- 必须参数 ----------
+    json["text"] = sentence.jaText;              // 【必须】要合成的文本内容
+    json["text_lang"] = "ja";                    // 【必须】文本语言：zh(中文)、en(英文)、ja(日文)、auto(自动检测)
+    json["ref_audio_path"] = ref.audioFilePath;  // 【必须】参考音频文件的绝对路径，用于提取音色
+    json["prompt_text"] = ref.promptText;        // 【v3必须/其他可选】参考音频对应的文本内容
+    json["prompt_lang"] = ref.promptLanguage;    // 【必须】参考音频文本的语言
+    
+    // ---------- 文本切分参数 ----------
+    json["text_split_method"] = "cut0";          // 文本切分方法：
+                                                 //   cut0: 中文标点切分（！？。，；：…等）
+                                                 //   cut1: 英文标点切分（!?. , ; : …等）
+                                                 //   cut2: 日文标点切分（!?. , ; : …。、等）
+                                                 //   cut3: 中英混合智能切分
+                                                 //   cut4: 中英日混合智能切分
+                                                 //   cut5: 不切分（整段合成，默认）
+    
+    // ---------- 采样/生成参数 ----------
+    json["top_k"] = 5;                           // Top-K采样：限制每个位置可能的token数量，越小越确定
+    json["top_p"] = 1.0;                         // Top-P采样：按累积概率筛选token，1.0表示不限制
+    json["temperature"] = 1.0;                   // 温度参数：控制生成随机性，越高越多样化，越低越确定
+    json["repetition_penalty"] = 1.35;           // 重复惩罚：防止生成重复内容，1.0无惩罚，>1.0惩罚重复
+    
+    // ---------- 语速/速度参数 ----------
+    json["speed_factor"] = 1.0;                  // 语速控制：1.0正常，<1.0变慢，>1.0变快
+    
+    // ---------- 批量推理参数 ----------
+    json["batch_size"] = 1;                      // 批量大小：同时处理的句子数量，v3模型固定为1
+    json["batch_threshold"] = 0.75;              // 批量切分阈值：当句子长度差小于此值时可合批
+    json["split_bucket"] = false;                // 分桶处理：v3模型自动关闭，无需修改
+    
+    // ---------- 音频输出参数 ----------
+    json["media_type"] = "wav";                  // 输出格式：wav(无损)、raw(裸PCM)、ogg(有损)、aac(有损)
+    json["fragment_interval"] = 0.3;             // 分段间隔(秒)：流式模式下每段音频的间隔时长
+    
+    // ---------- 随机种子参数 ----------
+    json["seed"] = -1;                           // 随机种子：-1完全随机，固定值可复现结果
+    
+    // ---------- v3模型专用参数 ----------
+    json["sample_steps"] = 32;                   // 【v3专用】CFM采样步数：
+                                                 //   16: 最快，质量略降（适合实时对话）
+                                                 //   32: 默认，平衡质量与速度（日常使用推荐）
+                                                 //   64: 最慢，质量最佳（适合成品生成）
+    json["super_sampling"] = false;              // 【v3专用】超分辨率：
+                                                 //   true: 音质更好但速度显著变慢(+40%~80%)
+                                                 //   false: 默认，正常音质
+    
+    // ---------- 流式返回参数 ----------
+    json["streaming_mode"] = false;              // 流式模式：
+                                                 //   false: 关闭（返回完整音频文件，推荐）
+                                                 //   true/1: 开启（v3自动回退为分段返回）
+                                                 //   2: 中等质量流式
+                                                 //   3: 低质量快速流式
+    json["return_fragment"] = false;             // 分段返回：通常由streaming_mode自动控制，无需手动设置
+    json["overlap_length"] = 2;                  // 流式模式语义token重叠长度，通常保持默认
+    json["min_chunk_length"] = 16;               // 流式模式最小chunk长度，通常保持默认
+    
+    // ---------- 并行推理参数 ----------
+    json["parallel_infer"] = false;              // 并行推理：v3模型自动关闭，无需修改
+    
+    // ---------- 辅助参考音频参数（可选） ----------
+    // json["aux_ref_audio_paths"] = QJsonArray(); // 辅助参考音频列表，用于多说话人音色融合
 
     QNetworkRequest request(requestUrl);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
