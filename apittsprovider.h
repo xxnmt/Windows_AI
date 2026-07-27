@@ -17,6 +17,12 @@ public:
 private slots:
     void onNetworkReplyFinished(QNetworkReply *reply,SentenceText sentence);
 private:
+    //流式，分段监测与处理
+    bool isSegmentedResponse(const QByteArray &rawData,QNetworkReply *reply);
+    QByteArray extractAndConcatPcm(const QByteArray &rawData);
+    void writePcmToWavFile(const QString &filePath,const QByteArray &pcmData,int sampleRate);
+    int findPCMStart(const QByteArray &chunk);
+
     QNetworkAccessManager *m_networkManager;
 };
 

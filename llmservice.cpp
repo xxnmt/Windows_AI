@@ -91,14 +91,14 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         // 历史用户输入
         QJsonObject histUserMsg;
         histUserMsg["role"] = "user";
-        histUserMsg["name"] = QString("用户 [%1]").arg(turn.timestamp.toString("HH:mm:ss"));
+        histUserMsg["name"] = QString("用户 [%1]").arg(turn.timestamp.toString("yyyy-MM-dd HH:mm:ss"));
         histUserMsg["content"] = turn.userInput;
         messagesArray.append(histUserMsg);
 
         // 历史茉子回复
         QJsonObject histMakoMsg;
         histMakoMsg["role"] = "assistant";
-        histMakoMsg["name"] = QString("茉子 [%1]").arg(turn.timestamp.toString("HH:mm:ss"));
+        histMakoMsg["name"] = QString("茉子 [%1]").arg(turn.timestamp.toString("yyyy-MM-dd HH:mm:ss"));
         histMakoMsg["content"] = turn.rawReply;
         messagesArray.append(histMakoMsg);
     }

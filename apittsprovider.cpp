@@ -39,7 +39,7 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
     json["prompt_lang"] = ref.promptLanguage;    // 【必须】参考音频文本的语言
     
     // ---------- 文本切分参数 ----------
-    json["text_split_method"] = "cut0";          // 文本切分方法：
+    json["text_split_method"] = "cut2";          // 文本切分方法：
                                                  //   cut0: 中文标点切分（！？。，；：…等）
                                                  //   cut1: 英文标点切分（!?. , ; : …等）
                                                  //   cut2: 日文标点切分（!?. , ; : …。、等）
@@ -78,7 +78,7 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
                                                  //   false: 默认，正常音质
     
     // ---------- 流式返回参数 ----------
-    json["streaming_mode"] = false;              // 流式模式：
+    json["streaming_mode"] = true;              // 流式模式：
                                                  //   false: 关闭（返回完整音频文件，推荐）
                                                  //   true/1: 开启（v3自动回退为分段返回）
                                                  //   2: 中等质量流式
@@ -135,41 +135,42 @@ void ApiTTSProvider::switchModel(const QString &gptPath, const QString &sovitsPa
 
 void ApiTTSProvider::warmUp()
 {
-    //语音合成预热
-    SentenceText dummySentence;
-    dummySentence.jaText = ".";
-    dummySentence.zhText = "";
-    dummySentence.rawTags["emotion"] = "happyIdle";
+    // //语音合成预热
+    // SentenceText dummySentence;
+    // dummySentence.jaText = ".";
+    // dummySentence.zhText = "";
+    // dummySentence.rawTags["emotion"] = "happyIdle";
 
 
-    QString baseUrl = ConfigManager::instance().getTTSUrl();
-    if (baseUrl.endsWith("/"))
-        baseUrl.chop(1);
-    QUrl requestUrl(baseUrl + "/tts");
+    // QString baseUrl = ConfigManager::instance().getTTSUrl();
+    // if (baseUrl.endsWith("/"))
+    //     baseUrl.chop(1);
+    // QUrl requestUrl(baseUrl + "/tts");
 
-    TTSReference ref = TTSReferenceManager::instance().getReferenceForEmotion("happyIdle");
+    // TTSReference ref = TTSReferenceManager::instance().getReferenceForEmotion("happyIdle");
 
-    QJsonObject json;
-    json["text"] = dummySentence.jaText;
-    json["text_lang"] = "ja";
-    json["ref_audio_path"] = ref.audioFilePath;
-    json["prompt_text"] = ref.promptText;
-    json["prompt_lang"] = ref.promptLanguage;
-    json["text_split_method"] = "cut0";
-    json["media_type"] = "wav";
-    json["streaming_mode"] = false;
-    json["top_k"] = 5;
-    json["top_p"] = 1.0;
-    json["temperature"] = 1.0;
-    json["batch_size"] = 1;
+    // QJsonObject json;
+    // json["text"] = dummySentence.jaText;
+    // json["text_lang"] = "ja";
+    // json["ref_audio_path"] = ref.audioFilePath;
+    // json["prompt_text"] = ref.promptText;
+    // json["prompt_lang"] = ref.promptLanguage;
+    // json["text_split_method"] = "cut0";
+    // json["media_type"] = "wav";
+    // json["streaming_mode"] = false;
+    // json["top_k"] = 5;
+    // json["top_p"] = 1.0;
+    // json["temperature"] = 1.0;
+    // json["batch_size"] = 1;
 
-    QNetworkRequest request(requestUrl);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QNetworkReply *reply = m_networkManager->post(request, QJsonDocument(json).toJson());
+    // QNetworkRequest request(requestUrl);
+    // request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    // QNetworkReply *reply = m_networkManager->post(request, QJsonDocument(json).toJson());
 
-    //预热完成后直接释放
-    connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);
-    qDebug()<<"[ApiTTS]预热请求已发送";
+    // //预热完成后直接释放
+    // connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);
+    // qDebug()<<"[ApiTTS]预热请求已发送";
+    qDebug()<<"[apitts]:预热功能暂时取消";
 }
 
 void ApiTTSProvider::onNetworkReplyFinished(QNetworkReply *reply, SentenceText sentence)
@@ -184,15 +185,115 @@ void ApiTTSProvider::onNetworkReplyFinished(QNetworkReply *reply, SentenceText s
     QDir().mkpath(tempDirPath);
     QString tempFilePath = tempDirPath + "/" + QUuid::createUuid()
                                                    .toString(QUuid::WithoutBraces) + ".wav";
-    QFile file(tempFilePath);
+
+    QByteArray rawData=reply->readAll();
+    if(isSegmentedResponse(rawData,reply)){
+        qDebug()<<"[ApiTTS]:检测到分段/流式返回，解析中";
+        QByteArray pcmData=extractAndConcatPcm(rawData);
+        writePcmToWavFile(tempFilePath,pcmData,24000);
+    }
+    else{
+        QFile file(tempFilePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            qDebug()<<"[ApiTTS]无法写入临时音频文件:"<<tempFilePath;
+            emit synthesisFailed("无法保存音频文件", sentence);
+            return;
+        }
+        file.write(rawData);
+        file.close();
+    }
+    emit synthesisFinished(tempFilePath, sentence);
+}
+
+bool ApiTTSProvider::isSegmentedResponse(const QByteArray &rawData,QNetworkReply *reply)
+{
+    QString contentType =reply->header(QNetworkRequest::ContentTypeHeader).toString();
+    // QString transferEncoding=reply->header("Transfer-Encoding").toString();
+    // QString transferEncoding = QString::fromUtf8(reply->rawHeader("Transfer-Encoding"));
+    if(!contentType.contains("x-wav")){
+        return false;
+    }
+
+    // QByteArray body =reply->readAll();
+    int riffCount =rawData.count("RIFF");
+    return riffCount>1;
+
+}
+
+QByteArray ApiTTSProvider::extractAndConcatPcm(const QByteArray &rawData)
+{
+    QByteArray resultPCM;
+    int pos=0;
+    int dataLength=rawData.size();
+    while(pos<dataLength){
+        int riffPos=rawData.indexOf("RIFF",pos);
+        if(riffPos==-1)break;
+
+        int pcmStart=findPCMStart(rawData.mid(riffPos));
+        if(pcmStart==-1)break;
+
+        int pcmDataEnd = rawData.size();
+        int nextRiff = rawData.indexOf("RIFF", riffPos + 1);
+        if (nextRiff != -1 && nextRiff > riffPos + pcmStart) {
+            pcmDataEnd = nextRiff;
+        }
+
+        QByteArray chunkPcm = rawData.mid(riffPos + pcmStart,pcmDataEnd - (riffPos + pcmStart));
+        resultPCM.append(chunkPcm);
+
+        pos = riffPos + 1;
+    }
+    return resultPCM;
+}
+
+void ApiTTSProvider::writePcmToWavFile(const QString &filePath, const QByteArray &pcmData, int sampleRate)
+{
+    QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning() << "[ApiTTS] 无法写入临时音频文件:" << tempFilePath;
-        emit synthesisFailed("无法保存音频文件", sentence);
+        qWarning() << "[ApiTTS] 无法写入音频文件:" << filePath;
         return;
     }
 
-    file.write(reply->readAll());
+    int dataSize = pcmData.size();
+    int fileSize = 44 + dataSize;  // WAV Header (44) + PCM 数据
+
+    // 构建 WAV Header
+    QByteArray header;
+    header.append("RIFF");
+    header.append(QByteArray::fromHex(
+        QByteArray::number(fileSize - 8, 16).rightJustified(8, '0')));
+    header.append("WAVE");
+    header.append("fmt ");
+    header.append(QByteArray::fromHex(
+        QByteArray::number(16, 16).rightJustified(4, '0')));  // PCM chunk size
+    header.append(QByteArray::fromHex("0100"));  // PCM format
+    header.append(QByteArray::fromHex("0100"));  // Mono
+    header.append(QByteArray::fromHex(
+        QByteArray::number(sampleRate, 16).rightJustified(8, '0')));
+    header.append(QByteArray::fromHex(
+        QByteArray::number(sampleRate * 2, 16).rightJustified(8, '0')));
+    header.append(QByteArray::fromHex("0200"));  // 16-bit
+    header.append(QByteArray::fromHex("1000"));  // Block align
+    header.append("data");
+    header.append(QByteArray::fromHex(
+        QByteArray::number(dataSize, 16).rightJustified(8, '0')));
+
+    file.write(header);
+    file.write(pcmData);
     file.close();
 
-    emit synthesisFinished(tempFilePath, sentence);
+    qDebug() << "[ApiTTS] WAV文件写入完成:" << filePath
+             << "大小:" << fileSize << "采样率:" << sampleRate;
+}
+
+int ApiTTSProvider::findPCMStart(const QByteArray &chunk)
+{
+    // 标准 WAV 结构：RIFF + 文件大小 + WAVE + fmt chunk + ... + data chunk
+    // 简化处理：查找 "data" 标识
+    int dataIdx = chunk.indexOf("data");
+    if (dataIdx >= 0) {
+        // "data" (4字节) + 数据大小 (4字节) = PCM 起始位置
+        return dataIdx + 8;
+    }
+    return 44;  // fallback：标准 WAV Header 通常为 44 字节
 }
