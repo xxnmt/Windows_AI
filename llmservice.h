@@ -41,6 +41,8 @@ private:
     void initializePromptFile();
     QString loadSystemPrompt();
 
+    QPair<QList<SentenceText>, QString> parseJsonReply(const QString &replyText);
+
 
     QNetworkAccessManager* m_networkManager;
     QNetworkAccessManager* m_extractManager;
@@ -51,6 +53,30 @@ private:
     std::function<QString()> m_stateProvider;
 
     MemoryManager *m_memoryManager = nullptr;
+};
+
+class TagValidator{
+public:
+    TagValidator(const TagValidator &) = default;
+    TagValidator(TagValidator &&) = default;
+    TagValidator &operator=(const TagValidator &) = default;
+    TagValidator &operator=(TagValidator &&) = default;
+    static int levenshteinDistance(const QString &s1, const QString &s2);
+    static QString validateTag(const QString &tagName, const QString &rawValue,
+                               const QStringList &validValues,
+                               const QString &contextText = "",
+                               const QString &prevValue = "");
+
+    static QMap<QString, QString>
+    validateAll(const QMap<QString, QString> &rawTags, const QString &zhText,
+                const SentenceText &prevSentence);
+    static const QStringList VALID_EMOTIONS;
+    static const QStringList VALID_BLUSH;
+    static const QStringList VALID_DISTANCE;
+    static const QStringList VALID_CLOTHING;
+    static int getEditDistanceThreshold(const QString &value);
+
+
 };
 
 #endif // LLMSERVICE_H

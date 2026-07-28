@@ -13,6 +13,9 @@ struct SentenceText
     QString zhText;
     QString jaText;
     QMap<QString,QString> rawTags;
+    bool isValidated=false;
+    QString originalJSON;
+
 };
 
 Q_DECLARE_METATYPE(SentenceText)

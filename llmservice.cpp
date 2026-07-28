@@ -124,7 +124,7 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
                                                            .toJson(QJsonDocument::Indented);
 
     QJsonObject rootObj;
-    rootObj["model"] = "deepseek-v4-flash";
+    rootObj["model"] = "deepseek-v4-pro";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.7;
 
@@ -250,41 +250,43 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
 
             qDebug()<<"[LLM]茉子回复(未处理):"<<replyText;
 
-            QList<SentenceText> parsedSentences;
+            QPair<QList<SentenceText>, QString> parseResult=parseJsonReply(replyText);
+            QList<SentenceText> parsedSentences = parseResult.first;
+            QString correctedReply = parseResult.second;
+//------------------------------更换为json，原格式废弃------------------------------
+            // //正则表达式拆分
+            // QRegularExpression sentenceRegex("((?:\\[[^\\]]+\\])+)([^\\[]+)");
+            // QRegularExpressionMatchIterator sentenceIt = sentenceRegex.globalMatch(replyText);
 
-            //正则表达式拆分
-            QRegularExpression sentenceRegex("((?:\\[[^\\]]+\\])+)([^\\[]+)");
-            QRegularExpressionMatchIterator sentenceIt = sentenceRegex.globalMatch(replyText);
+            // while (sentenceIt.hasNext()) {
+            //     QRegularExpressionMatch sentenceMatch=sentenceIt.next();
+            //     //剥离多层标签
+            //     QString tags=sentenceMatch.captured(1);
+            //     QString zhText=sentenceMatch.captured(2).trimmed();
 
-            while (sentenceIt.hasNext()) {
-                QRegularExpressionMatch sentenceMatch=sentenceIt.next();
-                //剥离多层标签
-                QString tags=sentenceMatch.captured(1);
-                QString zhText=sentenceMatch.captured(2).trimmed();
+            //     SentenceText sentence;
+            //     sentence.zhText=zhText;
 
-                SentenceText sentence;
-                sentence.zhText=zhText;
+            //     //匹配日文
+            //     QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
+            //     QRegularExpressionMatchIterator tagIt= tagRegex.globalMatchView(tags);
 
-                //匹配日文
-                QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
-                QRegularExpressionMatchIterator tagIt= tagRegex.globalMatchView(tags);
+            //     while (tagIt.hasNext()) {
+            //         QRegularExpressionMatch tagMatch = tagIt.next();
+            //         QString key = tagMatch.captured(1);
+            //         QString value = tagMatch.captured(2);
 
-                while (tagIt.hasNext()) {
-                    QRegularExpressionMatch tagMatch = tagIt.next();
-                    QString key = tagMatch.captured(1);
-                    QString value = tagMatch.captured(2);
-
-                    if (key == "ja") {
-                        sentence.jaText = value;
-                    } else {
-                        sentence.rawTags.insert(key, value);
-                    }
-                }
-                parsedSentences.append(sentence);
-            }
+            //         if (key == "ja") {
+            //             sentence.jaText = value;
+            //         } else {
+            //             sentence.rawTags.insert(key, value);
+            //         }
+            //     }
+            //     parsedSentences.append(sentence);
+            // }
 
             qDebug()<<"[LLM]成功拆分为"<<parsedSentences.size()<<"个段落：";
-            for (int i = 0; i < parsedSentences.size(); ++i) {
+            for (int i=0;i<parsedSentences.size();i++) {
                 const auto &s = parsedSentences[i];
                 qDebug()<<QString("--------- [第 %1 句] ---------").arg(i + 1);
                 qDebug()<<"[LLM]中文气泡:"<<s.zhText;
@@ -292,7 +294,7 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
                 qDebug()<<"[LLM]四维状态变更:"<<s.rawTags;
             }
             //拆完传信号
-            emit sentencesReady(parsedSentences,replyText);
+            emit sentencesReady(parsedSentences,correctedReply);
         }
     }
     else {
@@ -356,3 +358,204 @@ QString LLMService::loadSystemPrompt()
     QString content = in.readAll();
     return content;
 }
+
+QPair<QList<SentenceText>, QString> LLMService::parseJsonReply(const QString &replyText)
+{
+    QList<SentenceText> result;
+    QString currentReply=replyText;
+
+    // 容错处理：清除 Markdown 代码块标记
+    QString cleanText = replyText;
+    cleanText.replace(QRegularExpression("```json|```", QRegularExpression::CaseInsensitiveOption), "");
+    cleanText = cleanText.trimmed();
+
+    // 尝试直接解析
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(cleanText.toUtf8(), &parseError);
+
+    if (parseError.error != QJsonParseError::NoError) {
+        qDebug() << "[LLM] JSON 解析失败:" << parseError.errorString();
+
+        // 尝试提取 JSON 对象（容忍前后有多余文本）
+        QRegularExpression jsonRegex("\\{[\\s\\S]*\\}");
+        QRegularExpressionMatch match = jsonRegex.match(cleanText);
+        if (match.hasMatch()) {
+            doc = QJsonDocument::fromJson(match.captured(0).toUtf8(), &parseError);
+            if (parseError.error != QJsonParseError::NoError) {
+                qDebug() << "[LLM] JSON 提取后仍无法解析";
+                return qMakePair(result,currentReply);
+            }
+            qDebug() << "[LLM] JSON 提取成功";
+        } else {
+            qDebug() << "[LLM] 未找到 JSON 对象";
+            return qMakePair(result,currentReply);
+        }
+    }
+
+    if (!doc.isObject()) {
+        qDebug() << "[LLM] JSON 根节点不是对象";
+        return qMakePair(result,currentReply);
+    }
+
+    QJsonObject rootObj = doc.object();
+    QJsonArray sentencesArray = rootObj.value("sentences").toArray();
+
+    if (sentencesArray.isEmpty()) {
+        qDebug() << "[LLM] sentences 数组为空";
+        return qMakePair(result,currentReply);
+    }
+
+    qDebug() << "[LLM] JSON 解析成功，共" << sentencesArray.size() << "个句子";
+
+    // SentenceText prevSentence;
+
+    for (int i = 0; i < sentencesArray.size(); ++i) {
+        QJsonObject sentenceObj = sentencesArray[i].toObject();
+
+        SentenceText sentence;
+        sentence.zhText = sentenceObj.value("zh_text").toString().trimmed();
+        sentence.jaText = sentenceObj.value("ja_text").toString().trimmed();
+        // sentence.originalJSON = QJsonDocument(sentenceObj).toJson(QJsonDocument::Compact);
+
+        // 解析 tags
+        QJsonObject tagsObj = sentenceObj.value("tags").toObject();
+        QString prevEmotion = (i > 0) ? sentencesArray[i-1].toObject()["tags"].toObject()["emotion"].toString() : "";
+        QString prevBlush = (i > 0) ? sentencesArray[i-1].toObject()["tags"].toObject()["blush"].toString() : "";
+        QString prevDistance = (i > 0) ? sentencesArray[i-1].toObject()["tags"].toObject()["distance"].toString() : "";
+        QString prevClothing = (i > 0) ? sentencesArray[i-1].toObject()["tags"].toObject()["clothing"].toString() : "";
+
+        tagsObj["emotion"] = TagValidator::validateTag(
+            "emotion", tagsObj["emotion"].toString(), TagValidator::VALID_EMOTIONS,
+            sentence.zhText, prevEmotion
+            );
+        tagsObj["blush"] = TagValidator::validateTag(
+            "blush", tagsObj["blush"].toString(), TagValidator::VALID_BLUSH,
+            "", prevBlush
+            );
+        tagsObj["distance"] = TagValidator::validateTag(
+            "distance", tagsObj["distance"].toString(), TagValidator::VALID_DISTANCE,
+            "", prevDistance
+            );
+        tagsObj["clothing"] = TagValidator::validateTag(
+            "clothing", tagsObj["clothing"].toString(), TagValidator::VALID_CLOTHING,
+            "", prevClothing
+            );
+        // 更新修正后的 tags
+        sentenceObj["tags"] = tagsObj;
+        sentencesArray[i] = sentenceObj;
+
+        // 构建 SentenceText
+        for (auto it = tagsObj.constBegin(); it != tagsObj.constEnd(); ++it) {
+            sentence.rawTags.insert(it.key(), it.value().toString());
+        }
+        sentence.isValidated = true;
+        result.append(sentence);
+    }
+
+    // 更新根对象（修正后的 JSON）
+    rootObj["sentences"] = sentencesArray;
+
+    // 保存修正后的 JSON（用于存储和历史记忆）
+    currentReply = QJsonDocument(rootObj).toJson(QJsonDocument::Compact);
+    qDebug() << "[LLM] 修正后回复:" << currentReply;
+
+    return qMakePair(result,currentReply);
+}
+//Tags校验
+int TagValidator::levenshteinDistance(const QString &s1, const QString &s2)
+{
+    int n=s1.length();
+    int m=s2.length();
+    if(m==0)return m;
+    if(n==0)return n;
+
+    QVector<QVector<int>>dp(n+1,QVector<int>(m+1));
+
+    for (int i = 0; i <= n; i++) dp[i][0] = i;
+    for (int j = 0; j <= m; j++) dp[0][j] = j;
+
+    for(int i=1;i<=n;i++){
+        for(int j =1;j<=m;j++) {
+            int cost=(s1[i-1]==s2[j-1]?0:1);
+            dp[i][j]=qMin(qMin(dp[i-1][j]+1,dp[i][j-1]+1),dp[i-1][j-1]+cost);
+        }
+    }
+    return dp[n][m];
+}
+
+QString TagValidator::validateTag(
+    const QString &tagName,
+    const QString &rawValue,
+    const QStringList &validValues,
+    const QString &contextText,
+    const QString &prevValue)
+{
+    QString value=rawValue.trimmed();
+    //对
+    if(validValues.contains(value)){
+        qDebug()<<"[LLMTVD]标签无异常:"<<tagName<<":"<<rawValue;
+        return value;
+
+    }
+    //大小写
+    QString valueLower=rawValue.toLower();
+    for(const QString &v:validValues){
+        if(v.toLower()==valueLower){
+            qDebug()<<"[LLMTVD]大小写纠正:"<<tagName<<":"<<value<<"->"<<v;
+            return v;
+        }
+    }
+    //编辑距离检测
+    int threshold=getEditDistanceThreshold(value);
+    QString bestMatch;
+    int mindistance=threshold+1;
+    for(const QString &v: validValues){
+        int distance=levenshteinDistance(value,v);
+        if(distance<=threshold&&distance<mindistance){
+            mindistance=distance;
+            bestMatch=v;
+        }
+    }
+    if(!bestMatch.isEmpty()){
+        qDebug()<<"[LLMTVD]编辑距离修正:"<<tagName<<":"<<value<<"->"<<bestMatch;
+        return bestMatch;
+    }
+    //继承
+    if(!prevValue.isEmpty()&&validValues.contains(prevValue)){
+        qDebug()<<"[LLMTVD]匹配失败，继承上一状态:"<<tagName<<":"<<value<<"->"<<prevValue;
+        return prevValue;
+    }
+    //默认值
+    QString defaultValue;
+    if (tagName == "emotion") defaultValue = "happyIdle";
+    else if (tagName == "blush") defaultValue = "unblushing";
+    else if (tagName == "distance") defaultValue = "far";
+    else if (tagName == "clothing") defaultValue = "schoolUniform";
+    qDebug()<<"[LLMTVD]匹配+校验失败，使用默认值:"<<tagName<<":"<<value<<"->"<<defaultValue;
+    return defaultValue;
+}
+
+
+
+int TagValidator::getEditDistanceThreshold(const QString &value)
+{
+    int len = value.length();
+    if (len <= 12) return 3;
+    return 4;
+}
+
+const QStringList TagValidator::VALID_CLOTHING{
+    "pajama", "schoolUniform", "schoolUniformWithoutCap", "schoolUniformWithoutCoat"
+};
+
+const QStringList TagValidator::VALID_DISTANCE{
+    "far", "closer"
+};
+
+const QStringList TagValidator::VALID_BLUSH{
+    "unblushing", "blushing"
+};
+
+const QStringList TagValidator::VALID_EMOTIONS{
+    "happyIdle", "happyMore", "amazing", "loving", "caring", "sad", "conscientious"
+};
