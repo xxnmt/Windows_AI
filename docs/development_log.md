@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-07-26
+> 最后更新：2026-07-29
 
 ---
 
@@ -174,6 +174,30 @@
   - **错误处理**：合成失败时跳过当前句，不阻塞后续队列
   - **TD-005 技术债务已清理**：TTS 框架、API 接入、双队列、播放全部完成
 
+### M18: JSON输出协议迁移（已完成）
+- 日期：2026-07-28
+- 内容：
+  - **LLM输出格式从标签协议迁移到JSON**：旧格式 `[emotion:xxx][blush:yyy]` → 新格式 `{"sentences": [{"zh_text": "...", "ja_text": "...", "tags": {...}}]}`
+  - **添加 response_format 参数**：API 请求中添加 `response_format: {type: "json_object"}` 强制 LLM 输出合法 JSON
+  - **更新系统提示词**：要求 LLM 输出指定的 JSON 格式，包含 zh_text、ja_text 和 tags 字段
+  - **重构 parseJsonReply()**：从正则拆分改为 JSON 对象解析，提取句子和标签
+  - **设计决策**：JSON 协议更稳定、更易扩展，避免正则匹配的复杂性和脆弱性
+
+### M19: 数据库优化与标签校验（已完成）
+- 日期：2026-07-28~2026-07-29
+- 内容：
+  - **数据库结构简化**：删除 `chat_history` 表的 `parsed_json` 列，`raw_reply` 直接存储完整 JSON 对象
+  - **新增 TagValidator 类**：实现标签合法性校验，支持5级校验流程：
+    1. 精确匹配 → 直接通过
+    2. 大小写忽略匹配 → 修正大小写
+    3. 编辑距离匹配 → 修正拼写错误（如 "closest" → "closer"）
+    4. 继承上一状态 → 使用上一句的标签值
+    5. 使用默认值 → 使用该标签的默认值
+  - **实现 Levenshtein 编辑距离算法**：计算字符串编辑距离，阈值根据标签长度动态调整
+  - **历史记忆注入优化**：只注入纯文本内容，不注入标签格式，避免影响 LLM 输出格式
+  - **修复正则表达式**：标签剥离正则从 `\$$[^\$$]+\]` 修正为 `\\[[^\\]]+\\]`
+  - **添加记忆提取结果处理**：`handleMakoReply()` 中检查未摘要对话数，触发后台记忆提取
+
 ---
 
 ## 技术债务
@@ -192,10 +216,11 @@
 | TD-010 | AI记忆系统未实现 | ✅ 已实现（MemoryManager，SQLite短期记忆） | 高 | v0.2.4 |
 | TD-011 | 对话历史查看界面缺失 | ✅ 已实现（SettingsWidget记忆管理页） | 中 | v0.4.0 |
 | TD-012 | 长期记忆（重要事件摘要）未实现 | ✅ 已实现（LLM自动提取摘要+用户画像） | 中 | v0.4.0 |
-| TD-013 | AppController职责过重（上帝对象） | 待重构 | 高 | v0.2.0 |
-| TD-014 | AnchorManager内存泄漏风险 | 待修复 | 高 | v0.2.1 |
-| TD-015 | LLMService头文件依赖MemoryManager | 待优化 | 中 | v0.2.4 |
+| TD-013 | AppController职责过重（上帝对象） | ⚠️ 可接受（当前规模合适） | 高 | v0.2.0 |
+| TD-014 | AnchorManager内存泄漏风险 | ❌ 待修复 | 高 | v0.2.1 |
+| TD-015 | LLMService头文件依赖MemoryManager | ❌ 待优化 | 中 | v0.2.4 |
 | TD-016 | AppController中魔法数字SUMMARY_THRESHOLD | ✅ 非问题（设计意图：摘要轮数=短期记忆轮数） | 低 | v0.2.4 |
+| TD-017 | LLM标签输出格式不稳定 | ✅ 已修复（JSON协议+TagValidator校验） | 高 | v0.5.0 |
 
 ---
 
@@ -209,6 +234,7 @@
 | v0.3.0 | AI资源管理 | AnchorManager + ConfigManager + LLMService + AppearanceManager | 位置锚点系统、配置持久化（API Key/TTS地址）、状态提供者模式（动态追加状态）、提示词外部化（prompt.txt）、DeepSeek API格式修复 |
 | v0.4.0 | AI记忆系统 | MemoryManager + LLMService + SettingsWidget | SQLite数据库（chat_history/user_profile/long_term_summary三张表）、短期记忆查询（默认15轮）、用户画像（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、记忆管理界面（查看/删除/清空/分页）、配置文件损坏降级处理、代码健壮性提升 |
 | v0.4.1 | TTS策略模式 | TTSService + ITTSProvider + ApiTTSProvider | 策略模式重构TTS、GPT-SoVITS HTTP API接入、双队列模型优化（合成→播放）、Qt Multimedia集成、参考音频情绪映射、错误处理（合成失败跳过不阻塞） |
+| v0.5.0 | JSON协议与标签校验 | LLMService + TagValidator + MemoryManager | JSON输出协议替代标签格式、response_format参数强制JSON输出、TagValidator标签校验与编辑距离修正、数据库结构简化（删除parsed_json列）、历史记忆纯文本注入 |
 
 ---
 
@@ -233,6 +259,11 @@
 | 2026-07-22 | SettingsWidget空指针解引用 | 在refreshHistoryTurnList、loadHistoryPage、on_btn_deleteSelectedMemory_clicked、on_btn_claenAllMemory_clicked四个方法中添加空指针检查后的return语句 | v0.2.5 |
 | 2026-07-22 | ConfigManager配置文件损坏 | 修改loadSetting()方法，配置缺失时使用默认值并继续执行，而非返回false | v0.2.5 |
 | 2026-07-25 | TTS 400 Bad Request | 定位根因：参考音频文件名不匹配（conscientious_idle_01.wav → conscientious_01.wav），需修改配置中的文件名 | v0.4.1 |
+| 2026-07-28 | LLM标签输出格式不稳定 | 迁移到JSON输出协议，添加response_format参数强制JSON输出 | v0.5.0 |
+| 2026-07-28 | 数据库parsed_json字段冗余 | 简化数据库结构，raw_reply直接存储JSON对象 | v0.5.0 |
+| 2026-07-28 | 标签校验缺失导致非法标签（如"closest"） | 实现TagValidator类，支持编辑距离修正 | v0.5.0 |
+| 2026-07-28 | 历史记忆注入标签格式影响LLM输出 | 优化为纯文本注入，剥离标签格式 | v0.5.0 |
+| 2026-07-29 | 正则表达式语法错误 | 修正标签剥离正则为 `\\[[^\\]]+\\]` | v0.5.0 |
 
 ---
 
@@ -243,3 +274,5 @@
 | 2026-07-14 | 仓库清理 | 大量构建产物被追踪 | 添加.gitignore，清理git索引 |
 | 2026-07-15 | 资源命名 | 图片命名不统一 | 批量重命名为规范格式 | - |
 | 2026-07-16 | 架构评审 | 模块职责清晰，信号槽连接合理 | 通过 |
+| 2026-07-23 | 架构审查 | 识别16个技术债务项 | 更新ARCHITECTURE.md，添加改进建议 |
+| 2026-07-29 | JSON协议审查 | LLM输出格式不一致，标签校验缺失 | 实现JSON协议+TagValidator，完成修复 |
