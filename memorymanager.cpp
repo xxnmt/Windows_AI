@@ -32,29 +32,30 @@ bool MemoryManager::saveQATurn(const QString &userInput, const QString &rawReply
         return false;
     }
 
-    QJsonArray jsonArray;
+    QJsonObject rootObj;
+    QJsonArray sentencesArray;
     for (const SentenceText &sentence : sentences) {
         QJsonObject sentenceObj;
         sentenceObj["zh_text"] = sentence.zhText;
         sentenceObj["ja_text"] = sentence.jaText;
 
         QJsonObject tagsObj;
-        for (QMap<QString, QString>::const_iterator it = sentence.rawTags.constBegin(); it != sentence.rawTags.constEnd(); ++it) {
+        for (QMap<QString, QString>::const_iterator it=sentence.rawTags.constBegin();
+             it!=sentence.rawTags.constEnd(); it++) {
             tagsObj[it.key()] = it.value();
         }
         sentenceObj["tags"] = tagsObj;
-
-        jsonArray.append(sentenceObj);
+        sentencesArray.append(sentenceObj);
     }
-    QString parsedJsonStr = QJsonDocument(jsonArray).toJson(QJsonDocument::Compact);
+    rootObj["sentences"]=sentencesArray;
+    QString JsonStr = QJsonDocument(rootObj).toJson(QJsonDocument::Compact);
 
     // 执行原子行入库
     QSqlQuery query(m_db);
-    query.prepare("INSERT INTO chat_history (user_input, raw_reply, parsed_json) "
-                  "VALUES (:user_input, :raw_reply, :parsed_json)");
+    query.prepare("INSERT INTO chat_history (user_input, raw_reply) "
+                  "VALUES (:user_input, :raw_reply)");
     query.bindValue(":user_input", userInput);
-    query.bindValue(":raw_reply", rawReply);
-    query.bindValue(":parsed_json", parsedJsonStr);
+    query.bindValue(":raw_reply", JsonStr);
 
     if (!query.exec()) {
         qDebug()<<"[MemoryManager]:本轮对话保存失败:"<<query.lastError().text();
@@ -503,8 +504,7 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
                     user_input TEXT NOT NULL,
-                    raw_reply TEXT NOT NULL,
-                    parsed_json TEXT NOT NULL
+                    raw_reply TEXT NOT NULL
                 );
             )";
             if (!query.exec(createTableSql)){

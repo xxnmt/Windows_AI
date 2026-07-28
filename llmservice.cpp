@@ -85,7 +85,7 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
     if (!historyQA.isEmpty()) {
         QJsonObject historyNote;
         historyNote["role"] = "system";
-        historyNote["content"] = "以下内容为短期对话记录，其中时间戳供你感知时间，所有回答禁止携带时间戳。";
+        historyNote["content"] = "以下内容为短期对话记录。！！！仅提供对话信息，请勿参考其输出格式！！！";
         messagesArray.append(historyNote);
     }
     for (const HistoryTurn &turn : historyQA) {
@@ -100,7 +100,24 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         QJsonObject histMakoMsg;
         histMakoMsg["role"] = "assistant";
         histMakoMsg["name"] = QString("茉子 [%1]").arg(turn.timestamp.toString("yyyy-MM-dd HH:mm:ss"));
-        histMakoMsg["content"] = turn.rawReply;
+        // 从 JSON 提取中文文本作为历史回复
+        QString aiContent;
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(turn.rawReply.toUtf8(), &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+            QStringList zhTexts;
+            QJsonArray sentences = doc.object()["sentences"].toArray();
+            for (const QJsonValue &sv : sentences) {
+                zhTexts.append(sv.toObject()["zh_text"].toString());
+            }
+            aiContent = zhTexts.join("");
+        }
+        else{
+            QString text = turn.rawReply;
+            text = text.remove(QRegularExpression("\\[[^\\]]+\\]"));
+            aiContent = text.trimmed();
+        }
+        histMakoMsg["content"] = aiContent;  // ← 使用自然语言文本
         messagesArray.append(histMakoMsg);
     }
 
@@ -125,9 +142,11 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
                                                            .toJson(QJsonDocument::Indented);
 
     QJsonObject rootObj;
-    rootObj["model"] = "deepseek-v4-pro";
+    rootObj["model"] = "deepseek-v4-flash";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.7;
+    rootObj["max_tokens"] = 4096;
+    rootObj["response_format"] = QJsonObject{{"type", "json_object"}};
 
     QByteArray postData = QJsonDocument(rootObj).toJson();
     m_networkManager->post(request, postData);
