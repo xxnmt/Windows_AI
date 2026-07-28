@@ -26,7 +26,7 @@ public:
 
 signals:
     //chat
-    void sentencesReady(const QList<SentenceText> &sentences,const QString &rwaReply);
+    void sentencesReady(const QList<SentenceText> &sentences,const QString &rawReply);
     void internetErrorSignal(const QString &errorMessage);
     //Extract
     void memoryExtractionReady(const QJsonArray &profiles, const QString &summary, qlonglong lastEndId, const QString &sourceIdsJson);
@@ -67,9 +67,6 @@ public:
                                const QString &contextText = "",
                                const QString &prevValue = "");
 
-    static QMap<QString, QString>
-    validateAll(const QMap<QString, QString> &rawTags, const QString &zhText,
-                const SentenceText &prevSentence);
     static const QStringList VALID_EMOTIONS;
     static const QStringList VALID_BLUSH;
     static const QStringList VALID_DISTANCE;

@@ -9,6 +9,7 @@
 #include <QDir>
 #include <QFile>
 #include <QPointer>
+#include <QPair>
 #include "memorymanager.h"
 
 
@@ -172,8 +173,21 @@ void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong l
 }
 )";
     QString conversationText;
-    for (const auto &turn : turns) {
-        conversationText += QString("用户: %1\nAI: %2\n---\n").arg(turn.userInput, turn.rawReply);
+    for (const HistoryTurn &turn : turns) {
+        QString aiText = turn.rawReply;
+        // 尝试从 JSON 提取中文文本
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(turn.rawReply.toUtf8(), &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+            QStringList zhTexts;
+            QJsonArray sentences = doc.object()["sentences"].toArray();
+            for (const QJsonValue &sv : sentences) {
+                zhTexts.append(sv.toObject()["zh_text"].toString());
+            }
+            aiText = zhTexts.join("");
+        }
+        conversationText += QString("用户: %1\nAI: %2\n---\n")
+                                .arg(turn.userInput, aiText);
     }
 
     QJsonArray messagesArray;
@@ -253,37 +267,6 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
             QPair<QList<SentenceText>, QString> parseResult=parseJsonReply(replyText);
             QList<SentenceText> parsedSentences = parseResult.first;
             QString correctedReply = parseResult.second;
-//------------------------------更换为json，原格式废弃------------------------------
-            // //正则表达式拆分
-            // QRegularExpression sentenceRegex("((?:\\[[^\\]]+\\])+)([^\\[]+)");
-            // QRegularExpressionMatchIterator sentenceIt = sentenceRegex.globalMatch(replyText);
-
-            // while (sentenceIt.hasNext()) {
-            //     QRegularExpressionMatch sentenceMatch=sentenceIt.next();
-            //     //剥离多层标签
-            //     QString tags=sentenceMatch.captured(1);
-            //     QString zhText=sentenceMatch.captured(2).trimmed();
-
-            //     SentenceText sentence;
-            //     sentence.zhText=zhText;
-
-            //     //匹配日文
-            //     QRegularExpression tagRegex("\\[([a-zA-Z0-9_]+):([^\\]]+)\\]");
-            //     QRegularExpressionMatchIterator tagIt= tagRegex.globalMatchView(tags);
-
-            //     while (tagIt.hasNext()) {
-            //         QRegularExpressionMatch tagMatch = tagIt.next();
-            //         QString key = tagMatch.captured(1);
-            //         QString value = tagMatch.captured(2);
-
-            //         if (key == "ja") {
-            //             sentence.jaText = value;
-            //         } else {
-            //             sentence.rawTags.insert(key, value);
-            //         }
-            //     }
-            //     parsedSentences.append(sentence);
-            // }
 
             qDebug()<<"[LLM]成功拆分为"<<parsedSentences.size()<<"个段落：";
             for (int i=0;i<parsedSentences.size();i++) {
@@ -303,33 +286,6 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
     }
     reply->deleteLater();
 }
-
-// void LLMService::onExtractReplyFinished(QNetworkReply *reply)
-// {
-//         if (reply->error() == QNetworkReply::NoError) {
-//             QByteArray responseData = reply->readAll();
-//             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-//             QString replyText = jsonDoc.object()["choices"].toArray()[0].toObject()["message"].toObject()["content"].toString();
-
-//             // 容错处理：清除大模型可能附带的 Markdown 代码块标记 (```json 和 ```)
-//             replyText.replace(QRegularExpression("```json|```", QRegularExpression::CaseInsensitiveOption), "");
-
-//             QJsonDocument resultDoc = QJsonDocument::fromJson(replyText.toUtf8());
-//             if (resultDoc.isObject()) {
-//                 QJsonObject rootObj = resultDoc.object();
-//                 QJsonArray profiles = rootObj["profiles"].toArray();
-//                 QString summary = rootObj["summary"].toString();
-
-//                 qDebug()<<"[LLM]记忆提取成功，画像数:"<< profiles.size()<<"摘要:"<< summary;
-//                 emit memoryExtractionReady(profiles, summary, lastEndId, sourceIdsJson);
-//             } else {
-//                 qDebug()<<"[LLM]记忆提取返回的JSON格式解析失败:"<<replyText;
-//             }
-//         } else {
-//             qDebug()<<"[LLM]记忆提取网络错误:"<<reply->errorString();
-//         }
-//         reply->deleteLater();
-// }
 
 void LLMService::initializePromptFile()
 {
@@ -540,6 +496,8 @@ QString TagValidator::validateTag(
 int TagValidator::getEditDistanceThreshold(const QString &value)
 {
     int len = value.length();
+    if (len <= 4) return 1;
+    if (len <= 8) return 2;
     if (len <= 12) return 3;
     return 4;
 }
