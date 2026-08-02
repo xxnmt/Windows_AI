@@ -29,7 +29,7 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
 
     TTSReference ref=TTSReferenceManager::instance().getReferenceForEmotion(sentence.rawTags.value("emotion"));
 
-    m_streamingMode = true;
+    // m_streamingMode = true;
 
     QJsonObject json; 
     
@@ -105,40 +105,42 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
             QByteArray newData = ctx->reply->readAll();
             ctx->buffer.append(newData);
 
-            // 从 buffer 中拆分完整的 WAV 块（以 RIFF 头开始）
-            while (ctx->buffer.size() >= 44) {
-                // 确保以 "RIFF" 开头
+            // 服务端流式格式：首块为44字节空WAV头，后续为裸PCM（无RIFF头）
+            if (!ctx->headerSkipped) {
                 int riffIdx = ctx->buffer.indexOf("RIFF");
-                if (riffIdx > 0) {
-                    ctx->buffer.remove(0, riffIdx);   // 丢弃前面的无效数据
-                } else if (riffIdx < 0) {
-                    ctx->buffer.clear();
-                    break;
+                if (riffIdx < 0) {
+                    // 没有WAV头，直接当作裸PCM
+                    ctx->headerSkipped = true;
+                } else if (ctx->buffer.size() >= riffIdx + 44) {
+                    // 跳过44字节WAV头
+                    ctx->buffer.remove(0, riffIdx + 44);
+                    ctx->headerSkipped = true;
+                } else {
+                    return; // WAV头不完整，等待更多数据
                 }
+            }
 
-                // 检查能否读到完整的块头
-                if (ctx->buffer.size() < 8) break;
-                // WAV chunk 总大小 = 文件头 (44) + 数据大小 (从第 4 字节读取的小端 int)
-                int chunkSize = *reinterpret_cast<const int*>(ctx->buffer.constData() + 4) + 8;
-                if (ctx->buffer.size() < chunkSize) break;
-
-                // 取出一个完整 WAV 块
-                QByteArray wavChunk = ctx->buffer.left(chunkSize);
-                ctx->buffer.remove(0, chunkSize);
-
-                QByteArray pcm = extractPcmFromWavChunk(wavChunk);
-                if (!pcm.isEmpty()) {
-                    emit pcmDataReady(pcm);
-                }
+            // 剩余数据作为裸PCM直接输出
+            if (!ctx->buffer.isEmpty()) {
+                QByteArray pcm = ctx->buffer;
+                ctx->buffer.clear();
+                ctx->totalPcmBytes += pcm.size();
+                emit pcmDataReady(pcm);
             }
         });
         connect(reply, &QNetworkReply::finished, this, [this, ctx]() {
             if (ctx->reply->error() == QNetworkReply::NoError) {
-                // 流式合成完成，不再产生文件，audioPath 为空
-                emit synthesisFinished("", ctx->sentence);
+                // 检查是否真的收到了 PCM 数据
+                if (ctx->totalPcmBytes > 0) {
+                    emit synthesisFinished("", ctx->sentence);
+                } else {
+                    qDebug()<<"[ApiTTS]流式合成未收到任何 PCM 数据";
+                    emit synthesisFailed("流式合成无数据返回", ctx->sentence);
+                }
             } else {
                 emit synthesisFailed(ctx->reply->errorString(), ctx->sentence);
             }
+            ctx->reply->deleteLater();  // 释放reply，避免内存泄漏
             delete ctx;
         });
     }

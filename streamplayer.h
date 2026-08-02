@@ -19,20 +19,27 @@ public:
     void stopPlayer()override;
     void writePcm(const QByteArray &pcmData)override;
     bool getisPlaying()const override;
+    void setSynthesisDone() override;  // 标记流式合成全部完成
+    // 注意：PcmPlayerFinished 和 PcmPlayerError 信号继承自 IPcmPlayer，不可在此重复声明
+    // 否则 moc 会生成两个不同信号，导致 connect 到基类信号但 emit 子类信号，槽函数收不到
 
-signals:
-    void PcmPlayerFinished();
-    void PcmPlayerError(const QString &error);
 private slots:
     void onStateChanged(QAudio::State state);
     void pushData();
+    void checkPlayEnd();   // 兜底检测播放结束
+private:
+    void finishAndEmit();  // 内部：停止并发射完成信号
     private:
     QAudioSink *m_audioSink=nullptr;
-    QBuffer *m_buffer;
-    QTimer *m_timer;
+    QBuffer *m_buffer=nullptr;
+    QTimer *m_timer=nullptr;
+    QTimer *m_endTimer=nullptr;   // 合成结束后的播放完成兜底检测定时器
     QQueue<QByteArray> m_queue;
     bool m_isplaying=false;
     bool m_playbackStarted = false;
+    bool m_isSynthesisDone = false;  // 合成是否已结束（所有数据都到了）
+    qint64 m_lastProcessedUsecs = 0; // 上次检测到的已播放微秒数
+    int m_endCheckCount = 0;         // 连续N次未前进则判定播放完
     mutable QMutex m_mutex;
 
 

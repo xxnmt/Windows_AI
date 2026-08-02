@@ -26,12 +26,14 @@ private:
     QByteArray extractPcmFromWavChunk(const QByteArray &wavChunk);
 
     QNetworkAccessManager *m_networkManager;
-    bool m_streamingMode=false;
+    bool m_streamingMode=true;
 };
 struct SynthesisContext {
     QNetworkReply *reply;
     SentenceText sentence;
     QByteArray buffer;   // 未解析的累积数据
+    qint64 totalPcmBytes = 0;
+    bool headerSkipped = false;  // 是否已跳过首个WAV头（服务端流式首块为空WAV头）
 };
 
 #endif // APITTSPROVIDER_H

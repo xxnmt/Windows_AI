@@ -96,6 +96,10 @@ void TTSService::onTtsFinished(const QString &audioPath, const SentenceText &sen
         item.isStream=true;
         item.streamPlayer=m_pendingStreamPlayer;
         m_pendingStreamPlayer=nullptr;
+        // 标记该流式播放器：合成数据已全部到达，等待播放结束
+        if (item.streamPlayer) {
+            item.streamPlayer->setSynthesisDone();
+        }
     }
     else{
         item.isStream=false;
@@ -121,6 +125,7 @@ void TTSService::onTtsFailed(const QString &errorMsg, const SentenceText &senten
 
 void TTSService::onPcmPlayFinished()
 {
+    qDebug()<<"[TTS]onPcmPlayFinished, 队列大小="<<m_playQueue.size();
     if (m_player) {
         // 如果是流式播放，断开数据信号
         disconnect(m_provider, &ITTSProvider::pcmDataReady, m_player, &IPcmPlayer::writePcm);
@@ -156,14 +161,11 @@ void TTSService::processPlayQueue()
     }
 
     else if(item.isStream){
-        qDebug()<<"[TTS]UI Ready,开始播放语音:"<<item.sentence.jaText<<item.sentence.zhText;
+        qDebug()<<"[TTS]UI Ready,开始流式播放:"<<item.sentence.zhText;
         m_player=item.streamPlayer;
         connect(m_player, &IPcmPlayer::PcmPlayerFinished,this, &TTSService::onPcmPlayFinished);
         connect(m_player, &IPcmPlayer::PcmPlayerError,this, &TTSService::onPcmPlayError);
         m_player->startPlayer(24000, 1, 16);
-        // 连接合成器流式数据
-        // connect(m_provider, &ITTSProvider::pcmDataReady,
-        //         dynamic_cast<StreamPlayer*>(m_player), &StreamPlayer::writePcm);
     }
     else{
         qDebug()<<"[TTS]UI Ready,开始播放语音:"<<item.sentence.jaText<<item.sentence.zhText;

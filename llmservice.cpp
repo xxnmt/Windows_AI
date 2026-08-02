@@ -136,20 +136,22 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
     }
     QJsonObject userMessage;
     userMessage["role"] = "user";
-    userMessage["content"] = userInput;
+    QString enhancedInput = userInput + "\n\n【输出要求】请直接输出符合约定格式的JSON，不要输出任何其他文本、解释或思考内容。";
+    userMessage["content"] = enhancedInput;
     messagesArray.append(userMessage);
     qDebug().noquote()<<"[LLM]最终注入的Message:"<<QJsonDocument(messagesArray)
                                                            .toJson(QJsonDocument::Indented);
 
     QJsonObject rootObj;
-    rootObj["model"] = "deepseek-v4-pro";
+    rootObj["model"] = "deepseek-v4-flash";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.7;
-    rootObj["max_tokens"] = 4096;
+    rootObj["max_tokens"] = 8192;
     rootObj["response_format"] = QJsonObject{{"type", "json_object"}};
 
     // QJsonObject thinkingObj;
-    // thinkingObj["type"] = "enabled";
+    // thinkingObj["type"] = "disabled";
+    rootObj["reasoning_effort"] = "low";
     // rootObj["thinking"] = thinkingObj;
 
     QByteArray postData = QJsonDocument(rootObj).toJson();
@@ -223,6 +225,8 @@ void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong l
     rootObj["model"] = "deepseek-v4-flash";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.3;
+    // rootObj["thinking"] = QJsonObject{{"type", "disabled"}};
+    rootObj["reasoning_effort"] = "low";
 
     QByteArray postData = QJsonDocument(rootObj).toJson();
 
@@ -280,25 +284,19 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
         QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
         QJsonObject rootObj = jsonDoc.object();
         QJsonArray choices = rootObj["choices"].toArray();
-
+//------------
         if(!choices.isEmpty()){
             QJsonObject messageObj = choices[0].toObject()["message"].toObject();
             QString replyText = messageObj["content"].toString();
-
-            //------------------思考
-            // QString thinkingContent;
-            // int thinkStart = replyText.indexOf("【思考】");
-            // int thinkEnd = replyText.indexOf("【/思考】");
-            // if (thinkStart >= 0 && thinkEnd > thinkStart) {
-            //     thinkingContent = replyText.mid(thinkStart + 4, thinkEnd - thinkStart - 4).trimmed();
-            //     qDebug() << "[LLM思考]:" << thinkingContent;
-            // } else {
-            //     // 如果没有【思考】标记，则把整个replyText当成纯JSON（没有思考内容）
-            //     // 也可以记录前100个字符作为日志
-            //     qDebug() << "[LLM思考]:（无思考标记或已关闭）";
-            // }
-            //---------------------
-
+            if (replyText.trimmed().isEmpty()) {
+                QString reasoning = messageObj["reasoning_content"].toString();
+                qDebug() << "[LLM]content为空！reasoning_content长度:" << reasoning.length();
+                if (!reasoning.isEmpty()) {
+                    qDebug() << "[LLM]reasoning_content前200字:" << reasoning.left(200);
+                }
+                qDebug() << "[LLM]完整message字段:" << messageObj;
+            }
+//---------------
             qDebug()<<"[LLM]茉子回复(未处理):"<<replyText;
 
             QPair<QList<SentenceText>, QString> parseResult=parseJsonReply(replyText);

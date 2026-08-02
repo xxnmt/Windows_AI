@@ -30,6 +30,8 @@ private:
     QTimer *m_timer;
     QBuffer *m_buffer = nullptr;
     int m_sampleRate=24000;
+    int m_channels=1;
+    int m_bitsPerSample=16;
     static const int CHUNK_SIZE = 4096;
 };
 

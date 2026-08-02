@@ -79,10 +79,14 @@ void FilePlayer::playFile(const QString &filePath)
         QByteArray header=m_file.read(44);
         if(header.startsWith("RIFF")&&header.mid(8,4)=="WAVE"){
             quint32 sr=*reinterpret_cast<const quint32*>(header.constData()+24);
+            quint16 channels=*reinterpret_cast<const quint16*>(header.constData()+22);
+            quint16 bitsPerSample=*reinterpret_cast<const quint16*>(header.constData()+34);
             if(sr>0){
-                qDebug()<<"[filePlayer]WAV采样率:"<<sr;
-                if(sr!=m_sampleRate){
+                qDebug()<<"[filePlayer]WAV采样率:"<<sr<<"通道:"<<channels<<"位深:"<<bitsPerSample;
+                if(sr!=m_sampleRate || channels!=m_channels || bitsPerSample!=m_bitsPerSample){
                     m_sampleRate=sr;
+                    m_channels=channels;
+                    m_bitsPerSample=bitsPerSample;
                     if(m_audioSink){
                         m_audioSink->stop();
                         delete m_audioSink;
@@ -95,8 +99,8 @@ void FilePlayer::playFile(const QString &filePath)
                     }
                     QAudioFormat fmt;
                     fmt.setSampleRate(m_sampleRate);
-                    fmt.setChannelCount(1);
-                    fmt.setSampleFormat(QAudioFormat::Int16);
+                    fmt.setChannelCount(m_channels);
+                    fmt.setSampleFormat(m_bitsPerSample==16?QAudioFormat::Int16:QAudioFormat::Int32);
                     m_audioSink = new QAudioSink(fmt, this);
                     connect(m_audioSink, &QAudioSink::stateChanged,this, &FilePlayer::onStateChanged);
                     m_buffer = new QBuffer(this);
@@ -108,8 +112,20 @@ void FilePlayer::playFile(const QString &filePath)
     }
     m_file.seek(44);
     m_playbackStarted=true;
+
+    // 关键：预填充数据到m_buffer，避免QAudioSink启动时buffer为空导致吞开头
+    // 此时QAudioSink已在startPlayer中start但处于IdleState（buffer为空）
+    QByteArray preload = m_file.read(CHUNK_SIZE * 4);  // 预填充较大块
+    if (!preload.isEmpty() && m_buffer) {
+        m_buffer->write(preload);
+        m_buffer->seek(0);  // 重置读取位置
+    }
+    if (m_audioSink && m_audioSink->state() == QAudio::IdleState) {
+        m_audioSink->resume();
+    }
+
     m_timer->start(10);
-    qDebug()<<"[filePlayer]开始播放:"<<filePath;
+    qDebug()<<"[filePlayer]开始播放:"<<filePath<<"预填充字节="<<preload.size();
 
 }
 
@@ -143,9 +159,13 @@ void FilePlayer::pushData()
         m_file.close();
         return;
     }
-    qint64 written=m_buffer->write(data);
+    // 保存QAudioSink的读取位置，seek到末尾追加写入，再恢复读取位置
+    qint64 readPos = m_buffer->pos();
+    m_buffer->seek(m_buffer->size());
+    qint64 written = m_buffer->write(data);
+    m_buffer->seek(readPos);
     if(written<0){
-        qDebug()<<"[steamPlayer]:写入m_buffer失败";
+        qDebug()<<"[FilePlayer]:写入m_buffer失败";
         emit PcmPlayerError("写入音频缓冲区失败");
         m_timer->stop();
     }
