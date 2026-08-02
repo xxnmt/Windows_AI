@@ -29,6 +29,8 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
 
     TTSReference ref=TTSReferenceManager::instance().getReferenceForEmotion(sentence.rawTags.value("emotion"));
 
+    m_streamingMode = true;
+
     QJsonObject json; 
     
     // ---------- 必须参数 ----------
@@ -78,12 +80,12 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
                                                  //   false: 默认，正常音质
     
     // ---------- 流式返回参数 ----------
-    json["streaming_mode"] = false;              // 流式模式：
+    json["streaming_mode"] = m_streamingMode;              // 流式模式：
                                                  //   false: 关闭（返回完整音频文件，推荐）
                                                  //   true/1: 开启（v3自动回退为分段返回）
                                                  //   2: 中等质量流式
                                                  //   3: 低质量快速流式
-    json["return_fragment"] = false;             // 分段返回：通常由streaming_mode自动控制，无需手动设置
+    // json["return_fragment"] = false;             // 分段返回：通常由streaming_mode自动控制，无需手动设置
     json["overlap_length"] = 2;                  // 流式模式语义token重叠长度，通常保持默认
     json["min_chunk_length"] = 16;               // 流式模式最小chunk长度，通常保持默认
     
@@ -185,6 +187,11 @@ void ApiTTSProvider::warmUp()
     qDebug()<<"[apitts]:预热功能暂时取消";
 }
 
+bool ApiTTSProvider::isStreamingMode() const
+{
+    return m_streamingMode;
+}
+
 void ApiTTSProvider::onNetworkReplyFinished(QNetworkReply *reply, SentenceText sentence)
 {
     reply->deleteLater();
@@ -267,35 +274,32 @@ void ApiTTSProvider::writePcmToWavFile(const QString &filePath, const QByteArray
     }
 
     int dataSize = pcmData.size();
-    int fileSize = 44 + dataSize;  // WAV Header (44) + PCM 数据
+    int byteRate = sampleRate * 2;  // 16-bit mono
 
-    // 构建 WAV Header
     QByteArray header;
-    header.append("RIFF");
-    header.append(QByteArray::fromHex(
-        QByteArray::number(fileSize - 8, 16).rightJustified(8, '0')));
-    header.append("WAVE");
-    header.append("fmt ");
-    header.append(QByteArray::fromHex(
-        QByteArray::number(16, 16).rightJustified(4, '0')));  // PCM chunk size
-    header.append(QByteArray::fromHex("0100"));  // PCM format
-    header.append(QByteArray::fromHex("0100"));  // Mono
-    header.append(QByteArray::fromHex(
-        QByteArray::number(sampleRate, 16).rightJustified(8, '0')));
-    header.append(QByteArray::fromHex(
-        QByteArray::number(sampleRate * 2, 16).rightJustified(8, '0')));
-    header.append(QByteArray::fromHex("0200"));  // 16-bit
-    header.append(QByteArray::fromHex("1000"));  // Block align
-    header.append("data");
-    header.append(QByteArray::fromHex(
-        QByteArray::number(dataSize, 16).rightJustified(8, '0')));
+    QDataStream stream(&header, QIODevice::WriteOnly);
+    stream.setByteOrder(QDataStream::LittleEndian);  // 关键：小端序
+
+    stream.writeRawData("RIFF", 4);
+    stream << quint32(36 + dataSize);
+    stream.writeRawData("WAVE", 4);
+    stream.writeRawData("fmt ", 4);
+    stream << quint32(16);           // PCM chunk size
+    stream << quint16(1);            // PCM format
+    stream << quint16(1);            // Mono
+    stream << quint32(sampleRate);   // 采样率
+    stream << quint32(byteRate);     // 字节率
+    stream << quint16(2);            // Block align
+    stream << quint16(16);           // Bits per sample
+    stream.writeRawData("data", 4);
+    stream << quint32(dataSize);
 
     file.write(header);
     file.write(pcmData);
     file.close();
 
     qDebug() << "[ApiTTS] WAV文件写入完成:" << filePath
-             << "大小:" << fileSize << "采样率:" << sampleRate;
+             << "大小:" << (44 + dataSize) << "采样率:" << sampleRate;
 }
 
 int ApiTTSProvider::findPCMStart(const QByteArray &chunk)

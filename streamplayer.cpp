@@ -31,6 +31,7 @@ void StreamPlayer::startPlayer(int sampleRate, int channels, int sampleBits)
     m_audioSink->start(m_buffer);
     m_timer->start(20);
     m_isplaying=true;
+    m_playbackStarted=true;
     qDebug()<<QString("[StreamPlayer]开始播放:采样率:1%;通道:2%;位深:3%")
                     .arg(sampleRate,channels,sampleBits);
 
@@ -51,15 +52,16 @@ void StreamPlayer::stopPlayer()
     QMutexLocker locker(&m_mutex);
     m_queue.clear();
     m_isplaying = false;
+    m_playbackStarted = false;
     qDebug()<<"[StreamPlayer]:停止播放";
 }
 
 void StreamPlayer::writePcm(const QByteArray &pcmData)
 {
-    if (!m_isplaying || !m_audioSink){
-        qDebug()<<"[StreamPlayer]:writePcm异常";
-        return;
-    }
+    // if (!m_isplaying || !m_audioSink){
+    //     qDebug()<<"[StreamPlayer]:writePcm异常";
+    //     return;
+    // }
     QMutexLocker locker(&m_mutex);
     m_queue.enqueue(pcmData);
 
@@ -77,11 +79,16 @@ void StreamPlayer::onStateChanged(QAudio::State state)
         QMutexLocker locker(&m_mutex);
         if (m_queue.isEmpty()) {
             m_isplaying = false;
+            m_playbackStarted=false;
             emit PcmPlayerFinished();
         }
     }
     else if (state == QAudio::StoppedState) {
-        m_isplaying = false;
+        if(m_playbackStarted){
+            m_isplaying = false;
+            m_playbackStarted=false;
+            emit PcmPlayerError("流式播放异常停止");
+        }
     }
 }
 
@@ -101,5 +108,8 @@ void StreamPlayer::pushData()
             emit PcmPlayerError("写入音频缓冲区失败");
         }
         locker.relock();
+    }
+    if (m_audioSink && m_audioSink->state() == QAudio::IdleState) {
+        m_audioSink->resume();
     }
 }

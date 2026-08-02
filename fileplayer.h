@@ -23,12 +23,13 @@ private slots:
     void onStateChanged(QAudio::State state);
     void pushData();
 private:
-
+    bool m_playbackStarted = false;
     QAudioSink *m_audioSink = nullptr;
     QFile m_file;
     bool m_isplaying = false;
     QTimer *m_timer;
     QBuffer *m_buffer = nullptr;
+    int m_sampleRate=24000;
     static const int CHUNK_SIZE = 4096;
 };
 

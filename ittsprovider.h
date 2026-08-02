@@ -13,6 +13,7 @@ public:
 
     virtual void synthesize(const SentenceText &sentence)=0;
     virtual void warmUp()=0;
+    virtual bool isStreamingMode()const=0;
 
 signals:
     void pcmDataReady(const QByteArray &pcmChunk);

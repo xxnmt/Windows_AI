@@ -13,6 +13,7 @@ public:
     void synthesize(const SentenceText &sentence)override;
     void switchModel(const QString &gptPath, const QString &sovitsPath);
     void warmUp()override;
+    bool isStreamingMode()const override;
 
 private slots:
     void onNetworkReplyFinished(QNetworkReply *reply,SentenceText sentence);
@@ -25,6 +26,7 @@ private:
     QByteArray extractPcmFromWavChunk(const QByteArray &wavChunk);
 
     QNetworkAccessManager *m_networkManager;
+    bool m_streamingMode=false;
 };
 struct SynthesisContext {
     QNetworkReply *reply;

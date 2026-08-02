@@ -32,6 +32,7 @@ private slots:
     QTimer *m_timer;
     QQueue<QByteArray> m_queue;
     bool m_isplaying=false;
+    bool m_playbackStarted = false;
     mutable QMutex m_mutex;
 
 

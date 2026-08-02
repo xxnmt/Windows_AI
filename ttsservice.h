@@ -14,6 +14,7 @@ struct PlayItem {
     SentenceText sentence;
     QString audioPath;
     bool isStream=false;
+    IPcmPlayer *streamPlayer = nullptr;
 };
 
 class TTSService : public QObject
@@ -47,6 +48,7 @@ private slots:
 
 private:
     IPcmPlayer *m_player=nullptr;
+    IPcmPlayer *m_pendingStreamPlayer = nullptr;
     //两个独立队列
     QQueue<SentenceText> m_ttsQueue;   // 等待合成的队列
     QQueue<PlayItem> m_playQueue;  // 合成完毕，等待播放的队列
