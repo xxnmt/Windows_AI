@@ -22,8 +22,14 @@ private:
     QByteArray extractAndConcatPcm(const QByteArray &rawData);
     void writePcmToWavFile(const QString &filePath,const QByteArray &pcmData,int sampleRate);
     int findPCMStart(const QByteArray &chunk);
+    QByteArray extractPcmFromWavChunk(const QByteArray &wavChunk);
 
     QNetworkAccessManager *m_networkManager;
+};
+struct SynthesisContext {
+    QNetworkReply *reply;
+    SentenceText sentence;
+    QByteArray buffer;   // 未解析的累积数据
 };
 
 #endif // APITTSPROVIDER_H

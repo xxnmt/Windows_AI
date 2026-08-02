@@ -8,10 +8,12 @@
 #include <QAudioOutput>
 #include "sentencedata.h"
 #include "ittsprovider.h"
+#include "ipcmplayer.h"
 
 struct PlayItem {
     SentenceText sentence;
     QString audioPath;
+    bool isStream=false;
 };
 
 class TTSService : public QObject
@@ -35,13 +37,16 @@ private slots:
     void processTtsQueue();
     void onTtsFinished(const QString &audioPath, const SentenceText &sentence);
     void onTtsFailed(const QString &errorMsg, const SentenceText &sentence);
+    //pcm
+    void onPcmPlayFinished();
+    void onPcmPlayError(const QString &msg);
 
     //音频播放线程 (Consumer)
     void processPlayQueue();
-    void onPlaybackStateChanged(QMediaPlayer::PlaybackState state);
-    void onMockPlayFinished();
+
 
 private:
+    IPcmPlayer *m_player=nullptr;
     //两个独立队列
     QQueue<SentenceText> m_ttsQueue;   // 等待合成的队列
     QQueue<PlayItem> m_playQueue;  // 合成完毕，等待播放的队列

@@ -15,6 +15,7 @@ public:
     virtual void warmUp()=0;
 
 signals:
+    void pcmDataReady(const QByteArray &pcmChunk);
     void synthesisFinished(const QString &audioPath, const SentenceText &sentence);
     void synthesisFailed(const QString &audioPath, const SentenceText &sentence);
 };

@@ -32,6 +32,9 @@ qt_add_executable(Windows_AI
     apittsprovider.h apittsprovider.cpp
     mockttsprovider.h mockttsprovider.cpp
     ttsreferencemanager.h ttsreferencemanager.cpp
+    ipcmplayer.h
+    streamplayer.h streamplayer.cpp
+    fileplayer.h fileplayer.cpp
 )
 
 target_link_libraries(Windows_AI

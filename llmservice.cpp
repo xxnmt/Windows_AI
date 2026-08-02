@@ -142,11 +142,15 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
                                                            .toJson(QJsonDocument::Indented);
 
     QJsonObject rootObj;
-    rootObj["model"] = "deepseek-v4-flash";
+    rootObj["model"] = "deepseek-v4-pro";
     rootObj["messages"] = messagesArray;
     rootObj["temperature"] = 0.7;
     rootObj["max_tokens"] = 4096;
     rootObj["response_format"] = QJsonObject{{"type", "json_object"}};
+
+    // QJsonObject thinkingObj;
+    // thinkingObj["type"] = "enabled";
+    // rootObj["thinking"] = thinkingObj;
 
     QByteArray postData = QJsonDocument(rootObj).toJson();
     m_networkManager->post(request, postData);
@@ -281,6 +285,20 @@ void LLMService::onReplyFinished(QNetworkReply *reply)
             QJsonObject messageObj = choices[0].toObject()["message"].toObject();
             QString replyText = messageObj["content"].toString();
 
+            //------------------思考
+            // QString thinkingContent;
+            // int thinkStart = replyText.indexOf("【思考】");
+            // int thinkEnd = replyText.indexOf("【/思考】");
+            // if (thinkStart >= 0 && thinkEnd > thinkStart) {
+            //     thinkingContent = replyText.mid(thinkStart + 4, thinkEnd - thinkStart - 4).trimmed();
+            //     qDebug() << "[LLM思考]:" << thinkingContent;
+            // } else {
+            //     // 如果没有【思考】标记，则把整个replyText当成纯JSON（没有思考内容）
+            //     // 也可以记录前100个字符作为日志
+            //     qDebug() << "[LLM思考]:（无思考标记或已关闭）";
+            // }
+            //---------------------
+
             qDebug()<<"[LLM]茉子回复(未处理):"<<replyText;
 
             QPair<QList<SentenceText>, QString> parseResult=parseJsonReply(replyText);
@@ -336,6 +354,7 @@ QString LLMService::loadSystemPrompt()
 
 QPair<QList<SentenceText>, QString> LLMService::parseJsonReply(const QString &replyText)
 {
+
     QList<SentenceText> result;
     QString currentReply=replyText;
 
@@ -343,7 +362,10 @@ QPair<QList<SentenceText>, QString> LLMService::parseJsonReply(const QString &re
     QString cleanText = replyText;
     cleanText.replace(QRegularExpression("```json|```", QRegularExpression::CaseInsensitiveOption), "");
     cleanText = cleanText.trimmed();
-
+    if (cleanText.isEmpty() || cleanText == "{}") {
+        qDebug()<<"[LLM]收到空白或空JSON回复，丢弃";
+        return {};
+    }
     // 尝试直接解析
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(cleanText.toUtf8(), &parseError);
