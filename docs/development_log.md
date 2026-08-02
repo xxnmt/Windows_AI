@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-07-29
+> 最后更新：2026-08-02
 
 ---
 
@@ -198,6 +198,28 @@
   - **修复正则表达式**：标签剥离正则从 `\$$[^\$$]+\]` 修正为 `\\[[^\\]]+\\]`
   - **添加记忆提取结果处理**：`handleMakoReply()` 中检查未摘要对话数，触发后台记忆提取
 
+### M20: 流式TTS播放架构与修复（已完成）
+- 日期：2026-08-02
+- 内容：
+  - **流式PCM解析修复**：`ApiTTSProvider::readyRead` 识别服务端流式格式（首块44字节空WAV头 + 后续裸PCM），跳过WAV头后透传裸PCM；原代码遇到裸PCM就 `buffer.clear()` 导致数据全部丢失
+  - **新增 IPcmPlayer 抽象接口**：统一 `StreamPlayer`（流式）和 `FilePlayer`（文件型）两种播放器的生命周期管理，定义 `startPlayer/stopPlayer/writePcm/setSynthesisDone` 虚方法 + `PcmPlayerFinished/PcmPlayerError` 信号
+  - **StreamPlayer 播放完成检测机制**：
+    - `setSynthesisDone()`：TTSService 在 onTtsFinished 中调用，标记所有 PCM 已到达
+    - `onStateChanged(IdleState)`：QAudioSink 状态变 Idle 时检查 `queueEmpty && bufferDone && synthesisDone`
+    - `checkPlayEnd()` 兜底定时器：500ms 间隔，连续3次（1.5秒）满足完成条件则触发
+    - `finishAndEmit()`：统一停止定时器+emit PcmPlayerFinished
+  - **修复 signals 遮蔽 bug**：StreamPlayer 子类重复声明 `PcmPlayerFinished` 信号导致 moc 生成两个独立信号，`emit` 发子类信号但 `connect` 连基类信号，槽函数永远收不到。删除子类重复 signals 声明
+  - **修复野指针崩溃**：`m_buffer` 未初始化为 nullptr，StreamPlayer 未 startPlayer 就被 deleteLater 析构时，`stopPlayer` 中 `if(m_buffer)` 判定野指针为 true 访问崩溃
+  - **修复 QNetworkReply 内存泄漏**：`finished` lambda 中 `delete ctx` 前未释放 `ctx->reply`
+  - **预填充防吞开头机制**：
+    - StreamPlayer：startPlayer 时从 m_queue 取出所有已到达 PCM，写入 m_buffer，seek(0) 后再 `QAudioSink::start`，避免设备冷启动期间数据丢失
+    - FilePlayer：playFile 中 seek(44) 跳过 WAV 头后，预读取 CHUNK_SIZE*4 数据写入 m_buffer，再 resume()
+  - **FilePlayer 修复**：
+    - `pushData` 写入位置 bug：`m_buffer->write(data)` 在当前 pos 写入会覆盖正在播放的位置，改为保存读取位置→seek到末尾→write→恢复读取位置
+    - WAV头解析完善：从偏移22读取通道数、偏移34读取位深，三个参数任一不同时重建 QAudioSink（原硬编码1通道/16位）
+  - **修复 startPlayer 重置 m_isSynthesisDone 时序 bug**：startPlayer 中 `m_isSynthesisDone=false` 会清掉 setSynthesisDone 已设置的 true，导致 IdleState 检查永远失败
+  - **技术债务清理**：TD-018~TD-022 全部修复
+
 ---
 
 ## 技术债务
@@ -221,6 +243,12 @@
 | TD-015 | LLMService头文件依赖MemoryManager | ❌ 待优化 | 中 | v0.2.4 |
 | TD-016 | AppController中魔法数字SUMMARY_THRESHOLD | ✅ 非问题（设计意图：摘要轮数=短期记忆轮数） | 低 | v0.2.4 |
 | TD-017 | LLM标签输出格式不稳定 | ✅ 已修复（JSON协议+TagValidator校验） | 高 | v0.5.0 |
+| TD-018 | 流式PCM解析丢失数据 | ✅ 已修复（readyRead跳过WAV头透传裸PCM） | 高 | v0.5.0 |
+| TD-019 | StreamPlayer野指针崩溃 | ✅ 已修复（m_buffer初始化nullptr+signals去重） | 高 | v0.6.0 |
+| TD-020 | 播放完成信号不触发 | ✅ 已修复（setSynthesisDone+IdleState+兜底定时器） | 高 | v0.6.0 |
+| TD-021 | 播放吞开头 | ✅ 已修复（startPlayer预填充PCM再启动QAudioSink） | 中 | v0.6.0 |
+| TD-022 | FilePlayer写入位置错误 | ✅ 已修复（pushData先seek到末尾再write） | 中 | v0.6.0 |
+| TD-023 | TTSService直接new具体播放器 | ⚠️ 待优化（未通过工厂创建，抽象不彻底） | 低 | v0.6.0 |
 
 ---
 

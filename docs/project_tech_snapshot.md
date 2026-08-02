@@ -1,8 +1,8 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-07-29
-> 版本：v0.5.0
+> 日期：2026-08-02
+> 版本：v0.6.0
 > 状态：开发中
 
 ---
@@ -169,13 +169,19 @@ rootObj["response_format"] = QJsonObject{{"type", "json_object"}};
 | 类型 | 名称 | 说明 |
 |------|------|------|
 | **私有变量** | `m_ttsQueue` | QQueue\<SentenceText\>，合成队列 |
-| | `m_playQueue` | QQueue\<SentenceText\>，播放队列 |
+| | `m_playQueue` | QQueue\<PlayItem\>，播放队列 |
 | | `m_isSynthesizing` | bool，合成状态锁 |
 | | `m_isPlaying` | bool，播放状态锁 |
 | | `m_provider` | ITTSProvider*，TTS Provider接口 |
+| | `m_player` | IPcmPlayer*，当前播放器 |
+| | `m_pendingStreamPlayer` | IPcmPlayer*，流式合成中待播放的播放器 |
 | **函数签名** | `void enqueueSentences(const QList<SentenceText>& sentences)` | 入队多句话 |
-| | `void processTtsQueue()` | 合成生产者 |
-| | `void processPlayQueue()` | 播放消费者 |
+| | `void processTtsQueue()` | 合成生产者（流式：创建StreamPlayer并连接pcmDataReady） |
+| | `void processPlayQueue()` | 播放消费者（创建播放器+startPlayer） |
+| | `void onTtsFinished(const QString &audioPath, const SentenceText &sentence)` | 合成完成：入播放队列+setSynthesisDone |
+| | `void onTtsFailed(const QString &errorMsg, const SentenceText &sentence)` | 合成失败：跳过+继续 |
+| | `void onPcmPlayFinished()` | 播放完成：清理播放器+继续下一句 |
+| | `void onPcmPlayError(const QString &msg)` | 播放错误：直接调用onPcmPlayFinished |
 | | `void reloadProvider()` | 根据配置重新加载TTS Provider |
 | | `void switchModel(const QString& gptPath, const QString& sovitsPath)` | 切换GPT-SoVITS模型 |
 | **信号** | `void playAudioAction(const QString& zhText, const QMap<QString,QString>& tags)` | 播放同步信号 |
@@ -187,15 +193,71 @@ class ITTSProvider : public QObject {
 public:
     virtual void synthesize(const SentenceText &sentence) = 0;
     virtual void warmUp() = 0;
+    virtual bool isStreamingMode() const = 0;
 signals:
     void synthesisFinished(const QString &audioPath, const SentenceText &sentence);
-    void synthesisFailed(const QString &audioPath, const SentenceText &sentence);
+    void synthesisFailed(const QString &errorMsg, const SentenceText &sentence);
+    void pcmDataReady(const QByteArray &pcmData);  // 流式专用
+};
+```
+
+**IPcmPlayer 接口**：
+```cpp
+class IPcmPlayer : public QObject {
+    Q_OBJECT
+public:
+    virtual void startPlayer(int sampleRate, int channels, int sampleBits) = 0;
+    virtual void stopPlayer() = 0;
+    virtual void writePcm(const QByteArray &pcmData) = 0;
+    virtual bool getisPlaying() const = 0;
+    virtual void setSynthesisDone() {}  // 流式专用
+signals:
+    void PcmPlayerFinished();
+    void PcmPlayerError(const QString &error);
 };
 ```
 
 **实现类**：
-- `ApiTTSProvider`：调用 GPT-SoVITS HTTP API
-- `MockTTSProvider`：模拟实现，用于开发测试
+- `ApiTTSProvider`：调用 GPT-SoVITS HTTP API，streaming_mode=true 流式合成
+- `StreamPlayer`：流式PCM播放（QAudioSink + QBuffer，预填充+兜底检测）
+- `FilePlayer`：文件型WAV播放（QAudioSink + QFile，WAV头解析+预填充）
+
+### StreamPlayer（流式PCM播放器）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **私有变量** | `m_audioSink` | QAudioSink*，音频输出 |
+| | `m_buffer` | QBuffer*，PCM数据缓冲（初始化nullptr防野指针） |
+| | `m_queue` | QQueue\<QByteArray\>，待写入的PCM数据队列 |
+| | `m_mutex` | QMutex，保护m_queue |
+| | `m_timer` | QTimer*，20ms间隔的pushData定时器 |
+| | `m_endTimer` | QTimer*，500ms间隔的播放完成兜底检测定时器 |
+| | `m_isSynthesisDone` | bool，合成完成标记 |
+| | `m_lastProcessedUsecs` | qint64，上次检测时的已播放微秒数 |
+| | `m_endCheckCount` | int，连续满足完成条件的次数 |
+| **函数签名** | `void startPlayer(int sampleRate, int channels, int sampleBits)` | 启动播放器（预填充+QAudioSink::start） |
+| | `void stopPlayer()` | 停止播放器，清理资源 |
+| | `void writePcm(const QByteArray &pcmData)` | 写入PCM数据到队列 |
+| | `void setSynthesisDone()` | 标记合成完成，开启播放完成检测 |
+| | `void pushData()` | 20ms定时器回调：从队列取数据写入m_buffer |
+| | `void checkPlayEnd()` | 500ms定时器回调：兜底检测播放完成 |
+| | `void finishAndEmit()` | 统一停止定时器+emit PcmPlayerFinished |
+
+### FilePlayer（文件型WAV播放器）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **私有变量** | `m_audioSink` | QAudioSink*，音频输出 |
+| | `m_buffer` | QBuffer*，PCM数据缓冲 |
+| | `m_file` | QFile，WAV文件 |
+| | `m_timer` | QTimer*，pushData定时器 |
+| | `m_sampleRate` | int，WAV采样率 |
+| | `m_channels` | int，WAV通道数 |
+| | `m_bitsPerSample` | int，WAV位深 |
+| **函数签名** | `void startPlayer(int sampleRate, int channels, int sampleBits)` | 启动播放器 |
+| | `void setSource(const QString &filePath)` | 打开WAV文件，解析头，预填充（override IPcmPlayer） |
+| | `void pushData()` | 定时器回调：从文件读取数据写入m_buffer（seek到末尾追加） |
+| | `void stopPlayer()` | 停止播放，清理资源 |
 
 ### MemoryManager（AI记忆系统）
 
@@ -453,6 +515,11 @@ struct SentenceText {
 - [x] AI状态同步机制 ✅ 已实现（状态提供者模式）
 - [x] JSON输出协议 ✅ 已实现（response_format+JSON解析）
 - [x] 标签校验 ✅ 已实现（TagValidator+编辑距离）
+- [x] 流式TTS播放 ✅ 已实现（streaming_mode + pcmDataReady）
+- [x] IPcmPlayer播放器抽象 ✅ 已实现（StreamPlayer + FilePlayer）
+- [x] 播放完成检测 ✅ 已实现（setSynthesisDone + 兜底定时器）
+- [x] 预填充防吞开头 ✅ 已实现（startPlayer预填充PCM）
+- [ ] 播放器工厂模式重构（IPcmPlayer 静态工厂方法）
 - [ ] 设置界面完善（TTS配置、外观配置、时间配置等）
 - [ ] 立绘切换过渡动画
 - [ ] 错误重试机制（LLM请求失败自动重试）
@@ -465,6 +532,7 @@ struct SentenceText {
 | anchormanager.cpp | AnchorManager析构未清理m_anchors（内存泄漏风险） | **高** |
 | appcontroller.cpp | SUMMARY_THRESHOLD魔法数字硬编码 | 低 |
 | llmservice.h | 头文件依赖memorymanager.h，增加编译依赖链 | 中 |
+| ttsservice.cpp | 直接new StreamPlayer/FilePlayer，未通过工厂创建（TD-023） | 低 |
 
 ---
 
@@ -489,7 +557,10 @@ Windows_AI/
 ├── appearancemanager.h/cpp  # 外观管理器
 ├── ttsservice.h/cpp         # TTS语音服务
 ├── ittsprovider.h           # TTS Provider接口
-├── apittsprovider.h/cpp     # GPT-SoVITS API实现
+├── apittsprovider.h/cpp     # GPT-SoVITS API实现（流式合成）
+├── ipcmplayer.h             # 播放器抽象接口
+├── streamplayer.h/cpp       # 流式PCM播放器
+├── fileplayer.h/cpp         # 文件型WAV播放器
 ├── mockttsprovider.h/cpp     # Mock实现
 ├── llmservice.h/cpp         # AI服务模块（含TagValidator内部类）
 ├── configmanager.h/cpp      # 配置管理器
@@ -534,7 +605,9 @@ Windows_AI/
 │                                                                     │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                        TTSService                            │  │
-│  │  合成队列(Producer) → ITTSProvider → 播放队列(Consumer)       │  │
+│  │  合成队列 → ITTSProvider(ApiTTSProvider 流式合成)            │  │
+│  │  ← pcmDataReady 信号 → StreamPlayer.writePcm()               │  │
+│  │  播放队列 → IPcmPlayer(StreamPlayer/FilePlayer)              │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                                                     │
 │  ┌─────────────┐  ┌─────────────┐                                  │
@@ -556,6 +629,12 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-08-02 | 流式TTS播放架构修复：流式PCM解析、IPcmPlayer抽象、播放完成检测、预填充防吞开头 |
+| 2026-08-02 | 修复 signals 遮蔽 bug：StreamPlayer 子类重复声明 PcmPlayerFinished 导致槽函数收不到 |
+| 2026-08-02 | 修复野指针崩溃：m_buffer 未初始化 nullptr，析构时访问野指针 |
+| 2026-08-02 | 修复 QNetworkReply 内存泄漏：finished lambda 中未释放 reply |
+| 2026-08-02 | FilePlayer 修复：pushData 写入位置 bug + WAV头解析完善（通道数+位深） |
+| 2026-08-02 | 更新文档：ARCHITECTURE.md、development_log.md、project_tech_snapshot.md、ROADMAP.md |
 | 2026-07-29 | 实现TagValidator类，支持5级标签校验流程（精确匹配→编辑距离→继承→默认值） |
 | 2026-07-29 | 更新文档：ARCHITECTURE.md、development_log.md、project_tech_snapshot.md、ROADMAP.md |
 | 2026-07-28 | 数据库结构简化：删除parsed_json列，raw_reply直接存储JSON对象 |

@@ -17,7 +17,7 @@ public:
     void stopPlayer()override;
     void writePcm(const QByteArray &pcmData)override;
     bool getisPlaying()const override;
-    void playFile(const QString &filePath);
+    void setSource(const QString &filePath) override;
 
 private slots:
     void onStateChanged(QAudio::State state);

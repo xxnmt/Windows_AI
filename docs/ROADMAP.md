@@ -1,8 +1,8 @@
 # 开发路线图
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 版本：v0.5.0
-> 更新日期：2026-07-29
+> 版本：v0.6.0
+> 更新日期：2026-08-02
 
 ---
 
@@ -123,10 +123,30 @@
 - [x] TD-017: LLM标签输出格式不稳定 → JSON协议+TagValidator校验
 - [x] TD-017: 数据库冗余字段 → 删除parsed_json列
 
-### v0.6.0 - 设置界面 & 交互增强
-**状态**：📋 待开始
+### v0.6.0 - 流式TTS播放 & 播放器抽象（当前版本）
+**状态**：� 进行中
 
 **功能清单**：
+- [x] 流式PCM播放架构
+  - [x] ApiTTSProvider 流式合成（streaming_mode=true）
+  - [x] pcmDataReady 信号实时推送 PCM 数据
+  - [x] readyRead 跳过首个WAV头后透传裸PCM
+- [x] IPcmPlayer 播放器抽象接口
+  - [x] StreamPlayer（流式PCM播放）
+  - [x] FilePlayer（文件型WAV播放）
+  - [x] 统一 startPlayer/stopPlayer/writePcm 接口
+  - [x] 统一 PcmPlayerFinished/PcmPlayerError 信号
+- [x] 播放完成检测机制
+  - [x] setSynthesisDone() 标记合成完成
+  - [x] onStateChanged(IdleState) 三条件检测
+  - [x] checkPlayEnd() 兜底定时器（500ms × 3次）
+- [x] 预填充防吞开头机制
+  - [x] StreamPlayer：startPlayer 时预填充队列PCM
+  - [x] FilePlayer：playFile 时预读取4×CHUNK_SIZE数据
+- [x] FilePlayer 修复与完善
+  - [x] pushData 写入位置 bug 修复
+  - [x] WAV头解析完善（通道数+位深）
+- [ ] 播放器工厂模式重构（IPcmPlayer 静态工厂方法）
 - [ ] 设置界面完善
   - [ ] 外观配置（气泡样式、窗口透明度）
   - [ ] TTS配置（语速、温度、模型切换）
@@ -138,10 +158,16 @@
 - [ ] 历史记录导出功能
 
 **技术任务**：
+- [x] 修复流式PCM解析丢失数据（TD-018）
+- [x] 修复StreamPlayer野指针崩溃（TD-019）
+- [x] 修复播放完成信号不触发（TD-020）
+- [x] 修复播放吞开头（TD-021）
+- [x] 修复FilePlayer写入位置错误（TD-022）
 - [ ] 创建TimeManager时间管理器
 - [ ] 创建ShortcutManager全局快捷键管理
 - [ ] 修复AnchorManager内存泄漏（TD-014）
 - [ ] 优化LLMService头文件依赖（TD-015）
+- [ ] 播放器工厂模式重构（TD-023）
 - [ ] 添加错误重试机制（LLM请求失败自动重试）
 
 **预计时间**：2-3周
@@ -224,8 +250,14 @@
 | TD-007 | characterwidget大量注释代码残留 | 低 | v0.3.0 | ✅ 已清理 |
 | TD-008 | appcontroller重复include | 低 | v0.3.0 | ✅ 已修复 |
 | TD-013 | AppController职责过重（上帝对象） | 高 | v0.7.0 | ⚠️ 可接受（当前规模合适） |
-| TD-014 | AnchorManager内存泄漏风险 | 高 | v0.6.0 | ❌ 待修复 |
-| TD-015 | LLMService头文件依赖MemoryManager | 中 | v0.6.0 | ❌ 待优化 |
+| TD-014 | AnchorManager内存泄漏风险 | 高 | v0.7.0 | ❌ 待修复 |
+| TD-015 | LLMService头文件依赖MemoryManager | 中 | v0.7.0 | ❌ 待优化 |
+| TD-018 | 流式PCM解析丢失数据 | 高 | v0.6.0 | ✅ 已修复（跳过WAV头透传裸PCM） |
+| TD-019 | StreamPlayer野指针崩溃 | 高 | v0.6.0 | ✅ 已修复（m_buffer初始化nullptr+signals去重） |
+| TD-020 | 播放完成信号不触发 | 高 | v0.6.0 | ✅ 已修复（setSynthesisDone+IdleState+兜底定时器） |
+| TD-021 | 播放吞开头 | 中 | v0.6.0 | ✅ 已修复（startPlayer预填充PCM） |
+| TD-022 | FilePlayer写入位置错误 | 中 | v0.6.0 | ✅ 已修复（pushData先seek到末尾再write） |
+| TD-023 | TTSService直接new具体播放器 | 低 | v0.7.0 | ⚠️ 待优化（未通过工厂创建） |
 
 ---
 
@@ -295,7 +327,7 @@ TTSService（策略模式）
     └── m_playQueue（待播放）
 ```
 
-### 阶段7：JSON协议 & 标签校验（v0.5.0，当前）
+### 阶段7：JSON协议 & 标签校验（v0.5.0）
 ```
 LLMService（JSON协议）
     ├── response_format: {type: "json_object"} → 强制JSON输出
@@ -312,7 +344,24 @@ LLMService（JSON协议）
     chat_history表 → 仅保留 raw_reply（JSON对象），删除parsed_json列
 ```
 
-### 阶段8：插件化（v0.7.0+）
+### 阶段7.5：流式TTS播放 & 播放器抽象（v0.6.0，当前）
+```
+TTSService（流式TTS）
+    ├── ApiTTSProvider（streaming_mode=true）
+    │   └── pcmDataReady 信号 → StreamPlayer.writePcm()
+    ├── IPcmPlayer 抽象接口
+    │   ├── StreamPlayer（流式PCM：QAudioSink + QBuffer）
+    │   │   ├── 预填充防吞开头
+    │   │   ├── setSynthesisDone() 标记合成完成
+    │   │   ├── onStateChanged(IdleState) 三条件检测
+    │   │   └── checkPlayEnd() 兜底定时器
+    │   └── FilePlayer（文件型：QAudioSink + QFile）
+    │       ├── WAV头解析（采样率+通道+位深）
+    │       └── 预填充防吞开头
+    └── onPcmPlayFinished() → 清理+继续下一句
+```
+
+### 阶段8：插件化（v0.8.0+）
 ```
 Core
     ├── PluginManager
@@ -362,8 +411,8 @@ v0.2.0  ████████████████████ 100%  架�
 v0.3.0  ████████████████████ 100%  AI资源管理
 v0.4.0  ████████████████████ 100%  AI记忆系统（三层记忆）
 v0.4.1  ████████████████████ 100%  TTS策略模式重构
-v0.5.0  ████████████████████ 100%  JSON协议 & 标签校验（当前）
-v0.6.0  ░░░░░░░░░░░░░░░░░░░░   0%  设置界面 & 交互增强
+v0.5.0  ████████████████████ 100%  JSON协议 & 标签校验
+v0.6.0  ████████████░░░░░░░░  60%  流式TTS播放 & 播放器抽象（当前）
 v0.7.0  ░░░░░░░░░░░░░░░░░░░░   0%  架构改进 & 独立存档
 v0.8.0  ░░░░░░░░░░░░░░░░░░░░   0%  角色自定义 & 剧本系统
 v0.9.0  ░░░░░░░░░░░░░░░░░░░░   0%  智能助手 & 性能优化
@@ -373,23 +422,27 @@ v0.9.0  ░░░░░░░░░░░░░░░░░░░░   0%  智�
 
 ## 近期任务（Next Up）
 
-1. **代码质量提升**
+1. **播放器架构完善**
+   - 播放器工厂模式重构（TD-023：IPcmPlayer 静态工厂方法）
+   - TTSService 去除对 StreamPlayer/FilePlayer 具体类的直接依赖
+
+2. **代码质量提升**
    - 修复AnchorManager内存泄漏（TD-014）
    - 优化LLMService头文件依赖（TD-015）
    - 添加错误重试机制
-   
-2. **设置界面扩展**
+
+3. **设置界面扩展**
    - TTS配置页（语速、温度、模型切换）
    - 外观配置（气泡样式、窗口透明度）
    - 时间配置（自动服装切换）
    - 快捷键配置
 
-3. **功能增强**
+4. **功能增强**
    - 历史记录导出功能
    - 立绘切换过渡动画
    - 时间驱动服装切换
 
-4. **长期规划**
+5. **长期规划**
    - AppController职责拆分
    - 独立存档系统
    - 插件化架构

@@ -64,7 +64,7 @@ bool FilePlayer::getisPlaying() const
     return m_isplaying;
 }
 
-void FilePlayer::playFile(const QString &filePath)
+void FilePlayer::setSource(const QString &filePath)
 {
     if (m_file.isOpen())
         m_file.close();

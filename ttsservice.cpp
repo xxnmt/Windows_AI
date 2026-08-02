@@ -3,8 +3,7 @@
 #include "configmanager.h"
 #include <QDebug>
 #include <QFile>
-#include "streamplayer.h"
-#include "fileplayer.h"
+#include "ipcmplayer.h"
 
 TTSService::TTSService(QObject *parent)
     : QObject(parent),
@@ -72,7 +71,7 @@ void TTSService::processTtsQueue()
     SentenceText currentSentence = m_ttsQueue.dequeue();
     if(m_provider->isStreamingMode()){
         disconnect(m_provider, &ITTSProvider::pcmDataReady, nullptr, nullptr);
-        m_pendingStreamPlayer=new StreamPlayer(this);
+        m_pendingStreamPlayer = IPcmPlayer::create(IPcmPlayer::Stream, this);
         connect(m_provider,&ITTSProvider::pcmDataReady,m_pendingStreamPlayer,&IPcmPlayer::writePcm);
         qDebug()<<"[TTS]开始合成语音(日文流式):"<<currentSentence.jaText;
     }
@@ -170,13 +169,12 @@ void TTSService::processPlayQueue()
     else{
         qDebug()<<"[TTS]UI Ready,开始播放语音:"<<item.sentence.jaText<<item.sentence.zhText;
 
-        FilePlayer *filePlayer = new FilePlayer(this);
-        m_player = filePlayer;
+        m_player = IPcmPlayer::create(IPcmPlayer::File, this);
 
-        connect(filePlayer, &FilePlayer::PcmPlayerFinished, this, &TTSService::onPcmPlayFinished);
-        connect(filePlayer, &FilePlayer::PcmPlayerError, this, &TTSService::onPcmPlayError);
-        filePlayer->startPlayer(24000, 1, 16);
-        filePlayer->playFile(item.audioPath);
+        connect(m_player, &IPcmPlayer::PcmPlayerFinished, this, &TTSService::onPcmPlayFinished);
+        connect(m_player, &IPcmPlayer::PcmPlayerError, this, &TTSService::onPcmPlayError);
+        m_player->startPlayer(24000, 1, 16);
+        m_player->setSource(item.audioPath);
     }
 }
 
