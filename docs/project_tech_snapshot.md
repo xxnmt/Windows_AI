@@ -201,16 +201,20 @@ signals:
 };
 ```
 
-**IPcmPlayer 接口**：
+**IPcmPlayer 接口**（含静态工厂方法）：
 ```cpp
 class IPcmPlayer : public QObject {
     Q_OBJECT
 public:
+    enum Type { Stream, File };
+    static IPcmPlayer* create(Type type, QObject *parent = nullptr);  // 静态工厂
+
     virtual void startPlayer(int sampleRate, int channels, int sampleBits) = 0;
     virtual void stopPlayer() = 0;
     virtual void writePcm(const QByteArray &pcmData) = 0;
     virtual bool getisPlaying() const = 0;
     virtual void setSynthesisDone() {}  // 流式专用
+    virtual void setSource(const QString &path) {}  // 文件型专用
 signals:
     void PcmPlayerFinished();
     void PcmPlayerError(const QString &error);
@@ -519,7 +523,7 @@ struct SentenceText {
 - [x] IPcmPlayer播放器抽象 ✅ 已实现（StreamPlayer + FilePlayer）
 - [x] 播放完成检测 ✅ 已实现（setSynthesisDone + 兜底定时器）
 - [x] 预填充防吞开头 ✅ 已实现（startPlayer预填充PCM）
-- [ ] 播放器工厂模式重构（IPcmPlayer 静态工厂方法）
+- [x] 播放器工厂模式重构 ✅ 已实现（IPcmPlayer 静态工厂方法）
 - [ ] 设置界面完善（TTS配置、外观配置、时间配置等）
 - [ ] 立绘切换过渡动画
 - [ ] 错误重试机制（LLM请求失败自动重试）
@@ -532,7 +536,7 @@ struct SentenceText {
 | anchormanager.cpp | AnchorManager析构未清理m_anchors（内存泄漏风险） | **高** |
 | appcontroller.cpp | SUMMARY_THRESHOLD魔法数字硬编码 | 低 |
 | llmservice.h | 头文件依赖memorymanager.h，增加编译依赖链 | 中 |
-| ttsservice.cpp | 直接new StreamPlayer/FilePlayer，未通过工厂创建（TD-023） | 低 |
+| ttsservice.cpp | ~~直接new StreamPlayer/FilePlayer~~（TD-023 已修复，改用 IPcmPlayer::create 静态工厂） | ~~低~~ |
 
 ---
 
@@ -558,7 +562,7 @@ Windows_AI/
 ├── ttsservice.h/cpp         # TTS语音服务
 ├── ittsprovider.h           # TTS Provider接口
 ├── apittsprovider.h/cpp     # GPT-SoVITS API实现（流式合成）
-├── ipcmplayer.h             # 播放器抽象接口
+├── ipcmplayer.h/cpp         # 播放器抽象接口（含静态工厂方法）
 ├── streamplayer.h/cpp       # 流式PCM播放器
 ├── fileplayer.h/cpp         # 文件型WAV播放器
 ├── mockttsprovider.h/cpp     # Mock实现
@@ -629,6 +633,7 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-08-02 | 播放器工厂模式重构：IPcmPlayer 静态工厂方法、TTSService 解耦具体播放器、FilePlayer::playFile→setSource |
 | 2026-08-02 | 流式TTS播放架构修复：流式PCM解析、IPcmPlayer抽象、播放完成检测、预填充防吞开头 |
 | 2026-08-02 | 修复 signals 遮蔽 bug：StreamPlayer 子类重复声明 PcmPlayerFinished 导致槽函数收不到 |
 | 2026-08-02 | 修复野指针崩溃：m_buffer 未初始化 nullptr，析构时访问野指针 |

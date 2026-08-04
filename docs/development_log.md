@@ -220,6 +220,17 @@
   - **修复 startPlayer 重置 m_isSynthesisDone 时序 bug**：startPlayer 中 `m_isSynthesisDone=false` 会清掉 setSynthesisDone 已设置的 true，导致 IdleState 检查永远失败
   - **技术债务清理**：TD-018~TD-022 全部修复
 
+### M21: 播放器工厂模式重构（已完成）
+- 日期：2026-08-02
+- 内容：
+  - **IPcmPlayer 静态工厂方法**：在 IPcmPlayer 接口中增加 `enum Type { Stream, File }` 和 `static IPcmPlayer* create(Type, QObject*)` 静态工厂方法，集中创建逻辑
+  - **新增 ipcmplayer.cpp**：工厂方法实现文件，include streamplayer.h 和 fileplayer.h，头文件不依赖具体子类（无循环依赖）
+  - **FilePlayer::playFile → setSource**：将 FilePlayer 特有的 `playFile` 方法改为 `setSource` 并 override IPcmPlayer 的虚方法，统一接口调用
+  - **TTSService 解耦**：移除 ttsservice.cpp 对 streamplayer.h 和 fileplayer.h 的直接 include，改为只依赖 ipcmplayer.h；`new StreamPlayer` → `IPcmPlayer::create(Stream)`，`new FilePlayer` → `IPcmPlayer::create(File)`
+  - **connect 信号统一**：文件播放分支从 `&FilePlayer::PcmPlayerFinished` 改为 `&IPcmPlayer::PcmPlayerFinished`（基类信号），与流式分支保持一致
+  - **CMakeLists.txt**：新增 ipcmplayer.cpp 到构建列表
+  - **技术债务清理**：TD-023 已修复
+
 ---
 
 ## 技术债务
@@ -248,7 +259,7 @@
 | TD-020 | 播放完成信号不触发 | ✅ 已修复（setSynthesisDone+IdleState+兜底定时器） | 高 | v0.6.0 |
 | TD-021 | 播放吞开头 | ✅ 已修复（startPlayer预填充PCM再启动QAudioSink） | 中 | v0.6.0 |
 | TD-022 | FilePlayer写入位置错误 | ✅ 已修复（pushData先seek到末尾再write） | 中 | v0.6.0 |
-| TD-023 | TTSService直接new具体播放器 | ⚠️ 待优化（未通过工厂创建，抽象不彻底） | 低 | v0.6.0 |
+| TD-023 | TTSService直接new具体播放器 | ✅ 已修复（IPcmPlayer 静态工厂方法） | 低 | v0.6.0 |
 
 ---
 
@@ -263,6 +274,7 @@
 | v0.4.0 | AI记忆系统 | MemoryManager + LLMService + SettingsWidget | SQLite数据库（chat_history/user_profile/long_term_summary三张表）、短期记忆查询（默认15轮）、用户画像（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、记忆管理界面（查看/删除/清空/分页）、配置文件损坏降级处理、代码健壮性提升 |
 | v0.4.1 | TTS策略模式 | TTSService + ITTSProvider + ApiTTSProvider | 策略模式重构TTS、GPT-SoVITS HTTP API接入、双队列模型优化（合成→播放）、Qt Multimedia集成、参考音频情绪映射、错误处理（合成失败跳过不阻塞） |
 | v0.5.0 | JSON协议与标签校验 | LLMService + TagValidator + MemoryManager | JSON输出协议替代标签格式、response_format参数强制JSON输出、TagValidator标签校验与编辑距离修正、数据库结构简化（删除parsed_json列）、历史记忆纯文本注入 |
+| v0.6.0 | 流式TTS播放与播放器抽象 | TTSService + IPcmPlayer + StreamPlayer + FilePlayer | 流式PCM播放（streaming_mode+pcmDataReady）、IPcmPlayer抽象接口（静态工厂方法）、播放完成检测（setSynthesisDone+IdleState+兜底定时器）、预填充防吞开头、FilePlayer WAV头解析完善、signals遮蔽bug修复、野指针崩溃修复 |
 
 ---
 

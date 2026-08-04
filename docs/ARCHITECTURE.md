@@ -23,7 +23,7 @@
 | **业务层** | LLMService | DeepSeek请求、JSON协议解析、句子拆分、记忆提取 | llmservice.h/cpp |
 | | TTSService | 语音合成队列、播放队列、策略模式（ITTSProvider） | ttsservice.h/cpp, ittsprovider.h, apittsprovider.h/cpp |
 | | ApiTTSProvider | GPT-SoVITS API 调用、流式 PCM 解析 | apittsprovider.h/cpp |
-| | IPcmPlayer | 播放器抽象接口（PcmPlayerFinished/Error 信号） | ipcmplayer.h |
+| | IPcmPlayer | 播放器抽象接口（静态工厂方法+PcmPlayerFinished/Error 信号） | ipcmplayer.h/cpp |
 | | StreamPlayer | 流式 PCM 播放（QAudioSink + QBuffer，预填充+兜底检测） | streamplayer.h/cpp |
 | | FilePlayer | 文件型 WAV 播放（QAudioSink + QFile，WAV头解析） | fileplayer.h/cpp |
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
@@ -392,21 +392,27 @@ signals:
 };
 ```
 
-**IPcmPlayer 接口**：
+**IPcmPlayer 接口**（含静态工厂方法）：
 ```cpp
 class IPcmPlayer : public QObject {
     Q_OBJECT
 public:
+    enum Type { Stream, File };
+    static IPcmPlayer* create(Type type, QObject *parent = nullptr);  // 静态工厂
+
     virtual void startPlayer(int sampleRate, int channels, int sampleBits) = 0;
     virtual void stopPlayer() = 0;
     virtual void writePcm(const QByteArray &pcmData) = 0;
     virtual bool getisPlaying() const = 0;
     virtual void setSynthesisDone() {}  // 流式专用：标记合成完成
+    virtual void setSource(const QString &path) {}  // 文件型专用：加载音频源
 signals:
     void PcmPlayerFinished();
     void PcmPlayerError(const QString &error);
 };
 ```
+
+**依赖关系**：TTSService 只 include `ipcmplayer.h`，不依赖具体子类。`ipcmplayer.cpp` 实现工厂方法，include streamplayer.h/fileplayer.h（头文件不循环依赖）。
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
@@ -434,7 +440,7 @@ signals:
 
 **预填充防吞开头机制**：
 - StreamPlayer：startPlayer 时从 m_queue 取出所有已到达 PCM，写入 m_buffer，seek(0) 后再 `QAudioSink::start`
-- FilePlayer：playFile 中 seek(44) 跳过 WAV 头后，预读取 CHUNK_SIZE*4 数据写入 m_buffer，再 resume()
+- FilePlayer：setSource 中 seek(44) 跳过 WAV 头后，预读取 CHUNK_SIZE*4 数据写入 m_buffer，再 resume()
 
 ---
 
@@ -860,6 +866,7 @@ image/
 | **生产者-消费者** | TTSService（合成队列→播放队列） | TTS流水线解耦 |
 | **策略模式** | TTSService（ITTSProvider接口） | 多种TTS实现可切换 |
 | **多态接口** | IPcmPlayer（StreamPlayer/FilePlayer） | 统一播放器生命周期管理 |
+| **静态工厂方法** | IPcmPlayer::create(Type, parent) | 集中创建逻辑，TTSService 不依赖具体子类 |
 | **状态管理** | AppearanceManager | 角色外观状态机 |
 | **编辑距离算法** | TagValidator | 标签拼写修正 |
 
@@ -901,6 +908,7 @@ image/
 | TD-020 | 播放完成信号不触发 | setSynthesisDone+IdleState+兜底定时器 | ✅ 已修复 |
 | TD-021 | 播放吞开头 | startPlayer预填充PCM再启动QAudioSink | ✅ 已修复 |
 | TD-022 | FilePlayer写入位置错误 | pushData先seek到末尾再write | ✅ 已修复 |
+| TD-023 | TTSService直接new具体播放器 | IPcmPlayer静态工厂方法 | ✅ 已修复 |
 
 ### 7.2 待优化项
 
@@ -910,14 +918,13 @@ image/
 | C-003 | 内联lambda过多 | appcontroller.cpp | 难以测试和复用 | ⚠️ 待优化 |
 | C-004 | LLMService头文件依赖MemoryManager | llmservice.h | 增加编译依赖链 | ❌ 待修复 |
 | RC-012 | AnchorManager析构未清理 | anchormanager.cpp | 内存泄漏风险 | ❌ 待修复 |
-| TD-023 | TTSService直接new具体播放器 | ttsservice.cpp | 未通过工厂/IPcmPlayer静态方法创建，抽象不彻底 | ⚠️ 待优化 |
 
 ### 7.3 架构演进规划
 
 | 阶段 | 版本 | 内容 |
 |------|------|------|
-| 当前 | v0.6.0 | 流式TTS播放、IPcmPlayer抽象、播放完成检测、预填充防吞开头 |
-| 中期 | v0.7.0 | 播放器工厂模式重构、设置界面完善、时间驱动服装切换 |
+| 当前 | v0.6.0 | 流式TTS播放、IPcmPlayer抽象（静态工厂）、播放完成检测、预填充防吞开头 |
+| 中期 | v0.7.0 | 设置界面完善、时间驱动服装切换、AnchorManager内存泄漏修复 |
 | 远期 | v0.8.0+ | 架构改进、独立存档、插件化 |
 
 ---
@@ -928,7 +935,7 @@ image/
 |----------|----------|
 | 新LLM模型 | 继承/替换 LLMService，保持 sentencesReady 信号接口 |
 | 新TTS引擎 | 实现 ITTSProvider 接口，流式需发 pcmDataReady 信号 |
-| 新播放器类型 | 实现 IPcmPlayer 接口，TTSService 通过工厂创建（待重构） |
+| 新播放器类型 | 实现 IPcmPlayer 接口，在 ipcmplayer.cpp 工厂方法中注册新类型 |
 | 新服装/表情 | 添加资源文件，AppearanceManager自动支持 |
 | 设置界面 | 连接 ConfigManager 的setter方法 |
 | 新交互方式 | 在CharacterWidget中添加新信号，连接到AppController |
