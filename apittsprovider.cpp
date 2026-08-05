@@ -41,13 +41,13 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
     json["prompt_lang"] = ref.promptLanguage;    // 【必须】参考音频文本的语言
     
     // ---------- 文本切分参数 ----------
-    json["text_split_method"] = "cut2";          // 文本切分方法：
-                                                 //   cut0: 中文标点切分（！？。，；：…等）
-                                                 //   cut1: 英文标点切分（!?. , ; : …等）
-                                                 //   cut2: 日文标点切分（!?. , ; : …。、等）
-                                                 //   cut3: 中英混合智能切分
-                                                 //   cut4: 中英日混合智能切分
-                                                 //   cut5: 不切分（整段合成，默认）
+    json["text_split_method"] = "cut5";          // 文本切分方法（以 GPT-SoVITS text_segmentation_method.py 实际实现为准）：
+                                                 //   cut0: 不切（直接返回原文）
+                                                 //   cut1: 凑四句一切（每4个标点切分一次）
+                                                 //   cut2: 凑50字一切（累积超过50字才切）
+                                                 //   cut3: 按中文句号。切
+                                                 //   cut4: 按英文句号.切
+                                                 //   cut5: 按全部标点切（！？。，、！？.,;:：…等）← 当前使用
     
     // ---------- 采样/生成参数 ----------
     json["top_k"] = 5;                           // Top-K采样：限制每个位置可能的token数量，越小越确定
@@ -75,9 +75,10 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
                                                  //   16: 最快，质量略降（适合实时对话）
                                                  //   32: 默认，平衡质量与速度（日常使用推荐）
                                                  //   64: 最慢，质量最佳（适合成品生成）
-    json["super_sampling"] = false;              // 【v3专用】超分辨率：
+    json["super_sampling"] = true;              // 【v3专用】超分辨率：
                                                  //   true: 音质更好但速度显著变慢(+40%~80%)
                                                  //   false: 默认，正常音质
+    m_sampleRate = json["super_sampling"].toBool() ? 48000 : 24000;
     
     // ---------- 流式返回参数 ----------
     json["streaming_mode"] = m_streamingMode;              // 流式模式：
@@ -211,7 +212,7 @@ void ApiTTSProvider::onNetworkReplyFinished(QNetworkReply *reply, SentenceText s
     if(isSegmentedResponse(rawData,reply)){
         qDebug()<<"[ApiTTS]:检测到分段/流式返回，解析中";
         QByteArray pcmData=extractAndConcatPcm(rawData);
-        writePcmToWavFile(tempFilePath,pcmData,24000);
+        writePcmToWavFile(tempFilePath,pcmData,m_sampleRate);
     }
     else{
         QFile file(tempFilePath);

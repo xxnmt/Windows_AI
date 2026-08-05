@@ -14,6 +14,7 @@ public:
     void switchModel(const QString &gptPath, const QString &sovitsPath);
     void warmUp()override;
     bool isStreamingMode()const override;
+    int getSampleRate()const { return m_sampleRate; }
 
 private slots:
     void onNetworkReplyFinished(QNetworkReply *reply,SentenceText sentence);
@@ -27,6 +28,7 @@ private:
 
     QNetworkAccessManager *m_networkManager;
     bool m_streamingMode=true;
+    int m_sampleRate = 24000;  // 根据 super_sampling 动态设置
 };
 struct SynthesisContext {
     QNetworkReply *reply;

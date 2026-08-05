@@ -411,7 +411,7 @@ int MemoryManager::scanAndApplyProfileDecay()
 
         if (updatedRows > 0 || deletedRows > 0) {
             qDebug()<<QString("[MemoryManager]全量衰减扫描完成:衰减更新%1条，自动遗忘清理%2条过期画像。")
-                            .arg(updatedRows,deletedRows);
+                            .arg(updatedRows).arg(deletedRows);
         }
         else {
             qDebug()<<"[MemoryManager]画像保持最新，无需衰减。";

@@ -62,10 +62,6 @@ void TTSService::switchModel(const QString &gptPath, const QString &sovitsPath)
 void TTSService::processTtsQueue()
 {
     if (m_isSynthesizing || m_ttsQueue.isEmpty()) return;
-    // auto *streamPlayer = new StreamPlayer(this);
-    // m_player = streamPlayer;
-    // m_player->startPlayer(24000, 1, 16);
-    // connect(m_provider, &ITTSProvider::pcmDataReady, m_player, &IPcmPlayer::writePcm);
 
     m_isSynthesizing = true;
     SentenceText currentSentence = m_ttsQueue.dequeue();
@@ -164,7 +160,9 @@ void TTSService::processPlayQueue()
         m_player=item.streamPlayer;
         connect(m_player, &IPcmPlayer::PcmPlayerFinished,this, &TTSService::onPcmPlayFinished);
         connect(m_player, &IPcmPlayer::PcmPlayerError,this, &TTSService::onPcmPlayError);
-        m_player->startPlayer(24000, 1, 16);
+        int sr = 24000;
+        if (auto *api = qobject_cast<ApiTTSProvider*>(m_provider)) sr = api->getSampleRate();
+        m_player->startPlayer(sr, 1, 16);
     }
     else{
         qDebug()<<"[TTS]UI Ready,开始播放语音:"<<item.sentence.jaText<<item.sentence.zhText;
@@ -172,7 +170,7 @@ void TTSService::processPlayQueue()
         m_player = IPcmPlayer::create(IPcmPlayer::File, this);
 
         connect(m_player, &IPcmPlayer::PcmPlayerFinished, this, &TTSService::onPcmPlayFinished);
-        connect(m_player, &IPcmPlayer::PcmPlayerError, this, &TTSService::onPcmPlayError);
+        connect(m_player, &IPcmPlayer::PcmPlayerError,this, &TTSService::onPcmPlayError);
         m_player->startPlayer(24000, 1, 16);
         m_player->setSource(item.audioPath);
     }
