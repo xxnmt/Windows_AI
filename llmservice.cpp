@@ -192,7 +192,7 @@ void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong l
 {
   "profiles": [
     {"key": "职业", "value": "程序员", "tier": 1},
-    {"key": "今日状态", "value": "在写C++代码", "tier": 3}
+    {"key": "今日情绪", "value": "在写C++代码", "tier": 3}
   ],
   "summary": "用户与AI讨论了长期记忆系统的开发计划。"
 }

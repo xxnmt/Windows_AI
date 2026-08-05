@@ -226,33 +226,81 @@ QList<HistoryTurn> MemoryManager::getUnsummarizedTurns(qlonglong &outLastEndId, 
 
 bool MemoryManager::upsertUserProfile(const QString &key, const QString &value, int tier, int confidenceGain)
 {
-    if(!m_db.open()){
-        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
-        return false;
-    }
+    // 1. key 归一化（动态匹配数据库已有 key）
+    QString normalizedKey = normalizeProfileKey(key);
 
     QSqlQuery query(m_db);
-    QString sql = R"(
-        INSERT INTO user_profile (key, value, tier, confidence, session_count, last_triggered)
-        VALUES (:key, :value, :tier, 50 + :gain, 1, datetime('now', 'localtime'))
-        ON CONFLICT(key, value) DO UPDATE SET
-            confidence = MIN(100, confidence + :gain),
-            session_count = session_count + 1,
-            last_triggered = datetime('now', 'localtime'),
-            tier = excluded.tier
-    )";
 
-    query.prepare(sql);
-    query.bindValue(":key", key);
-    query.bindValue(":value", value);
-    query.bindValue(":tier", tier);
-    query.bindValue(":gain", confidenceGain);
-
+    // 2. 先按 (key, tier) 精确匹配
+    query.prepare("SELECT id, value, confidence, session_count FROM user_profile WHERE key=? AND tier=?");
+    query.addBindValue(normalizedKey);
+    query.addBindValue(tier);
     if (!query.exec()) {
-        qDebug()<<"[MemoryManager]更新用户画像失败:"<<query.lastError();
+        qDebug() << "[MemoryManager]查询画像失败:" << query.lastError();
         return false;
     }
-    qDebug()<<"[MemoryManager]更新用户画像成功";
+
+    int existingId = -1;
+    QString existingValue;
+    int existingConf = 0;
+    int existingCount = 0;
+
+    if (query.next()) {
+        // 3a. 同 key 同 tier：直接合并
+        existingId = query.value(0).toInt();
+        existingValue = query.value(1).toString();
+        existingConf = query.value(2).toInt();
+        existingCount = query.value(3).toInt();
+    } else {
+        // 3b. 同 key 不同 tier：取最稳定的 tier（数字越小越稳定）
+        query.prepare("SELECT id, value, confidence, session_count, tier FROM user_profile WHERE key=? ORDER BY tier ASC LIMIT 1");
+        query.addBindValue(normalizedKey);
+        if (!query.exec() || !query.next()) {
+            // 4. 完全无匹配：INSERT 新记录
+            query.prepare("INSERT INTO user_profile (key, value, tier, confidence, first_seen, last_triggered, session_count) "
+                          "VALUES (?, ?, ?, ?, ?, ?, 1)");
+            query.addBindValue(normalizedKey);
+            query.addBindValue(value);
+            query.addBindValue(tier);
+            query.addBindValue(qMin(100, 50 + confidenceGain));
+            query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+            query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+            if (!query.exec()) {
+                qDebug() << "[MemoryManager]插入画像失败:" << query.lastError();
+                return false;
+            }
+            qDebug() << "[MemoryManager]画像已新增:" << normalizedKey << "tier=" << tier;
+            return true;
+        }
+        // 取到了同 key 不同 tier 的记录
+        existingId = query.value(0).toInt();
+        existingValue = query.value(1).toString();
+        existingConf = query.value(2).toInt();
+        existingCount = query.value(3).toInt();
+        int existingTier = query.value(4).toInt();
+        // 如果新 tier 更稳定（数字更小），更新 tier
+        if (tier < existingTier) {
+            tier = existingTier;  // 保留更稳定的 tier
+        }
+    }
+
+    // 5. 合并 value + 累加 confidence + 累加 session_count
+    QString mergedValue = mergeProfileValue(normalizedKey, existingValue, value);
+    int newConf = qMin(100, existingConf + confidenceGain);
+    int newCount = existingCount + 1;
+
+    query.prepare("UPDATE user_profile SET value=?, confidence=?, session_count=?, last_triggered=? WHERE id=?");
+    query.addBindValue(mergedValue);
+    query.addBindValue(newConf);
+    query.addBindValue(newCount);
+    query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+    query.addBindValue(existingId);
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]更新画像失败:" << query.lastError();
+        return false;
+    }
+    qDebug() << "[MemoryManager]画像已更新:" << normalizedKey
+             << "conf=" << newConf << "count=" << newCount;
     return true;
 }
 
@@ -280,6 +328,19 @@ QList<UserProfile> MemoryManager::getActiveUserProfiles(int minConfidence)
             p.lastTriggered = query.value("last_triggered").toDateTime();
             p.sessionCount = query.value("session_count").toInt();
             profiles.append(p);
+        }
+        //标记本次被注入 LLM 的画像
+        if (!profiles.isEmpty()) {
+            QStringList placeholders;
+            for (int i = 0; i < profiles.size(); i++) placeholders << "?";
+            QString ph = placeholders.join(",");
+            QSqlQuery upd(m_db);
+            upd.prepare(QString("UPDATE user_profile SET last_triggered=?, session_count=session_count+1 WHERE id IN (%1)").arg(ph));
+            upd.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+            for (const UserProfile &p : profiles) upd.addBindValue(p.id);
+            if (!upd.exec()) {
+                qDebug() << "[MemoryManager]更新触发时间失败:" << upd.lastError();
+            }
         }
     }
     else{
@@ -330,9 +391,7 @@ int MemoryManager::scanAndApplyProfileDecay()
                     WHEN 3 THEN :t3
                     ELSE 5.0
                 END
-            ) AS INTEGER),
-            last_triggered = datetime('now', 'localtime')
-            WHERE (julianday('now', 'localtime') - julianday(last_triggered)) >= 0.0416;
+            ) AS INTEGER)
         )";
 
         query.prepare(decaySql);
@@ -366,6 +425,79 @@ int MemoryManager::scanAndApplyProfileDecay()
     }
 }
 
+QString MemoryManager::normalizeProfileKey(const QString &rawKey)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT DISTINCT key FROM user_profile");
+    if(!query.exec()){
+        qDebug()<<"[MemoryManager]:查询失败，保留原key "<<rawKey;
+    }
+    QStringList existingKeys;
+    while(query.next()){
+        existingKeys<<query.value(0).toStringList();
+    }
+    //全匹配
+    if(existingKeys.contains(rawKey)){
+        qDebug()<<"[MemoeyManager]:全匹配，无需修正"<<rawKey;
+        return rawKey;
+    }
+    //编辑距离
+    int threshold=getEditDistanceThreshold(rawKey);
+    QString bestMatch;
+    int minDist=threshold+1;
+    for (const QString &existingKey : existingKeys) {
+        int dist =levenshteinDistance(rawKey, existingKey);
+        if (dist <= threshold && dist < minDist) {
+            minDist = dist;
+            bestMatch = existingKey;
+        }
+    }
+    if (!bestMatch.isEmpty()) {
+        qDebug()<<"[MemoryManager]key归一化:"<<rawKey<<"->"<<bestMatch<<"编辑距离="<<minDist;
+        return bestMatch;
+    }
+    //匹配失败，判定为新维度
+    qDebug()<<"[MemoryManager]新key维度:"<<rawKey;
+    return rawKey;
+}
+
+QString MemoryManager::mergeProfileValue(const QString &key, const QString &oldVal, const QString &newVal)
+{
+    //同key的值value的合并逻辑
+
+    if (newVal.isEmpty()) return oldVal;
+    if (newVal.length() >= oldVal.length()) return newVal;
+    return oldVal;
+}
+
+int MemoryManager::levenshteinDistance(const QString &s1, const QString &s2)
+{
+    int n=s1.length();
+    int m=s2.length();
+    if(m==0)return m;
+    if(n==0)return n;
+
+    QVector<QVector<int>>dp(n+1,QVector<int>(m+1));
+
+    for (int i = 0; i <= n; i++) dp[i][0] = i;
+    for (int j = 0; j <= m; j++) dp[0][j] = j;
+
+    for(int i=1;i<=n;i++){
+        for(int j =1;j<=m;j++) {
+            int cost=(s1[i-1]==s2[j-1]?0:1);
+            dp[i][j]=qMin(qMin(dp[i-1][j]+1,dp[i][j-1]+1),dp[i-1][j-1]+cost);
+        }
+    }
+    return dp[n][m];
+}
+int MemoryManager::getEditDistanceThreshold(const QString &value)
+{
+    int len = value.length();
+    if (len <= 4) return 1;
+    if (len <= 8) return 2;
+    if (len <= 12) return 3;
+    return 4;
+}
 bool MemoryManager::addLongTermSummary(const QString &summaryText, qlonglong coveredEndId, const QString &sourceIdsJson)
 {
     if(!m_db.open()){
