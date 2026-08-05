@@ -114,7 +114,8 @@ void AppController::handleMakoReply(const QList<SentenceText> &sentences, const 
     const int SUMMARY_THRESHOLD = ConfigManager::instance().getShortMemoryLength();
     if (unsummarizedTurns.size() >= SUMMARY_THRESHOLD) {
         qDebug()<<"[AppController]未摘要对话达到阈值，开始触发后台记忆提取...";
-        m_llmService->extractMemoryAsync(unsummarizedTurns, lastEndId, sourceIds);
+        QList<UserProfile> existingProfiles = m_memoryManager->getActiveUserProfiles(30);
+        m_llmService->extractMemoryAsync(unsummarizedTurns, lastEndId, sourceIds, existingProfiles);
     }
 }
 

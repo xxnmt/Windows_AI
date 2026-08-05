@@ -278,10 +278,8 @@ bool MemoryManager::upsertUserProfile(const QString &key, const QString &value, 
         existingConf = query.value(2).toInt();
         existingCount = query.value(3).toInt();
         int existingTier = query.value(4).toInt();
-        // 如果新 tier 更稳定（数字更小），更新 tier
-        if (tier < existingTier) {
-            tier = existingTier;  // 保留更稳定的 tier
-        }
+        // 保留更稳定的 tier（数字越小越稳定）
+        tier = qMin(tier, existingTier);
     }
 
     // 5. 合并 value + 累加 confidence + 累加 session_count
@@ -289,8 +287,9 @@ bool MemoryManager::upsertUserProfile(const QString &key, const QString &value, 
     int newConf = qMin(100, existingConf + confidenceGain);
     int newCount = existingCount + 1;
 
-    query.prepare("UPDATE user_profile SET value=?, confidence=?, session_count=?, last_triggered=? WHERE id=?");
+    query.prepare("UPDATE user_profile SET value=?, tier=?, confidence=?, session_count=?, last_triggered=? WHERE id=?");
     query.addBindValue(mergedValue);
+    query.addBindValue(tier);
     query.addBindValue(newConf);
     query.addBindValue(newCount);
     query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
@@ -384,14 +383,16 @@ int MemoryManager::scanAndApplyProfileDecay()
         QSqlQuery query(m_db);
         QString decaySql = R"(
             UPDATE user_profile
-            SET confidence = CAST(ROUND(confidence - (julianday('now', 'localtime') - julianday(last_triggered)) *
+            SET confidence = CAST(ROUND(confidence - (julianday('now', 'localtime') - julianday(last_decay_at)) *
                 CASE tier
                     WHEN 1 THEN :t1
                     WHEN 2 THEN :t2
                     WHEN 3 THEN :t3
                     ELSE 5.0
                 END
-            ) AS INTEGER)
+            ) AS INTEGER),
+            last_decay_at = datetime('now', 'localtime')
+            WHERE (julianday('now', 'localtime') - julianday(last_decay_at)) >= 0.0416
         )";
 
         query.prepare(decaySql);
@@ -434,7 +435,7 @@ QString MemoryManager::normalizeProfileKey(const QString &rawKey)
     }
     QStringList existingKeys;
     while(query.next()){
-        existingKeys<<query.value(0).toStringList();
+        existingKeys<<query.value(0).toString();
     }
     //全匹配
     if(existingKeys.contains(rawKey)){
@@ -661,6 +662,7 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
                 confidence INTEGER DEFAULT 50,
                 first_seen DATETIME DEFAULT (datetime('now', 'localtime')),
                 last_triggered DATETIME DEFAULT (datetime('now', 'localtime')),
+                last_decay_at DATETIME DEFAULT (datetime('now', 'localtime')),
                 session_count INTEGER DEFAULT 1,
                 UNIQUE(key, value)
             );
@@ -693,6 +695,23 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
                 qDebug()<<"[MomeryManager]v2数据库异常:"<<query.lastError();
             }
             currentVersion = 2;
+        }
+        m_db.commit();
+        qDebug()<<"[MemoryManager]数据库升级完成,结构版本为:"<<currentVersion;
+
+        if(currentVersion<3){
+            qDebug()<<"[MemoryManager]升级v3：为user_profile新增last_decay_at字段，分离衰减与触发时间职责";
+            if (!query.exec("ALTER TABLE user_profile ADD COLUMN last_decay_at DATETIME")) {
+                qDebug()<<"[MomeryManager]v3新增字段异常:"<<query.lastError();
+            }
+            // 将现有记录的 last_decay_at 初始化为 last_triggered，避免升级后首次衰减重复扣分
+            if (!query.exec("UPDATE user_profile SET last_decay_at = last_triggered WHERE last_decay_at IS NULL")) {
+                qDebug()<<"[MomeryManager]v3数据迁移异常:"<<query.lastError();
+            }
+            if (!query.exec("PRAGMA user_version = 3")){
+                qDebug()<<"[MomeryManager]v3数据库异常:"<<query.lastError();
+            }
+            currentVersion = 3;
         }
         m_db.commit();
         qDebug()<<"[MemoryManager]数据库升级完成,结构版本为:"<<currentVersion;

@@ -48,3 +48,4 @@ app_data/
 
 
 logs.txt
+scripts/cleanup_user_profile.py

@@ -58,10 +58,11 @@ void LLMService::askDeepSeek(const QString &userInput, const QList<HistoryTurn> 
         if (!profiles.isEmpty()) {
             finalSystemPrompt += "\n\n【关于欧尼酱的长期认知】\n";
             for (const UserProfile &p : profiles) {
-                finalSystemPrompt += QString("- %1: %2（置信度 %3%）\n")
+                QString tierLabel = (p.tier == 1) ? "长期认知" : (p.tier == 2) ? "近期观察" : "今日状态";
+                finalSystemPrompt += QString("- %1: %2（%3）\n")
                                          .arg(p.key)
                                          .arg(p.value)
-                                         .arg(p.confidence);
+                                         .arg(tierLabel);
             }
         }
         //记忆摘要
@@ -170,7 +171,7 @@ void LLMService::setMemoryManager(MemoryManager *manager)
     m_memoryManager=manager;
 }
 
-void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds)
+void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds, const QList<UserProfile> &existingProfiles)
 {
     if (turns.isEmpty()) {
         qDebug()<<"[LLM]待摘要turns为空";
@@ -180,13 +181,33 @@ void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong l
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", ("Bearer " + m_apiKey).toUtf8());
-    QString extractionPrompt = R"(
+
+    // 构建已有画像上下文文本
+    QString existingProfilesText;
+    if (!existingProfiles.isEmpty()) {
+        for (const UserProfile &p : existingProfiles) {
+            QString tierLabel = (p.tier == 1) ? "长期" : (p.tier == 2) ? "中期" : "短期";
+            existingProfilesText += QString("- %1: %2（tier=%3,%4）\n")
+                                        .arg(p.key).arg(p.value).arg(p.tier).arg(tierLabel);
+        }
+    } else {
+        existingProfilesText = "（暂无已有画像）\n";
+    }
+
+    QString extractionPrompt = QString(R"(
 你是一个记忆分析与总结专家。请分析以下给出的多轮用户与AI的对话，提取：
 1. 用户画像 (profiles): 关于用户的已知事实（如职业、偏好、习惯、性格、今日情绪等）。
    - tier 1: 长期核心事实 (如职业、基本性格、长期爱好)
    - tier 2: 中期行为模式 (如近期工作安排、本周习惯)
    - tier 3: 短期临时状态 (如今日心情、刚刚提及的即时打算)
 2. 剧情摘要 (summary): 用一句话概括这段对话的核心内容（50字以内）。
+
+## 已有用户画像（仅供参考，请在此基础上增量更新）
+%1## 提取规则
+- 若对话揭示了已有画像key的新信息，请输出更新后的value（取更详细/更准确的描述）
+- 若对话中的信息与已有画像矛盾，以对话中的新信息为准
+- 不要简单复制已有画像，只输出有更新或有新增的画像
+- 已有画像中未在对话中涉及的信息，不要输出
 
 请严格输出合法 JSON，不要包含 markdown 代码块包裹标记（如 ```json），格式规范如下：
 {
@@ -196,7 +217,7 @@ void LLMService::extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong l
   ],
   "summary": "用户与AI讨论了长期记忆系统的开发计划。"
 }
-)";
+)").arg(existingProfilesText);
     QString conversationText;
     for (const HistoryTurn &turn : turns) {
         QString aiText = turn.rawReply;

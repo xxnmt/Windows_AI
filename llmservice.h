@@ -22,7 +22,7 @@ public:
     void registerStateProvider(std::function<QString()> provider);
     void setMemoryManager(MemoryManager *manager);
     //Extract
-    void extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds);
+    void extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds, const QList<UserProfile> &existingProfiles = {});
 
 signals:
     //chat
