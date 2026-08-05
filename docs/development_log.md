@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-08-02
+> 最后更新：2026-08-05
 
 ---
 
@@ -231,6 +231,21 @@
   - **CMakeLists.txt**：新增 ipcmplayer.cpp 到构建列表
   - **技术债务清理**：TD-023 已修复
 
+### M22: 用户画像系统改进 & TTS 修复（已完成）
+- 日期：2026-08-05
+- 内容：
+  - **用户画像 key 归一化**：新增 normalizeProfileKey()，基于 Levenshtein 编辑距离匹配已有 key，解决同义 key 碎片化问题
+  - **用户画像 value 合并**：新增 mergeProfileValue()，tier 1 取更长 value，tier 2/3 取新 value
+  - **数据库 schema v3 升级**：user_profile 表新增 last_decay_at 字段，与 last_triggered 职责分离
+  - **衰减逻辑修复**：基于 last_decay_at 衰减，恢复 WHERE ≥1小时 条件，避免重复扣分
+  - **tier 保留逻辑修复**：qMin(tier, existingTier) 保留更稳定 tier
+  - **置信度作用收窄**：仅用于遗忘机制+激活阈值，不再做 LLM 可靠性信号
+  - **LLM 注入格式变更**：tier 标签（长期认知/近期观察/今日状态）替代百分比
+  - **AI 摘要传入现有画像**：extractMemoryAsync 新增 existingProfiles 参数，Prompt 增加增量更新规则
+  - **TTS 文本切分修复**：cut0（不切）→ cut5（按全部标点切），修正注释
+  - **超分采样率适配**：ApiTTSProvider 新增 m_sampleRate + getSampleRate()，流式模式 qobject_cast 获取实际采样率
+  - 技术债务清理：TD-024~TD-029 全部修复
+
 ---
 
 ## 技术债务
@@ -260,6 +275,12 @@
 | TD-021 | 播放吞开头 | ✅ 已修复（startPlayer预填充PCM再启动QAudioSink） | 中 | v0.6.0 |
 | TD-022 | FilePlayer写入位置错误 | ✅ 已修复（pushData先seek到末尾再write） | 中 | v0.6.0 |
 | TD-023 | TTSService直接new具体播放器 | ✅ 已修复（IPcmPlayer 静态工厂方法） | 低 | v0.6.0 |
+| TD-024 | 衰减重复扣分（基于 last_triggered 衰减导致每次 upsert 都扣分） | ✅ 已修复（last_decay_at 字段与 last_triggered 职责分离） | 高 | v0.6.0 |
+| TD-025 | tier 保留逻辑反转（qMax 误用导致 tier 升级而非保留稳定 tier） | ✅ 已修复（qMin(tier, existingTier) 保留更稳定 tier） | 高 | v0.6.0 |
+| TD-026 | TTS 文本切分错误（cut0 不切导致长文本一次性合成失败） | ✅ 已修复（cut0→cut5 按全部标点切） | 中 | v0.6.0 |
+| TD-027 | 超分采样率不匹配（super_sampling=true 时输出 48000Hz 但播放器硬编码 24000Hz） | ✅ 已修复（m_sampleRate 动态适配） | 中 | v0.6.0 |
+| TD-028 | 用户画像 key 碎片化（同义 key 未归并导致画像重复） | ✅ 已修复（normalizeProfileKey 编辑距离归一化） | 中 | v0.6.0 |
+| TD-029 | AI 摘要盲提取（无现有画像上下文导致重复/矛盾提取） | ✅ 已修复（传入现有画像做增量更新） | 中 | v0.6.0 |
 
 ---
 

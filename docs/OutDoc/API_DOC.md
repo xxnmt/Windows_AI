@@ -656,6 +656,8 @@ v2 / v3 API 提供6种文本切分方法（定义在 `GPT_SoVITS/TTS_infer_pack/
 - `api_v2.py` 加载 v1/v2 模型时，仍输出 32000 Hz
 - `api_v2.py` 加载 v4 模型时，输出 48000 Hz
 - 流式 wav 响应的 header 采样率与音频实际采样率一致，播放器应动态读取 header，不要硬编码采样率
+- **v3 模型超分模式**：v3/v3lora 模型开启 `super_sampling=true` 时，输出采样率从 24000 Hz 提升到 48000 Hz（与 v4 一致）
+- 调用方需根据 `super_sampling` 参数动态适配播放器采样率，不能假设 v3 模型固定为 24000 Hz
 
 ---
 

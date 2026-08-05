@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-08-02
+> 日期：2026-08-05
 > 版本：v0.6.0
 > 状态：开发中
 
@@ -109,7 +109,7 @@
 | | `void askDeepSeek(const QString& userInput, const QList<HistoryTurn>& historyQA = QList<HistoryTurn>())` | 发起DeepSeek请求（JSON协议，含response_format） |
 | | `void onReplyFinished(QNetworkReply* reply)` | 解析JSON回复→拆句→标签校验→发信号 |
 | | `QPair<QList<SentenceText>, QString> parseJsonReply(const QString& replyText)` | 解析JSON回复，提取句子和标签 |
-| | `void extractMemoryAsync(const QList<HistoryTurn>& turns, qlonglong lastEndId, const QList<qlonglong>& sourceIds)` | 异步提取记忆（用户画像+长期摘要） |
+| | `void extractMemoryAsync(const QList<HistoryTurn>& turns, qlonglong lastEndId, const QList<qlonglong>& sourceIds, const QList<UserProfile>& existingProfiles = {})` | 异步提取记忆（用户画像+长期摘要），传入现有画像做增量更新 |
 | | `void registerStateProvider(std::function<QString()> provider)` | 注册状态提供者 |
 | | `void setMemoryManager(MemoryManager* manager)` | 设置MemoryManager实例 |
 | | `void initializePromptFile()` | 初始化提示词文件 |
@@ -221,8 +221,13 @@ signals:
 };
 ```
 
+**采样率自适应**：
+- **流式模式**：TTSService 通过 `qobject_cast<ApiTTSProvider*>(m_provider)` 获取 Provider 的实际采样率（`getSampleRate()`），传给 `startPlayer()`，避免硬编码 24000Hz 导致超分模式下播放速率异常
+- **非流式模式**：FilePlayer 已具备 WAV 头解析逻辑，会从文件头读取采样率并自动重建 QAudioSink，无需 TTSService 介入
+- **采样率取值**：`super_sampling=true` 时为 48000Hz，`super_sampling=false` 时为 24000Hz
+
 **实现类**：
-- `ApiTTSProvider`：调用 GPT-SoVITS HTTP API，streaming_mode=true 流式合成
+- `ApiTTSProvider`：调用 GPT-SoVITS HTTP API，streaming_mode=true 流式合成；新增 `m_sampleRate` 成员（默认 24000）和 `getSampleRate()` getter，`synthesize()` 中根据 `super_sampling` 设置（true=48000，false=24000）；非流式模式 `writePcmToWavFile` 用 `m_sampleRate` 替代硬编码 24000
 - `StreamPlayer`：流式PCM播放（QAudioSink + QBuffer，预填充+兜底检测）
 - `FilePlayer`：文件型WAV播放（QAudioSink + QFile，WAV头解析+预填充）
 
@@ -275,9 +280,13 @@ signals:
 | | `qlonglong getTotalHistoryCount()` | 获取历史记录总数 |
 | | `bool deleteTurnByID(int id)` | 根据ID删除单条记录 |
 | | `bool clearAllHistory()` | 清空所有历史记录 |
-| | `bool upsertUserProfile(const QString& key, const QString& value, int tier, int confidenceGain)` | 插入或更新用户画像 |
-| | `QList<UserProfile> getActiveUserProfiles(int minConfidence = 30)` | 获取活跃用户画像 |
-| | `int scanAndApplyProfileDecay()` | 应用置信度衰减 |
+| | `bool upsertUserProfile(const QString& key, const QString& value, int tier, int confidenceGain)` | 插入或更新用户画像（tier = qMin(tier, existingTier) 保留更稳定 tier） |
+| | `QList<UserProfile> getActiveUserProfiles(int minConfidence = 30)` | 获取活跃用户画像（minConfidence 过滤低置信度） |
+| | `int scanAndApplyProfileDecay()` | 基于 last_decay_at 应用置信度衰减，衰减后更新 last_decay_at |
+| | `QString normalizeProfileKey(const QString& key)` | 基于编辑距离归一化 key，匹配已有同义 key |
+| | `QString mergeProfileValue(const QString& oldValue, const QString& newValue, int tier)` | 合并画像 value（tier 1 取更长，tier 2/3 取新值） |
+| | `int levenshteinDistance(const QString& s1, const QString& s2)` | 计算两个字符串的 Levenshtein 编辑距离 |
+| | `int getEditDistanceThreshold(const QString& key)` | 根据 key 长度动态返回编辑距离阈值（≤4字=1，≤8字=2，≤12字=3，>12字=4） |
 | | `bool addLongTermSummary(const QString& summaryText, qlonglong coveredEndId, const QString& sourceIdsJson)` | 添加长期摘要 |
 | | `QList<LongTermSummary> getLatestSummaries(int limit = 5)` | 获取最新摘要 |
 | | `QList<HistoryTurn> getUnsummarizedTurns(qlonglong& outLastEndId, QString& outSourceIds)` | 获取未摘要对话 |
@@ -303,7 +312,8 @@ signals:
 | tier | INTEGER DEFAULT 2 | 半衰期等级（1=长期，2=中期，3=短期） |
 | confidence | INTEGER DEFAULT 50 | 置信度（0-100） |
 | first_seen | DATETIME | 首次记录时间 |
-| last_triggered | DATETIME | 上次触发时间 |
+| last_triggered | DATETIME | 最后被注入LLM/upsert的时间（由 upsert、getActiveUserProfiles 更新） |
+| last_decay_at | DATETIME | 最后衰减计算时间（由 scanAndApplyProfileDecay 更新） |
 | session_count | INTEGER DEFAULT 1 | 触发次数 |
 
 **表3：long_term_summary（长期记忆摘要）**
@@ -633,6 +643,17 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-08-05 | 用户画像 key 归一化：新增 normalizeProfileKey()，基于 Levenshtein 编辑距离匹配已有 key |
+| 2026-08-05 | 用户画像 value 合并：新增 mergeProfileValue()，tier 1 取更长，tier 2/3 取新值 |
+| 2026-08-05 | 数据库 schema v3 升级：user_profile 表新增 last_decay_at 字段，与 last_triggered 职责分离 |
+| 2026-08-05 | 衰减逻辑修复：基于 last_decay_at 衰减，恢复 WHERE ≥1小时 条件，避免重复扣分 |
+| 2026-08-05 | tier 保留逻辑修复：qMin(tier, existingTier) 保留更稳定 tier |
+| 2026-08-05 | 置信度作用收窄：仅用于遗忘机制+激活阈值，不再做 LLM 可靠性信号 |
+| 2026-08-05 | LLM 注入格式变更：tier 标签（长期认知/近期观察/今日状态）替代百分比 |
+| 2026-08-05 | AI 摘要传入现有画像：extractMemoryAsync 新增 existingProfiles 参数，Prompt 增加增量更新规则 |
+| 2026-08-05 | TTS 文本切分修复：cut0（不切）→ cut5（按全部标点切），修正注释 |
+| 2026-08-05 | 超分采样率适配：ApiTTSProvider 新增 m_sampleRate + getSampleRate()，流式模式 qobject_cast 获取实际采样率 |
+| 2026-08-05 | 更新文档：ARCHITECTURE.md、development_log.md、project_tech_snapshot.md、ROADMAP.md、API_DOC.md、MODULE_CALL_DOC.md |
 | 2026-08-02 | 播放器工厂模式重构：IPcmPlayer 静态工厂方法、TTSService 解耦具体播放器、FilePlayer::playFile→setSource |
 | 2026-08-02 | 流式TTS播放架构修复：流式PCM解析、IPcmPlayer抽象、播放完成检测、预填充防吞开头 |
 | 2026-08-02 | 修复 signals 遮蔽 bug：StreamPlayer 子类重复声明 PcmPlayerFinished 导致槽函数收不到 |

@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.6.0
-> 更新日期：2026-08-02
+> 更新日期：2026-08-05
 
 ---
 
@@ -236,7 +236,7 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 | `askDeepSeek()` | 发起DeepSeek API请求 | QString userInput, QList\<HistoryTurn\> historyQA | - |
 | `onReplyFinished()` | 解析JSON→拆句→标签校验→发信号 | QNetworkReply* | - |
 | `parseJsonReply()` | 解析JSON回复，提取句子和标签 | QString replyText | QPair\<QList\<SentenceText\>, QString\> |
-| `extractMemoryAsync()` | 后台异步提取记忆（用户画像+长期摘要） | QList\<HistoryTurn\> turns, qlonglong lastEndId, QList\<qlonglong\> sourceIds | - |
+| `extractMemoryAsync()` | 后台异步提取记忆（用户画像+长期摘要），传入现有画像做增量更新 | QList\<HistoryTurn\> turns, qlonglong lastEndId, QList\<qlonglong\> sourceIds, QList\<UserProfile\> existingProfiles | - |
 | `registerStateProvider()` | 注册状态提供者回调 | std::function\<QString()\> | - |
 | `setMemoryManager()` | 设置MemoryManager实例 | MemoryManager* manager | - |
 | `initializePromptFile()` | 初始化提示词文件 | - | - |
@@ -441,6 +441,11 @@ signals:
 **预填充防吞开头机制**：
 - StreamPlayer：startPlayer 时从 m_queue 取出所有已到达 PCM，写入 m_buffer，seek(0) 后再 `QAudioSink::start`
 - FilePlayer：setSource 中 seek(44) 跳过 WAV 头后，预读取 CHUNK_SIZE*4 数据写入 m_buffer，再 resume()
+
+**采样率自适应机制**：
+- **流式模式**：TTSService 通过 `qobject_cast<ApiTTSProvider*>(m_provider)` 获取 Provider 的实际采样率（`getSampleRate()`），传给 `startPlayer()`，避免硬编码 24000Hz 导致超分模式下播放速率异常
+- **非流式模式**：FilePlayer 已具备 WAV 头解析逻辑，会从文件头读取采样率并自动重建 QAudioSink，无需 TTSService 介入
+- **采样率取值**：`super_sampling=true` 时为 48000Hz，`super_sampling=false` 时为 24000Hz（由 ApiTTSProvider 在 `synthesize()` 中根据 `super_sampling` 参数写入 `m_sampleRate`）
 
 ---
 
@@ -650,7 +655,8 @@ LLMService::parseJsonReply() → TagValidator校验
 | tier | INTEGER DEFAULT 2 | 半衰期等级（1=长期，2=中期，3=短期） |
 | confidence | INTEGER DEFAULT 50 | 置信度（0-100） |
 | first_seen | DATETIME | 首次记录时间 |
-| last_triggered | DATETIME | 上次触发时间 |
+| last_triggered | DATETIME | 最后被注入LLM/upsert的时间（由 upsert、getActiveUserProfiles 更新） |
+| last_decay_at | DATETIME | 最后衰减计算时间（由 scanAndApplyProfileDecay 更新） |
 | session_count | INTEGER DEFAULT 1 | 触发次数 |
 
 **表3：long_term_summary（长期记忆摘要）**
@@ -679,10 +685,14 @@ LLMService::parseJsonReply() → TagValidator校验
 **用户画像 CRUD**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `upsertUserProfile()` | 插入或更新画像 | key, value, tier, confidenceGain | bool |
-| `getActiveUserProfiles()` | 获取活跃画像 | minConfidence | QList\<UserProfile\> |
+| `upsertUserProfile()` | 插入或更新画像（tier = qMin(tier, existingTier) 保留更稳定 tier） | key, value, tier, confidenceGain | bool |
+| `getActiveUserProfiles()` | 获取活跃画像（minConfidence 过滤低置信度） | minConfidence | QList\<UserProfile\> |
 | `deleteUserProfile()` | 删除画像 | id | bool |
-| `scanAndApplyProfileDecay()` | 应用置信度衰减 | - | int |
+| `scanAndApplyProfileDecay()` | 基于 last_decay_at 应用置信度衰减，衰减后更新 last_decay_at | - | int |
+| `normalizeProfileKey()` | 基于编辑距离归一化 key，匹配已有同义 key | key | QString |
+| `mergeProfileValue()` | 合并画像 value（tier 1 取更长，tier 2/3 取新值） | oldValue, newValue, tier | QString |
+| `levenshteinDistance()` | 计算两个字符串的 Levenshtein 编辑距离 | s1, s2 | int |
+| `getEditDistanceThreshold()` | 根据 key 长度动态返回编辑距离阈值（≤4字=1，≤8字=2，≤12字=3，>12字=4） | key | int |
 
 **长期记忆摘要 CRUD**：
 | 方法 | 作用 | 参数 | 返回值 |
@@ -741,6 +751,36 @@ struct LongTermSummary {
 - Tier 2（中期）：-5.0/天
 - Tier 3（短期）：-25.0/天
 - 置信度 <= 0 的画像自动删除
+- 基于 `last_decay_at` 字段衰减（与 `last_triggered` 职责分离），衰减完成后更新 `last_decay_at`
+- 恢复 `WHERE last_decay_at ≥ 1小时` 条件，避免同一小时内重复扣分
+
+**用户画像 key 归一化**：
+- `upsertUserProfile()` 写入前调用 `normalizeProfileKey()`，基于 Levenshtein 编辑距离匹配已有 key
+- 编辑距离阈值按 key 长度动态调整：≤4字=1，≤8字=2，≤12字=3，>12字=4
+- 解决同义 key 碎片化问题（如"喜欢的食物"与"喜欢的食物们"归并）
+
+**用户画像 value 合并策略**：
+- `mergeProfileValue()` 根据 tier 决定合并方式：
+  - Tier 1（长期）：取更长 value（保留更完整描述）
+  - Tier 2/3（中短期）：取新 value（采纳最新观察）
+
+**tier 保留逻辑**：
+- `upsertUserProfile()` 中 `tier = qMin(tier, existingTier)`，数字越小越稳定，保留更稳定 tier
+
+**置信度作用**：
+- **遗忘机制（核心）**：时间衰减 → confidence ≤ 0 → 自动删除
+- **激活阈值（辅助）**：`getActiveUserProfiles(30)` 过滤低置信度画像
+- 不再作为 LLM 可靠性信号（已改为 tier 标签）
+
+**LLM 注入格式**：
+- 用户画像注入 LLM 时，从 `（置信度 XX%）` 改为 tier 语义标签：
+  - Tier 1 → `（长期认知）`
+  - Tier 2 → `（近期观察）`
+  - Tier 3 → `（今日状态）`
+
+**AI 摘要增量更新**：
+- `extractMemoryAsync()` 新增 `existingProfiles` 参数，AppController 调用前先 `getActiveUserProfiles(30)` 传入
+- Prompt 增加已有画像上下文 + 4 条增量更新规则（更新/矛盾/不复制/不涉及不输出），替代盲提取
 
 ---
 
@@ -909,6 +949,12 @@ image/
 | TD-021 | 播放吞开头 | startPlayer预填充PCM再启动QAudioSink | ✅ 已修复 |
 | TD-022 | FilePlayer写入位置错误 | pushData先seek到末尾再write | ✅ 已修复 |
 | TD-023 | TTSService直接new具体播放器 | IPcmPlayer静态工厂方法 | ✅ 已修复 |
+| TD-024 | 衰减重复扣分 | last_decay_at 字段与 last_triggered 职责分离 | ✅ 已修复 |
+| TD-025 | tier 保留逻辑反转 | qMin(tier, existingTier) 保留更稳定 tier | ✅ 已修复 |
+| TD-026 | TTS 文本切分错误 | cut0（不切）→ cut5（按全部标点切） | ✅ 已修复 |
+| TD-027 | 超分采样率不匹配 | m_sampleRate 动态适配（流式 qobject_cast / 非流式 WAV 头解析） | ✅ 已修复 |
+| TD-028 | 用户画像 key 碎片化 | normalizeProfileKey 编辑距离归一化 | ✅ 已修复 |
+| TD-029 | AI 摘要盲提取 | 传入现有画像做增量更新 | ✅ 已修复 |
 
 ### 7.2 待优化项
 

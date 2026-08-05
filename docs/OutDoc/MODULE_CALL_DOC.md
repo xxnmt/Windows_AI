@@ -253,13 +253,14 @@ audio_bytes = binascii.unhexlify(audio_data)
 }
 ```
 
-**输出：** 同 1.7/1.8，但 `sampling_rate` 为 **24000**（v3 模型固定）。
+**输出：** 同 1.7/1.8，但 `sampling_rate` 为 **24000**（`super_sampling=false` 时）或 **48000**（`super_sampling=true` 时）。
 
 **注意：**
 - v3 模型会自动忽略 `parallel_infer` 和 `split_bucket` 参数（强制关闭），无需手动设置
 - v3 模型不支持流式返回，`streaming_mode` 会被自动回退到分段返回
 - `sample_steps` 建议范围 16-64：16 最快质量略降，32 默认平衡，64 最慢质量最佳
 - `super_sampling` 开启后音质更好但速度显著变慢
+- **采样率动态变化**：`super_sampling=true` 时输出采样率从 24000Hz 提升到 48000Hz，调用方应动态读取每个 `audio_fragment` 和 `tts_complete` 中的 `sampling_rate` 字段，不要硬编码 24000
 
 ---
 
