@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.6.0
-> 更新日期：2026-08-05
+> 更新日期：2026-08-07
 
 ---
 
@@ -13,7 +13,7 @@
 ## 项目定位
 
 相比同类项目（如 LingChat），本项目专注于：
-- **科学的记忆系统**：三层记忆架构（短期记忆+用户画像+长期摘要）+ 置信度衰减机制
+- **科学的记忆系统**：五层记忆架构（短期记忆+角色档案+情景记忆+长期摘要+关系状态）+ 情景记忆重要度衰减机制
 - **系统化的状态管理**：四维立绘状态（emotion/blush/distance/clothing）设计 + 标签合法性校验
 - **稳定的AI协议**：JSON输出格式 + response_format 强制JSON + TagValidator 编辑距离修正
 - **轻量级高性能**：C++/Qt 方案，内存占用和性能优于 Electron/Tauri 方案
@@ -151,6 +151,9 @@
 - [x] TTS 文本切分修复（cut5 按全部标点切，替代 cut0 不切）
 - [x] 超分采样率适配（m_sampleRate 动态适配，流式 qobject_cast / 非流式 WAV 头解析）
 - [x] AI 摘要传入现有画像（extractMemoryAsync 新增 existingProfiles 参数，增量更新替代盲提取）
+- [x] 关系状态系统（relationship_state 表，intimacy/trust 默认30，askDeepSeek 注入 `# 我们的关系`，extractMemoryAsync 提取 relationship_updates）
+- [x] 记忆架构重整（废弃 user_profile 表，改为 character_profile + episodic_memory + relationship_state 三张新表，数据库统一 v1 单一迁移块）
+- [x] prompt.txt 资源默认配置更新为 JSON 协议格式
 - [ ] 设置界面完善
   - [ ] 外观配置（气泡样式、窗口透明度）
   - [ ] TTS配置（语速、温度、模型切换）
@@ -324,13 +327,17 @@ AppController（信号调度中枢）
     ├── LLMService（AI对话 → JSON解析 + 记忆注入）
     │   ├── m_stateProvider → AppearanceManager.getCurrentStateDescription()
     │   ├── historyQA → MemoryManager.getHistoryTurn(15)
-    │   ├── profiles → MemoryManager.getActiveUserProfiles()
+    │   ├── profiles → MemoryManager.getCharacterProfiles()
+    │   ├── memories → MemoryManager.getActiveEpisodicMemories()
     │   ├── summaries → MemoryManager.getLatestSummaries()
+    │   ├── relStates → MemoryManager.getRelationshipStates()
     │   └── extractMemoryAsync() 后台记忆提取
-    └── MemoryManager（AI记忆系统 → SQLite数据库）
+    └── MemoryManager（AI记忆系统 → SQLite数据库，v1 单一迁移块）
         ├── chat_history表 → 对话历史
-        ├── user_profile表 → 用户画像
-        └── long_term_summary表 → 长期摘要
+        ├── long_term_summary表 → 长期摘要
+        ├── character_profile表 → 角色档案（取代已废弃的 user_profile）
+        ├── episodic_memory表 → 情景记忆（importance 衰减）
+        └── relationship_state表 → 关系状态（intimacy/trust）
 ```
 
 ### 阶段6：TTS策略模式（v0.4.1）
@@ -428,7 +435,7 @@ v0.3.0  ████████████████████ 100%  AI资
 v0.4.0  ████████████████████ 100%  AI记忆系统（三层记忆）
 v0.4.1  ████████████████████ 100%  TTS策略模式重构
 v0.5.0  ████████████████████ 100%  JSON协议 & 标签校验
-v0.6.0  █████████████████░░░   85%  流式TTS播放 & 播放器抽象（当前）
+v0.6.0  ██████████████████░░   88%  流式TTS播放 & 播放器抽象（当前）
 v0.7.0  ░░░░░░░░░░░░░░░░░░░░   0%  架构改进 & 独立存档
 v0.8.0  ░░░░░░░░░░░░░░░░░░░░   0%  角色自定义 & 剧本系统
 v0.9.0  ░░░░░░░░░░░░░░░░░░░░   0%  智能助手 & 性能优化

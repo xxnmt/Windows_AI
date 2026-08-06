@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-08-05
+> 最后更新：2026-08-07
 
 ---
 
@@ -245,6 +245,26 @@
   - **TTS 文本切分修复**：cut0（不切）→ cut5（按全部标点切），修正注释
   - **超分采样率适配**：ApiTTSProvider 新增 m_sampleRate + getSampleRate()，流式模式 qobject_cast 获取实际采样率
   - 技术债务清理：TD-024~TD-029 全部修复
+
+### M23: 关系状态系统 & 记忆架构重整（已完成）
+- 日期：2026-08-06~2026-08-07
+- 内容：
+  - **关系状态系统实现**：
+    - 新增 `relationship_state` 表（v1 迁移块第 5 张表，dimension/value/updated_at，UNIQUE(dimension)），默认 intimacy=30/trust=30
+    - MemoryManager 新增关系状态 CRUD：`upsertRelationshipState(dimension, delta)`（clamp 0-100）、`getRelationshipStates()`、`initRelationshipState()`
+    - `RelationshipState` 结构体加入 historyturn.h（dimension/value/updatedAt）
+  - **askDeepSeek 系统提示词注入**：新增 `# 我们的关系` 段落，渲染为 `亲密度: X/100`、`信任度: X/100`
+  - **extractMemoryAsync 记忆提取扩展**：提取 `relationship_updates`（dimension + delta，范围 -5.0~+5.0），AppController `memoryExtractionReady` lambda 写入 relationship_state（delta≠0 才更新）
+  - **记忆架构重整（废弃 user_profile 表）**：
+    - 旧的 `user_profile` 表（含 confidence/tier/置信度衰减/normalizeProfileKey 旧签名/mergeProfileValue 旧签名）整体废弃
+    - 用户/角色长期稳定特质改由 `character_profile` 表承载（简单 subject/key/value，无置信度无 tier，UNIQUE(subject,key)）
+    - 事件类记忆改由 `episodic_memory` 表承载（content/event_time/importance/type/status/last_accessed/last_decay_at/source_ids，importance 衰减，decayEpisodicMemory 基于 last_decay_at）
+    - `normalizeProfileKey`/`mergeProfileValue` 签名变更为带 subject 参数，服务于 character_profile 的 key 归一化
+    - 数据库版本统一为 `PRAGMA user_version = 1`，单一 v1 迁移块创建 5 张表
+  - **WorkingMemory 工作记忆模块移除**：曾实现内存级工作记忆（currentTopic/userMood/userIntent/contextSummary，零额外 API 成本，主对话 JSON 顺带输出），经评估为非必要，已彻底移除（llmservice.cpp/h、historyturn.h、prompt.txt 三处清理）
+  - **prompt.txt 资源默认配置更新**：`image/default_config/prompt.txt` 从旧标签格式更新为 JSON 协议格式（sentences 数组 + 四维 tags）
+  - **relationship_state 表创建位置修复**：原本在 initDatabase 中被无条件创建（v1 迁移块之外），现已移入 v1 迁移块作为第 5 张表，迁移归属正确
+- 技术债务：无需新增条目（relationship_state 移位属代码整理非债务）
 
 ---
 

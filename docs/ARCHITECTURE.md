@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.6.0
-> 更新日期：2026-08-05
+> 更新日期：2026-08-07
 
 ---
 
@@ -34,8 +34,10 @@
 | **设置层** | SettingsWidget | 设置界面、API配置、记忆管理 | settingswidget.h/cpp/ui |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
 | | HistoryTurn | 对话历史数据结构 | historyturn.h |
-| | UserProfile | 用户画像数据结构 | historyturn.h |
+| | CharacterProfile | 角色档案数据结构（user/mako 主体） | historyturn.h |
+| | EpisodicMemory | 情景记忆数据结构（事件/承诺/冲突/里程碑） | historyturn.h |
 | | LongTermSummary | 长期摘要数据结构 | historyturn.h |
+| | RelationshipState | 关系状态数据结构（亲密度/信任度） | historyturn.h |
 | | AnchorStrategy | 锚点位置枚举与配置结构 | anchorstrategy.h |
 
 ### 1.3 架构总览图
@@ -146,19 +148,36 @@ connect(m_bubble, &BubbleWidget::bubbleShown, m_anchorManager, &AnchorManager::u
 // 网络错误 → 统一处理
 connect(m_llmService, &LLMService::internetErrorSignal, this, &AppController::handleSystemError);
 
-// 记忆提取结果 → 写入用户画像和长期摘要
-connect(m_llmService, &LLMService::memoryExtractionReady, this, [this](const QJsonArray &profiles, const QString &summary, qlonglong lastEndId, const QString &sourceIdsJson) {
-    // 遍历写入用户画像
-    for (const QJsonValue &val : profiles) {
+// 记忆提取结果 → 写入角色档案/情景记忆/长期摘要/关系状态
+connect(m_llmService, &LLMService::memoryExtractionReady, this, [this](const QJsonObject &extractionResult, qlonglong lastEndId, const QString &sourceIdsJson) {
+    // 1. 角色档案更新（character_updates）
+    QJsonArray charUpdates = extractionResult["character_updates"].toArray();
+    for (const QJsonValue &val : charUpdates) {
         QJsonObject obj = val.toObject();
-        QString key = obj["key"].toString();
-        QString value = obj["value"].toString();
-        int tier = obj["tier"].toInt();
-        m_memoryManager->upsertUserProfile(key, value, tier, 10);
+        m_memoryManager->upsertCharacterProfile(obj["subject"].toString(), obj["key"].toString(), obj["value"].toString());
     }
-    // 写入长期记忆摘要
+    // 2. 情景记忆写入（episodic_memories）
+    QJsonArray episodicMemories = extractionResult["episodic_memories"].toArray();
+    for (const QJsonValue &val : episodicMemories) {
+        QJsonObject obj = val.toObject();
+        m_memoryManager->addEpisodicMemory(obj["content"].toString(), obj["type"].toString("event"),
+                                           obj["importance"].toDouble(0.5),
+                                           QDateTime::fromString(obj["event_time"].toString(), "yyyy-MM-dd HH:mm:ss"),
+                                           sourceIdsJson);
+    }
+    // 3. 工作摘要 → 写入长期摘要表（working_summary）
+    QString summary = extractionResult["working_summary"].toString();
     if (!summary.isEmpty()) {
         m_memoryManager->addLongTermSummary(summary, lastEndId, sourceIdsJson);
+    }
+    // 4. 关系状态更新（relationship_updates）
+    QJsonArray relUpdates = extractionResult["relationship_updates"].toArray();
+    for (const QJsonValue &val : relUpdates) {
+        QJsonObject obj = val.toObject();
+        double delta = obj["delta"].toDouble(0.0);
+        if (delta != 0.0) {
+            m_memoryManager->upsertRelationshipState(obj["dimension"].toString(), delta);
+        }
     }
 });
 
@@ -233,10 +252,10 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `askDeepSeek()` | 发起DeepSeek API请求 | QString userInput, QList\<HistoryTurn\> historyQA | - |
+| `askDeepSeek()` | 发起DeepSeek API请求，构建系统提示词（基础prompt+角色档案+情景记忆+长期摘要+关系状态） | QString userInput, QList\<HistoryTurn\> historyQA | - |
 | `onReplyFinished()` | 解析JSON→拆句→标签校验→发信号 | QNetworkReply* | - |
 | `parseJsonReply()` | 解析JSON回复，提取句子和标签 | QString replyText | QPair\<QList\<SentenceText\>, QString\> |
-| `extractMemoryAsync()` | 后台异步提取记忆（用户画像+长期摘要），传入现有画像做增量更新 | QList\<HistoryTurn\> turns, qlonglong lastEndId, QList\<qlonglong\> sourceIds, QList\<UserProfile\> existingProfiles | - |
+| `extractMemoryAsync()` | 后台异步提取记忆（角色档案+情景记忆+长期摘要+关系状态），传入已有档案/记忆/关系做增量更新 | QList\<HistoryTurn\> turns, qlonglong lastEndId, QList\<qlonglong\> sourceIds, QList\<CharacterProfile\> existingProfiles, QList\<EpisodicMemory\> existingMemories | - |
 | `registerStateProvider()` | 注册状态提供者回调 | std::function\<QString()\> | - |
 | `setMemoryManager()` | 设置MemoryManager实例 | MemoryManager* manager | - |
 | `initializePromptFile()` | 初始化提示词文件 | - | - |
@@ -248,7 +267,7 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 |------|----------|------|
 | `sentencesReady(sentences, rawReply)` | 回复解析完成 | QList\<SentenceText\>, QString |
 | `internetErrorSignal(msg)` | 网络错误 | QString |
-| `memoryExtractionReady(profiles, summary, lastEndId, sourceIdsJson)` | 记忆提取完成 | QJsonArray, QString, qlonglong, QString |
+| `memoryExtractionReady(extractionResult, lastEndId, sourceIdsJson)` | 记忆提取完成（结果含 character_updates/episodic_memories/working_summary/relationship_updates 四类字段） | QJsonObject, qlonglong, QString |
 
 **JSON输出协议**：
 ```json
@@ -281,7 +300,7 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 rootObj["model"] = "deepseek-v4-flash";
 rootObj["messages"] = messagesArray;
 rootObj["temperature"] = 0.7;
-rootObj["max_tokens"] = 4096;
+rootObj["max_tokens"] = 8192;
 rootObj["response_format"] = QJsonObject{{"type", "json_object"}};
 ```
 
@@ -626,40 +645,30 @@ LLMService::parseJsonReply() → TagValidator校验
 
 ### 2.13 MemoryManager（已实现 · AI记忆系统）
 
-**职责**：管理AI对话历史记录、用户画像和长期记忆摘要
+**职责**：管理AI对话历史记录、角色档案、情景记忆、长期摘要和关系状态
 
 **设计要点**：
-- 使用SQLite数据库存储三类数据
+- 使用SQLite数据库存储五类数据（数据库版本 `PRAGMA user_version = 1`）
 - 每次对话后保存用户输入、AI回复（JSON对象）
 - 对话前读取最近N轮历史作为短期记忆
-- 支持用户画像的置信度衰减机制
+- 角色档案区分 `user` / `mako` 两个主体，长期稳定特质
+- 情景记忆按重要度阈值激活检索，支持衰减与状态流转
+- 关系状态量化 user 与 AI 的关系维度（intimacy/trust），由 LLM 输出 delta 驱动
 - 支持长期记忆摘要的自动生成和管理
 - 数据库路径：`app_data/memory/QianDaoMoZi_memory.db`
+- 注：旧的 `user_profile` 表已被 `character_profile` 表取代（通过 subject 字段区分 user/mako）
 
-**数据库结构**：
+**数据库结构**（共 5 张表）：
 
 **表1：chat_history（对话历史）**
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
-| timestamp | DATETIME | 创建时间（本地时间） |
+| timestamp | DATETIME DEFAULT (datetime('now','localtime')) | 创建时间（本地时间） |
 | user_input | TEXT NOT NULL | 用户输入文本 |
 | raw_reply | TEXT NOT NULL | AI回复的JSON对象 `{"sentences": [...]}` |
 
-**表2：user_profile（用户画像）**
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
-| key | TEXT NOT NULL | 画像属性名 |
-| value | TEXT NOT NULL | 画像属性值 |
-| tier | INTEGER DEFAULT 2 | 半衰期等级（1=长期，2=中期，3=短期） |
-| confidence | INTEGER DEFAULT 50 | 置信度（0-100） |
-| first_seen | DATETIME | 首次记录时间 |
-| last_triggered | DATETIME | 最后被注入LLM/upsert的时间（由 upsert、getActiveUserProfiles 更新） |
-| last_decay_at | DATETIME | 最后衰减计算时间（由 scanAndApplyProfileDecay 更新） |
-| session_count | INTEGER DEFAULT 1 | 触发次数 |
-
-**表3：long_term_summary（长期记忆摘要）**
+**表2：long_term_summary（长期记忆摘要）**
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
@@ -667,39 +676,97 @@ LLMService::parseJsonReply() → TagValidator校验
 | covered_turn_end_id | INTEGER NOT NULL | 覆盖的对话结束ID |
 | source_ids | TEXT NOT NULL | 来源对话ID列表（JSON） |
 | is_dirty | INTEGER DEFAULT 0 | 是否待重建 |
-| created_at | DATETIME | 创建时间 |
+| created_at | DATETIME DEFAULT (datetime('now','localtime')) | 创建时间 |
+| updated_at | DATETIME DEFAULT (datetime('now','localtime')) | 更新时间 |
+
+索引：`idx_summary_covered_end`(covered_turn_end_id)、`idx_summary_is_dirty`(is_dirty)
+
+**表3：character_profile（角色档案，取代已废弃的 user_profile）**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
+| subject | TEXT NOT NULL | 主体：`user` 或 `mako` |
+| key | TEXT NOT NULL | 档案维度名（如 nickname/occupation/persona/性格） |
+| value | TEXT NOT NULL | 档案值 |
+| updated_at | DATETIME DEFAULT (datetime('now','localtime')) | 更新时间 |
+
+约束：`UNIQUE(subject, key)`（同主体同维度唯一）
+
+**表4：episodic_memory（情景记忆）**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
+| content | TEXT NOT NULL | 事件描述 |
+| event_time | DATETIME DEFAULT (datetime('now','localtime')) | 事件时间 |
+| importance | REAL DEFAULT 0.5 | 重要度 0.0-1.0 |
+| type | TEXT DEFAULT 'event' | 类型：event/promise/conflict/milestone |
+| status | TEXT DEFAULT 'active' | 状态：active/resolved/broken |
+| last_accessed | DATETIME DEFAULT (datetime('now','localtime')) | 最后访问时间（检索时更新） |
+| last_decay_at | DATETIME DEFAULT (datetime('now','localtime')) | 最后衰减计算时间 |
+| source_ids | TEXT | 来源对话ID列表（JSON） |
+
+索引：`idx_episodic_importance`(importance)、`idx_episodic_type`(type)、`idx_episodic_status`(status)
+
+**表5：relationship_state（关系状态）**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER PRIMARY KEY AUTOINCREMENT | 记录ID |
+| dimension | TEXT NOT NULL UNIQUE | 维度名：`intimacy`(亲密度) / `trust`(信任度) |
+| value | REAL NOT NULL | 维度值 0-100 |
+| updated_at | DATETIME DEFAULT (datetime('now','localtime')) | 更新时间 |
+
+初始化数据：`intimacy=30.0`、`trust=30.0`（initDatabase 时若表为空自动插入）
 
 **关键方法**：
 
 **对话历史 CRUD**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `saveQATurn()` | 保存单轮对话 | userInput, rawReply(JSON), sentences | bool |
+| `saveQATurn()` | 保存单轮对话（raw_reply 为 sentences JSON） | userInput, rawReply, sentences | bool |
 | `getHistoryTurn(N)` | 获取最近N轮对话 | int N | QList\<HistoryTurn\> |
 | `getHistoryTurn(offset, limit)` | 分页获取对话 | int offset, int limit | QList\<HistoryTurn\> |
 | `getTotalHistoryCount()` | 获取记录总数 | - | qlonglong |
 | `deleteTurnByID(id)` | 删除单条记录 | int id | bool |
 | `clearAllHistory()` | 清空所有记录 | - | bool |
-| `getUnsummarizedTurns()` | 获取未摘要对话 | outLastEndId, outSourceIds | QList\<HistoryTurn\> |
+| `getUnsummarizedTurns()` | 获取 id > long_term_summary.max(covered_turn_end_id) 的未摘要对话 | outLastEndId, outSourceIds | QList\<HistoryTurn\> |
 
-**用户画像 CRUD**：
+**角色档案 CRUD**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `upsertUserProfile()` | 插入或更新画像（tier = qMin(tier, existingTier) 保留更稳定 tier） | key, value, tier, confidenceGain | bool |
-| `getActiveUserProfiles()` | 获取活跃画像（minConfidence 过滤低置信度） | minConfidence | QList\<UserProfile\> |
-| `deleteUserProfile()` | 删除画像 | id | bool |
-| `scanAndApplyProfileDecay()` | 基于 last_decay_at 应用置信度衰减，衰减后更新 last_decay_at | - | int |
-| `normalizeProfileKey()` | 基于编辑距离归一化 key，匹配已有同义 key | key | QString |
-| `mergeProfileValue()` | 合并画像 value（tier 1 取更长，tier 2/3 取新值） | oldValue, newValue, tier | QString |
-| `levenshteinDistance()` | 计算两个字符串的 Levenshtein 编辑距离 | s1, s2 | int |
-| `getEditDistanceThreshold()` | 根据 key 长度动态返回编辑距离阈值（≤4字=1，≤8字=2，≤12字=3，>12字=4） | key | int |
+| `upsertCharacterProfile()` | 插入或更新档案（先 normalizeProfileKey 归一化 key，已存在则 mergeProfileValue 合并 value） | subject, key, value | bool |
+| `getCharacterProfiles(subject)` | 获取档案（subject 为空时返回全部） | QString subject | QList\<CharacterProfile\> |
+| `deleteCharacterProfile()` | 删除档案 | id | bool |
+
+**情景记忆 CRUD**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `addEpisodicMemory()` | 新增情景记忆（eventTime 无效时用当前时间） | content, type, importance, eventTime, sourceIds | bool |
+| `getActiveEpisodicMemories()` | 获取活跃记忆（status='active' AND importance≥minImportance，按 importance DESC 排序，并更新 last_accessed） | minImportance=0.2, limit=20 | QList\<EpisodicMemory\> |
+| `deleteEpisodicMemory()` | 删除记忆 | id | bool |
+| `updateEpisodicMemoryStatus()` | 更新记忆状态（如 promise 兑现 → resolved / 失约 → broken） | id, status | bool |
+| `decayEpisodicMemory()` | 衰减扫描：importance≥0.8 不衰减；其余 -0.05/天；<0.1 删除 | - | int（删除条数） |
 
 **长期记忆摘要 CRUD**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
 | `addLongTermSummary()` | 添加摘要 | summaryText, coveredEndId, sourceIdsJson | bool |
-| `getLatestSummaries()` | 获取最新摘要 | limit | QList\<LongTermSummary\> |
+| `getLatestSummaries()` | 获取最新摘要（is_dirty=0） | limit=5 | QList\<LongTermSummary\> |
 | `deleteLongTermSummary()` | 删除摘要 | id | bool |
+
+**关系状态 CRUD**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `upsertRelationshipState()` | 维度不存在时初始化为 clamp(30+delta,0,100)；存在时 clamp(oldVal+delta,0,100) | dimension, delta | bool |
+| `getRelationshipStates()` | 获取全部关系维度（按 dimension 排序） | - | QList\<RelationshipState\> |
+| `initRelationshipState()` | 若表为空，插入 intimacy=30、trust=30 | - | bool |
+
+**工具函数**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `normalizeProfileKey()` | 同 subject 内基于编辑距离匹配已有 key，避免语义重复（全匹配→模糊匹配→新 key） | subject, rawKey | QString |
+| `mergeProfileValue()` | 合并 value：newVal 非空且更长则采纳 newVal，否则保留 oldVal | key, oldVal, newVal | QString |
+| `levenshteinDistance()` | 计算两个字符串的 Levenshtein 编辑距离 | s1, s2 | int |
+| `getEditDistanceThreshold()` | 根据 value 长度动态返回编辑距离阈值（≤4字=1，≤8字=2，≤12字=3，>12字=4） | value | int |
 
 **数据结构**：
 
@@ -712,16 +779,25 @@ struct HistoryTurn {
     QString rawReply;  // JSON对象: {"sentences": [...]}
 };
 
-// 用户画像
-struct UserProfile {
+// 角色档案（长期稳定特质，user 或 mako）
+struct CharacterProfile {
     qlonglong id = -1;
-    QString key;
+    QString subject;    // 'user' 或 'mako'
+    QString key;        // 如 'nickname'/'occupation'/'persona'
     QString value;
-    int tier = 2;
-    int confidence = 50;
-    QDateTime firstSeen;
-    QDateTime lastTriggered;
-    int sessionCount = 1;
+    QDateTime updatedAt;
+};
+
+// 情景记忆（事件、承诺、冲突、里程碑）
+struct EpisodicMemory {
+    qlonglong id = -1;
+    QString content;    // 事件描述
+    QDateTime eventTime;
+    double importance = 0.5;   // 0.0-1.0
+    QString type;       // 'event'/'promise'/'conflict'/'milestone'
+    QString status;     // 'active'/'resolved'/'broken'
+    QDateTime lastAccessed;
+    QString sourceIds;
 };
 
 // 长期记忆摘要
@@ -734,53 +810,74 @@ struct LongTermSummary {
     QDateTime createdAt;
     QDateTime updatedAt;
 };
+
+// 关系状态（量化 user 与 AI 之间的关系维度）
+struct RelationshipState {
+    QString dimension;   // 'intimacy'(亲密度) / 'trust'(信任度)
+    double value = 0.0;  // 0-100
+    QDateTime updatedAt;
+};
 ```
 
 **记忆流程**：
 ```
 用户提交输入 → getHistoryTurn(N) 获取短期记忆
     → askDeepSeek(userInput, historyQA) 发送请求
+        （system prompt 注入：角色档案 → 情景记忆 → 长期摘要 → 关系状态 → 当前状态）
     → AI回复 → saveQATurn(userInput, rawReply, sentences) 保存记忆
-    → 判断未摘要对话数 >= 阈值 → extractMemoryAsync() 后台提取
-    → 提取结果 → upsertUserProfile() + addLongTermSummary()
+    → 判断未摘要对话数 >= 阈值
+        → getCharacterProfiles("user") + getActiveEpisodicMemories() 取已有上下文
+        → extractMemoryAsync(turns, lastEndId, sourceIds, existingProfiles, existingMemories)
+    → 提取结果 memoryExtractionReady：
+        ├── character_updates   → upsertCharacterProfile()
+        ├── episodic_memories   → addEpisodicMemory()
+        ├── working_summary     → addLongTermSummary()
+        └── relationship_updates → upsertRelationshipState() (delta≠0 才更新)
+应用启动时 → decayEpisodicMemory() 执行一次情景记忆衰减
 ```
 
-**用户画像衰减机制**：
-- 应用启动时调用 `scanAndApplyProfileDecay()`
-- Tier 1（长期）：-0.8/天
-- Tier 2（中期）：-5.0/天
-- Tier 3（短期）：-25.0/天
-- 置信度 <= 0 的画像自动删除
-- 基于 `last_decay_at` 字段衰减（与 `last_triggered` 职责分离），衰减完成后更新 `last_decay_at`
-- 恢复 `WHERE last_decay_at ≥ 1小时` 条件，避免同一小时内重复扣分
-
-**用户画像 key 归一化**：
-- `upsertUserProfile()` 写入前调用 `normalizeProfileKey()`，基于 Levenshtein 编辑距离匹配已有 key
+**角色档案 key 归一化**：
+- `upsertCharacterProfile()` 写入前调用 `normalizeProfileKey(subject, key)`，同 subject 内基于 Levenshtein 编辑距离匹配已有 key
 - 编辑距离阈值按 key 长度动态调整：≤4字=1，≤8字=2，≤12字=3，>12字=4
-- 解决同义 key 碎片化问题（如"喜欢的食物"与"喜欢的食物们"归并）
+- 解决同义 key 碎片化问题（如"性格"与"个性"归并到同一维度）
 
-**用户画像 value 合并策略**：
-- `mergeProfileValue()` 根据 tier 决定合并方式：
-  - Tier 1（长期）：取更长 value（保留更完整描述）
-  - Tier 2/3（中短期）：取新 value（采纳最新观察）
+**角色档案 value 合并策略**：
+- `mergeProfileValue(key, oldVal, newVal)`：newVal 非空且长度 ≥ oldVal 时采纳 newVal，否则保留 oldVal
+- 倾向保留更完整的描述，避免新提取的短值覆盖已有长值
 
-**tier 保留逻辑**：
-- `upsertUserProfile()` 中 `tier = qMin(tier, existingTier)`，数字越小越稳定，保留更稳定 tier
+**情景记忆衰减机制**（`decayEpisodicMemory()`）：
+- 衰减规则：
+  - importance ≥ 0.8 的里程碑/承诺不衰减（长期保留）
+  - 其余按 -0.05/天 衰减
+  - importance < 0.1 且 status='active' 的记忆自动删除
+- 衰减间隔：距 `last_decay_at` ≥ 0.0416 天（约1小时）才执行，避免重复扣分
+- 事务执行：UPDATE 衰减 + DELETE 清理在同一 transaction 内完成
+- 调用时机：AppController 构造时调用一次
 
-**置信度作用**：
-- **遗忘机制（核心）**：时间衰减 → confidence ≤ 0 → 自动删除
-- **激活阈值（辅助）**：`getActiveUserProfiles(30)` 过滤低置信度画像
-- 不再作为 LLM 可靠性信号（已改为 tier 标签）
+**情景记忆激活检索**：
+- `getActiveEpisodicMemories(minImportance=0.2, limit=20)`：仅返回 status='active' 且 importance ≥ 阈值的记忆
+- 排序：importance DESC, event_time DESC
+- 检索副作用：批量更新命记忆的 `last_accessed` 字段
 
-**LLM 注入格式**：
-- 用户画像注入 LLM 时，从 `（置信度 XX%）` 改为 tier 语义标签：
-  - Tier 1 → `（长期认知）`
-  - Tier 2 → `（近期观察）`
-  - Tier 3 → `（今日状态）`
+**关系状态机制**：
+- 当前维度：`intimacy`（亲密度）、`trust`（信任度），值域 0-100
+- 初始化：initDatabase 时若 relationship_state 表为空，自动插入 intimacy=30、trust=30
+- 更新驱动：extractMemoryAsync 的 LLM 输出 `relationship_updates` 字段（dimension + delta），delta 范围 -5.0 ~ +5.0
+- `upsertRelationshipState(dimension, delta)`：维度不存在时初始化为 clamp(30+delta, 0, 100)；存在时 clamp(oldVal+delta, 0, 100)
+- AppController 仅在 delta ≠ 0 时调用 upsert，避免无变化时浪费写入
 
-**AI 摘要增量更新**：
-- `extractMemoryAsync()` 新增 `existingProfiles` 参数，AppController 调用前先 `getActiveUserProfiles(30)` 传入
-- Prompt 增加已有画像上下文 + 4 条增量更新规则（更新/矛盾/不复制/不涉及不输出），替代盲提取
+**LLM 注入格式**（askDeepSeek 中按顺序追加到 system prompt，均为 Markdown 段落）：
+- `# 茉子的人设`：mako 主体档案，每行 `- key: value`
+- `# 关于欧尼酱`：user 主体档案，每行 `- key: value`
+- `# 我们的回忆`：情景记忆，每行 `- [yyyy-MM-dd] 内容（类型标注）`（承诺显示状态、冲突/里程碑显示标签）
+- `# 最近发生`：长期摘要，每行 `- 摘要文本`
+- `# 我们的关系`：关系状态，每行 `- 维度名: 值/100`（intimacy→亲密度，trust→信任度）
+
+**AI 摘要增量更新**（extractMemoryAsync）：
+- AppController 调用前先 `getCharacterProfiles("user")` + `getActiveEpisodicMemories(0.2, 20)` + `getRelationshipStates()` 取已有上下文
+- Prompt 注入已有角色档案、已有情景记忆、当前关系状态三段上下文
+- LLM 输出四类字段：`character_updates` / `episodic_memories` / `working_summary` / `relationship_updates`
+- 提取规则：key 优先复用已有档案 key；矛盾信息以新对话为准；只输出有更新/新增的项；不简单复制已有档案
 
 ---
 
@@ -804,8 +901,9 @@ struct LongTermSummary {
    ▼
 4. LLMService::askDeepSeek()
    │
-   ├── 构建系统提示词（含用户画像+长期摘要+当前状态）
+   ├── 构建系统提示词（基础prompt + 角色档案 + 情景记忆 + 长期摘要 + 关系状态）
    ├── 构建短期记忆（纯文本注入，不含标签）
+   ├── 注入当前环境状态（UI状态 + 当前时间，作为独立 system message）
    ├── 构建JSON请求体（含 response_format: json_object）
    └── 发送POST到DeepSeek API
    │
@@ -955,6 +1053,7 @@ image/
 | TD-027 | 超分采样率不匹配 | m_sampleRate 动态适配（流式 qobject_cast / 非流式 WAV 头解析） | ✅ 已修复 |
 | TD-028 | 用户画像 key 碎片化 | normalizeProfileKey 编辑距离归一化 | ✅ 已修复 |
 | TD-029 | AI 摘要盲提取 | 传入现有画像做增量更新 | ✅ 已修复 |
+| TD-030 | relationship_state 表创建位置错误（原在 v1 迁移块外无条件创建） | 移入 v1 迁移块作为第 5 张表，统一迁移归属 | ✅ 已修复 |
 
 ### 7.2 待优化项
 

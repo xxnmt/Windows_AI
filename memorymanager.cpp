@@ -830,31 +830,35 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
             query.exec("CREATE INDEX IF NOT EXISTS idx_episodic_type ON episodic_memory(type);");
             query.exec("CREATE INDEX IF NOT EXISTS idx_episodic_status ON episodic_memory(status);");
 
+            // 5. 关系状态表（亲密度/信任度等关系维度）
+            QString createRelStateSql = R"(
+                CREATE TABLE IF NOT EXISTS relationship_state (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dimension TEXT NOT NULL UNIQUE,
+                    value REAL NOT NULL,
+                    updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
+                );
+            )";
+            if (!query.exec(createRelStateSql)) {
+                qDebug()<<"[MemoryManager]创建relationship_state异常:"<<query.lastError();
+            }
+            // 首次创建时初始化默认关系维度
+            query.prepare("SELECT COUNT(*) FROM relationship_state");
+            query.exec();
+            int relCount = 0;
+            if (query.next()) relCount = query.value(0).toInt();
+            if (relCount == 0) {
+                query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('intimacy', 30.0)");
+                query.exec();
+                query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('trust', 30.0)");
+                query.exec();
+                qDebug()<<"[MemoryManager]关系状态已初始化: intimacy=30, trust=30";
+            }
+
             if (!query.exec("PRAGMA user_version = 1")) {
                 qDebug()<<"[MemoryManager]设置数据库版本异常:"<<query.lastError();
             }
             currentVersion = 1;
-        }
-
-        // 关系状态表：无条件创建（兼容已有数据库）
-        query.exec(R"(
-            CREATE TABLE IF NOT EXISTS relationship_state (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                dimension TEXT NOT NULL UNIQUE,
-                value REAL NOT NULL,
-                updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
-            );
-        )");
-        query.prepare("SELECT COUNT(*) FROM relationship_state");
-        query.exec();
-        int relCount = 0;
-        if (query.next()) relCount = query.value(0).toInt();
-        if (relCount == 0) {
-            query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('intimacy', 30.0)");
-            query.exec();
-            query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('trust', 30.0)");
-            query.exec();
-            qDebug()<<"[MemoryManager]关系状态已初始化: intimacy=30, trust=30";
         }
 
         m_db.commit();
