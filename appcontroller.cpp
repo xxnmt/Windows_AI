@@ -9,6 +9,7 @@
 #include "configmanager.h"
 #include "settingswidget.h"
 #include "memorymanager.h"
+#include "ttsprocessmanager.h"
 
 #include <QDebug>
 #include <QJsonArray>
@@ -190,4 +191,5 @@ void AppController::initConnections()
             this, [this](const QString &gptPath, const QString &sovitsPath) {
                 m_ttsService->switchModel(gptPath, sovitsPath);
             });
+
 }

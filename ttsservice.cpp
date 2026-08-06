@@ -14,6 +14,14 @@ TTSService::TTSService(QObject *parent)
 {
 
     reloadProvider();
+    m_processManager=new TTSProcessManager("runtime/python.exe",
+                                             ConfigManager::instance().getGPTSovitsRootPath(),
+                                             {"-a", "127.0.0.1", "-p", "9880"},
+                                             this);
+    connect(m_processManager,&TTSProcessManager::apiReady,this,&TTSService::onApiReady);
+    connect(m_processManager,&TTSProcessManager::apiFailed,this,&TTSService::onApiFailed);
+    m_processManager->apiStart();
+    qDebug()<<"[TTS]:正在启动api";
 }
 
 void TTSService::enqueueSentences(const QList<SentenceText> &sentences)
@@ -62,6 +70,19 @@ void TTSService::switchModel(const QString &gptPath, const QString &sovitsPath)
 void TTSService::processTtsQueue()
 {
     if (m_isSynthesizing || m_ttsQueue.isEmpty()) return;
+
+    SentenceText current=m_ttsQueue.dequeue();
+    if(!m_processManager->isApiReady()){
+        m_pendingSentences.enqueue(current);
+        static bool firstTime=true;
+        if(firstTime){
+            QMap<QString, QString> tags;
+            emit playAudioAction("茉子还在准备声音哦，再等一下啦...",tags);
+            firstTime=false;
+            qDebug()<<"[TTS]:api未完成启动，缓存本次请求";
+        }
+        return;
+    }
 
     m_isSynthesizing = true;
     SentenceText currentSentence = m_ttsQueue.dequeue();
@@ -174,5 +195,25 @@ void TTSService::processPlayQueue()
         m_player->startPlayer(24000, 1, 16);
         m_player->setSource(item.audioPath);
     }
+}
+
+void TTSService::onApiReady()
+{
+    m_isApiReady=true;
+    qDebug()<<"[TTS]:apiReady,正在推入缓存的未合成语音";
+    processPendingSentences();
+}
+
+void TTSService::onApiFailed(const QString &error)
+{
+
+}
+
+void TTSService::processPendingSentences()
+{
+    while(!m_pendingSentences.isEmpty()){
+        m_ttsQueue.enqueue(m_pendingSentences.dequeue());
+    }
+    processTtsQueue();
 }
 

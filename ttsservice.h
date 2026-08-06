@@ -9,6 +9,7 @@
 #include "sentencedata.h"
 #include "ittsprovider.h"
 #include "ipcmplayer.h"
+#include "ttsprocessmanager.h"
 
 struct PlayItem {
     SentenceText sentence;
@@ -41,12 +42,21 @@ private slots:
     //pcm
     void onPcmPlayFinished();
     void onPcmPlayError(const QString &msg);
-
     //音频播放线程 (Consumer)
     void processPlayQueue();
+    //ttsProcess
+    void onApiReady();
+    void onApiFailed(const QString &error);
+    void processPendingSentences();
 
 
 private:
+    //ttsProcessApi
+    TTSProcessManager *m_processManager=nullptr;
+    QQueue<SentenceText> m_pendingSentences;
+    bool m_isApiReady=false;
+
+    //PCM播放
     IPcmPlayer *m_player=nullptr;
     IPcmPlayer *m_pendingStreamPlayer = nullptr;
     //两个独立队列
@@ -54,10 +64,9 @@ private:
     QQueue<PlayItem> m_playQueue;  // 合成完毕，等待播放的队列
 
     //状态锁
-    bool m_isSynthesizing;
-    bool m_isPlaying;
+    bool m_isSynthesizing=false;
+    bool m_isPlaying=false;
 
-    //模拟正在处理的当前句
     ITTSProvider *m_provider;          // 当前 TTS 抽象策略
     QMediaPlayer *m_mediaPlayer;      // 真实音频播放器
     QAudioOutput *m_audioOutput;

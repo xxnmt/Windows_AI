@@ -27,7 +27,7 @@ bool ConfigManager::loadSetting()
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(fileData, &parseError);
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "[ConfigManager]配置文件损坏，已初始化";
+        qDebug()<<"[ConfigManager]配置文件损坏，已初始化";
         return saveSetting();
     }
 
@@ -213,6 +213,16 @@ void ConfigManager::setSoVITSWeightsPath(const QString &path)
 QString ConfigManager::getGPTSovitsRootPath() const
 {
     return m_gptSovitsRootPath;
+}
+
+QString ConfigManager::getPythonPath() const
+{
+    return m_pythonPath;
+}
+
+void ConfigManager::setPythonPath(const QString &path)
+{
+    m_pythonPath=path;
 }
 
 void ConfigManager::setGPTSovitsRootPath(const QString &path)

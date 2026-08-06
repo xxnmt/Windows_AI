@@ -35,6 +35,7 @@ qt_add_executable(Windows_AI
     ipcmplayer.h ipcmplayer.cpp
     streamplayer.h streamplayer.cpp
     fileplayer.h fileplayer.cpp
+    ttsprocessmanager.h ttsprocessmanager.cpp
 )
 
 target_link_libraries(Windows_AI

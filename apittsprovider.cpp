@@ -272,7 +272,7 @@ void ApiTTSProvider::writePcmToWavFile(const QString &filePath, const QByteArray
 {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning() << "[ApiTTS] 无法写入音频文件:" << filePath;
+        qDebug()<<"[ApiTTS]无法写入音频文件:"<<filePath;
         return;
     }
 

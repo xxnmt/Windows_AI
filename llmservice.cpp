@@ -362,7 +362,7 @@ QString LLMService::loadSystemPrompt()
 {
     QFile file(m_localPromptPath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning()<<"[LLM]无法读取本地prompt，使用内置默认prompt:"<<m_localPromptPath;
+        qDebug()<<"[LLM]无法读取本地prompt，使用内置默认prompt:"<<m_localPromptPath;
         file.setFileName(":/prompts/system_prompt.txt");
     }
     QTextStream in(&file);

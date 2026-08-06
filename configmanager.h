@@ -37,6 +37,8 @@ public:
     void setSoVITSWeightsPath(const QString &path);
 
     QString getGPTSovitsRootPath() const;
+    QString getPythonPath() const;
+    void setPythonPath(const QString &path);
     void setGPTSovitsRootPath(const QString &path);
     QString getGPTModelDir() const;
     void setGPTModelDir(const QString &path);
@@ -65,6 +67,7 @@ private:
     QString m_gptWeightsPath;
     QString m_sovitsWeightsPath;
     QString m_gptSovitsRootPath;
+    QString m_pythonPath;
 
     int m_shortMemoryLength=15;
 
