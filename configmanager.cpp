@@ -67,6 +67,7 @@ bool ConfigManager::loadSetting()
         m_gptSovitsRootPath = ttsObj.value("gpt_sovits_root_path").toString("");
         m_gptModelDir = ttsObj.value("gpt_model_dir").toString("");
         m_sovitsModelDir = ttsObj.value("sovits_model_dir").toString("");
+         m_pythonPath = ttsObj.value("python_path").toString("");
     }
 
     qDebug() << "[ConfigManager] 配置成功自本地加载:" << m_configFilePath;
@@ -104,7 +105,9 @@ bool ConfigManager::saveSetting()
     ttsObj.insert("gpt_sovits_root_path", m_gptSovitsRootPath);
     ttsObj.insert("gpt_model_dir", m_gptModelDir);
     ttsObj.insert("sovits_model_dir", m_sovitsModelDir);
+    ttsObj.insert("python_path", m_pythonPath);
     rootObj.insert("tts", ttsObj);
+
 
     QJsonDocument doc(rootObj);
     file.write(doc.toJson(QJsonDocument::Indented));

@@ -10,7 +10,7 @@ class TTSProcessManager : public QObject
     Q_OBJECT
 public:
     explicit TTSProcessManager(const QString &apiPythonPath,const QString &scriptDir,
-                               const QStringList &args,int port=9800,QObject *parent = nullptr);
+                               const QStringList &args,int port=9880,QObject *parent = nullptr);
     ~TTSProcessManager();
 
     bool isApiReady();

@@ -14,10 +14,12 @@ TTSService::TTSService(QObject *parent)
 {
 
     reloadProvider();
-    m_processManager=new TTSProcessManager("runtime/python.exe",
-                                             ConfigManager::instance().getGPTSovitsRootPath(),
-                                             {"-a", "127.0.0.1", "-p", "9880"},
-                                             this);
+    m_processManager = new TTSProcessManager(
+        ConfigManager::instance().getPythonPath(),
+        ConfigManager::instance().getGPTSovitsRootPath(),
+        {"-a", "127.0.0.1", "-p", "9880"},
+        9880,
+        this);
     connect(m_processManager,&TTSProcessManager::apiReady,this,&TTSService::onApiReady);
     connect(m_processManager,&TTSProcessManager::apiFailed,this,&TTSService::onApiFailed);
     m_processManager->apiStart();
@@ -71,9 +73,11 @@ void TTSService::processTtsQueue()
 {
     if (m_isSynthesizing || m_ttsQueue.isEmpty()) return;
 
-    SentenceText current=m_ttsQueue.dequeue();
+    // API 未就绪：全部转入 pending，保持顺序
     if(!m_processManager->isApiReady()){
-        m_pendingSentences.enqueue(current);
+        while(!m_ttsQueue.isEmpty()){
+            m_pendingSentences.enqueue(m_ttsQueue.dequeue());
+        }
         static bool firstTime=true;
         if(firstTime){
             QMap<QString, QString> tags;
@@ -201,12 +205,22 @@ void TTSService::onApiReady()
 {
     m_isApiReady=true;
     qDebug()<<"[TTS]:apiReady,正在推入缓存的未合成语音";
+    QString gptPath = ConfigManager::instance().getGPTWeightsPath();
+    QString sovitsPath = ConfigManager::instance().getSoVITSWeightsPath();
+    if (!gptPath.isEmpty() || !sovitsPath.isEmpty()) {
+        switchModel(gptPath, sovitsPath);
+        qDebug()<<"[TTS]:自动切换模型 GPT:"<<gptPath<<"SoVITS:"<<sovitsPath;
+    }
     processPendingSentences();
 }
 
 void TTSService::onApiFailed(const QString &error)
 {
-
+    qDebug()<<"[TTS]:api启动失败:"<<error;
+    m_pendingSentences.clear();
+    QMap<QString, QString> tags;
+    tags.insert("emotion", "sad");
+    emit playAudioAction("茉子的声音出问题了，待会儿再试吧...", tags);
 }
 
 void TTSService::processPendingSentences()

@@ -275,6 +275,8 @@ void SettingsWidget::loadSettings()
     ui->lineEdit_GPTSovitsFilePath->setText(cfg.getGPTSovitsRootPath());
     ui->lineEdit_GPTModelFilePath->setText(cfg.getGPTModelDir());
     ui->lineEdit_sovitsModelFilePath->setText(cfg.getSoVITSModelDir());
+    QString gptPath = cfg.getGPTWeightsPath();
+    QString sovitsPath = cfg.getSoVITSWeightsPath();
 
 }
 
