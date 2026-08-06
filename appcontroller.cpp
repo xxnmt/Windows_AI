@@ -29,7 +29,7 @@ AppController::AppController(QObject *parent)
     m_settingsWidget = new SettingsWidget;
     m_settingsWidget->setMemoryManager(m_memoryManager);
     m_settingsWidget->setMemoryLength(ConfigManager::instance().getShortMemoryLength());
-    m_memoryManager->scanAndApplyProfileDecay();
+    m_memoryManager->decayEpisodicMemory();        // 启动时执行一次情景记忆衰减
     m_llmService->setMemoryManager(m_memoryManager);
 
     m_anchorManager = new AnchorManager(m_character, this);
@@ -114,8 +114,9 @@ void AppController::handleMakoReply(const QList<SentenceText> &sentences, const 
     const int SUMMARY_THRESHOLD = ConfigManager::instance().getShortMemoryLength();
     if (unsummarizedTurns.size() >= SUMMARY_THRESHOLD) {
         qDebug()<<"[AppController]未摘要对话达到阈值，开始触发后台记忆提取...";
-        QList<UserProfile> existingProfiles = m_memoryManager->getActiveUserProfiles(30);
-        m_llmService->extractMemoryAsync(unsummarizedTurns, lastEndId, sourceIds, existingProfiles);
+        QList<CharacterProfile> existingProfiles = m_memoryManager->getCharacterProfiles("user");
+        QList<EpisodicMemory> existingMemories = m_memoryManager->getActiveEpisodicMemories(0.2, 20);
+        m_llmService->extractMemoryAsync(unsummarizedTurns, lastEndId, sourceIds, existingProfiles, existingMemories);
     }
 }
 
@@ -166,24 +167,53 @@ void AppController::initConnections()
         QList<HistoryTurn> shortTermMemory = m_memoryManager->getHistoryTurn(memoryLength);
         m_llmService->askDeepSeek(text,shortTermMemory);
     });
-    connect(m_llmService, &LLMService::memoryExtractionReady, this, [this](const QJsonArray &profiles, const QString &summary, qlonglong lastEndId, const QString &sourceIdsJson) {
-
-        //遍历写入用户画像
-        for (const QJsonValue &val : profiles) {
+    connect(m_llmService, &LLMService::memoryExtractionReady, this, [this](const QJsonObject &extractionResult, qlonglong lastEndId, const QString &sourceIdsJson) {
+        // 1. 角色档案更新
+        QJsonArray charUpdates = extractionResult["character_updates"].toArray();
+        for (const QJsonValue &val : charUpdates) {
             QJsonObject obj = val.toObject();
+            QString subject = obj["subject"].toString();
             QString key = obj["key"].toString();
             QString value = obj["value"].toString();
-            int tier = obj["tier"].toInt();
-            //每次提取到相关画像，置信度增加 10
-            m_memoryManager->upsertUserProfile(key, value, tier, 10);
+            if (!subject.isEmpty() && !key.isEmpty() && !value.isEmpty()) {
+                m_memoryManager->upsertCharacterProfile(subject, key, value);
+            }
         }
 
-        //写入长期记忆摘要
+        // 2. 情景记忆写入
+        QJsonArray episodicMemories = extractionResult["episodic_memories"].toArray();
+        for (const QJsonValue &val : episodicMemories) {
+            QJsonObject obj = val.toObject();
+            QString content = obj["content"].toString();
+            QString type = obj["type"].toString("event");
+            double importance = obj["importance"].toDouble(0.5);
+            QString eventTimeStr = obj["event_time"].toString();
+            QDateTime eventTime = QDateTime::fromString(eventTimeStr, "yyyy-MM-dd HH:mm:ss");
+            if (!content.isEmpty()) {
+                m_memoryManager->addEpisodicMemory(content, type, importance, eventTime, sourceIdsJson);
+            }
+        }
+
+        // 3. 工作摘要 → 写入长期记忆摘要表（保留兼容）
+        QString summary = extractionResult["working_summary"].toString();
         if (!summary.isEmpty()) {
             m_memoryManager->addLongTermSummary(summary, lastEndId, sourceIdsJson);
         }
 
-        qDebug()<<"[AppController]本次记忆提取流程已全部完成";
+        // 4. 关系状态更新
+        QJsonArray relUpdates = extractionResult["relationship_updates"].toArray();
+        for (const QJsonValue &val : relUpdates) {
+            QJsonObject obj = val.toObject();
+            QString dimension = obj["dimension"].toString();
+            double delta = obj["delta"].toDouble(0.0);
+            if (!dimension.isEmpty() && delta != 0.0) {
+                m_memoryManager->upsertRelationshipState(dimension, delta);
+            }
+        }
+
+        qDebug()<<"[AppController]本次记忆提取流程已全部完成: 档案更新"<<charUpdates.size()
+                <<"条, 情景记忆"<<episodicMemories.size()<<"条, 摘要:"<<summary
+                <<", 关系更新"<<relUpdates.size()<<"条";
     });
 
     connect(m_settingsWidget, &SettingsWidget::ttsModelSwitchRequested,

@@ -28,13 +28,19 @@ public:
     bool clearAllHistory();
     QList<HistoryTurn> getUnsummarizedTurns(qlonglong &outLastEndId,QList<qlonglong> &outSourceIds);
 
-//用户画像crud
-    bool upsertUserProfile(const QString &key, const QString &value, int tier, int confidenceGain);
-    QList<UserProfile> getActiveUserProfiles(int minConfidence = 20);
-    bool deleteUserProfile(qlonglong id);
-    int scanAndApplyProfileDecay();
+//角色档案crud (v4)
+    bool upsertCharacterProfile(const QString &subject, const QString &key, const QString &value);
+    QList<CharacterProfile> getCharacterProfiles(const QString &subject);
+    bool deleteCharacterProfile(qlonglong id);
 
-    QString normalizeProfileKey(const QString &rawKey);
+//情景记忆crud (v4)
+    bool addEpisodicMemory(const QString &content, const QString &type, double importance, const QDateTime &eventTime = QDateTime(), const QString &sourceIds = QString());
+    QList<EpisodicMemory> getActiveEpisodicMemories(double minImportance = 0.2, int limit = 20);
+    bool deleteEpisodicMemory(qlonglong id);
+    bool updateEpisodicMemoryStatus(qlonglong id, const QString &status);
+    int decayEpisodicMemory();
+
+    QString normalizeProfileKey(const QString &subject, const QString &rawKey);
     QString mergeProfileValue(const QString &key, const QString &oldVal, const QString &newVal);
     int levenshteinDistance(const QString &s1, const QString &s2);
     int getEditDistanceThreshold(const QString &value);
@@ -43,6 +49,11 @@ public:
     bool addLongTermSummary(const QString &summaryText, qlonglong coveredEndId, const QString &sourceIdsJson);
     QList<LongTermSummary> getLatestSummaries(int limit = 5);
     bool deleteLongTermSummary(qlonglong id);
+
+//关系状态crud
+    bool upsertRelationshipState(const QString &dimension, double delta);
+    QList<RelationshipState> getRelationshipStates();
+    bool initRelationshipState();
 
 private:
     void initDatabase(const QString &dbFilePath);

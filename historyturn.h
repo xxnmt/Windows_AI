@@ -11,19 +11,28 @@ struct HistoryTurn {
     QString rawReply;//未处理回复
 };
 
-//用户画像
-struct UserProfile {
-    qlonglong id = -1;//id
-    QString key;//画像属性
-    QString value;//画像属性值
-    int tier = 2;//属性半衰期 长中短
-    int confidence = 50;//置信度
-    QDateTime firstSeen;//首次记录
-    QDateTime lastTriggered;//上次触发
-    int sessionCount = 1;//出发次数
+//角色档案（长期稳定特质，user 或 mako）
+struct CharacterProfile {
+    qlonglong id = -1;
+    QString subject;    // 'user' 或 'mako'
+    QString key;        // 如 'nickname'/'occupation'/'persona'
+    QString value;
+    QDateTime updatedAt;
 };
 
-//记忆摘要
+//情景记忆（事件、承诺、冲突、里程碑）
+struct EpisodicMemory {
+    qlonglong id = -1;
+    QString content;    // 事件描述
+    QDateTime eventTime;
+    double importance = 0.5;   // 0.0-1.0
+    QString type;       // 'event'/'promise'/'conflict'/'milestone'
+    QString status;     // 'active'/'resolved'/'broken'
+    QDateTime lastAccessed;
+    QString sourceIds;
+};
+
+//记忆摘要（保留兼容）
 struct LongTermSummary {
     qlonglong id = -1;//id
     QString summaryText;//摘要内容
@@ -32,6 +41,13 @@ struct LongTermSummary {
     bool isDirty = false;//摘要状态 0 正常 1 待重建
     QDateTime createdAt;//创建于
     QDateTime updatedAt;//更新于
+};
+
+//关系状态（量化 user 与 AI 之间的关系维度）
+struct RelationshipState {
+    QString dimension;   // 'intimacy'(亲密度) / 'trust'(信任度)
+    double value = 0.0;  // 0-100
+    QDateTime updatedAt;
 };
 
 

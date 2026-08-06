@@ -22,14 +22,16 @@ public:
     void registerStateProvider(std::function<QString()> provider);
     void setMemoryManager(MemoryManager *manager);
     //Extract
-    void extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds, const QList<UserProfile> &existingProfiles = {});
+    void extractMemoryAsync(const QList<HistoryTurn> &turns, qlonglong lastEndId, const QList<qlonglong> &sourceIds,
+                            const QList<CharacterProfile> &existingProfiles = {},
+                            const QList<EpisodicMemory> &existingMemories = {});
 
 signals:
     //chat
     void sentencesReady(const QList<SentenceText> &sentences,const QString &rawReply);
     void internetErrorSignal(const QString &errorMessage);
     //Extract
-    void memoryExtractionReady(const QJsonArray &profiles, const QString &summary, qlonglong lastEndId, const QString &sourceIdsJson);
+    void memoryExtractionReady(const QJsonObject &extractionResult, qlonglong lastEndId, const QString &sourceIdsJson);
 private slots:
     //finish AI 回复
     void onReplyFinished(QNetworkReply* reply);

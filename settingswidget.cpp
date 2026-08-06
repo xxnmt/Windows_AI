@@ -12,6 +12,7 @@
 #include <QDebug>
 #include <QHeaderView>
 #include <QFileInfoList>
+#include <QFileInfo>
 #include <QDir>
 
 SettingsWidget::SettingsWidget(QWidget *parent)
@@ -278,6 +279,23 @@ void SettingsWidget::loadSettings()
     QString gptPath = cfg.getGPTWeightsPath();
     QString sovitsPath = cfg.getSoVITSWeightsPath();
 
+    // 自动扫描模型文件并回填当前选中项
+    on_btn_loadGPTModel_clicked();
+    on_btn_loadSovitsModel_clicked();
+    if (!gptPath.isEmpty()) {
+        QString gptFileName = QFileInfo(gptPath).fileName();
+        int idx = ui->comboBox_GPTModel->findText(gptFileName);
+        if (idx >= 0) {
+            ui->comboBox_GPTModel->setCurrentIndex(idx);
+        }
+    }
+    if (!sovitsPath.isEmpty()) {
+        QString sovitsFileName = QFileInfo(sovitsPath).fileName();
+        int idx = ui->comboBox_SoVitsModel->findText(sovitsFileName);
+        if (idx >= 0) {
+            ui->comboBox_SoVitsModel->setCurrentIndex(idx);
+        }
+    }
 }
 
 void SettingsWidget::setupHistoryTable()

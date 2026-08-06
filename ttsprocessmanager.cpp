@@ -109,13 +109,17 @@ void TTSProcessManager::onHealthCheck()
         m_timer->stop();
         return;
     }
-    QTcpSocket socket;
-    socket.connectToHost("127.0.0.1",m_port);
-    if(socket.waitForConnected(1000)){
-        m_isApiReady=true;
-        socket.disconnectFromHost();
-        qDebug()<<"[TTSPM]（tcp）:api启动成功";
-        if(m_timer) m_timer->stop();
-        emit apiReady();
-    }
+    // 异步探测：不阻塞主线程，避免拖动人物卡顿
+    QTcpSocket *socket = new QTcpSocket(this);
+    connect(socket, &QTcpSocket::connected, this, [this, socket]() {
+        if (!m_isApiReady) {
+            m_isApiReady = true;
+            if (m_timer) m_timer->stop();
+            qDebug()<<"[TTSPM]（tcp）:api启动成功";
+            emit apiReady();
+        }
+        socket->deleteLater();
+    });
+    connect(socket, &QAbstractSocket::errorOccurred, socket, &QObject::deleteLater);
+    socket->connectToHost("127.0.0.1", m_port);
 }

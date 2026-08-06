@@ -224,214 +224,257 @@ QList<HistoryTurn> MemoryManager::getUnsummarizedTurns(qlonglong &outLastEndId, 
     return turns;
 }
 
-bool MemoryManager::upsertUserProfile(const QString &key, const QString &value, int tier, int confidenceGain)
+// ============== v4: 角色档案 CRUD ==============
+
+bool MemoryManager::upsertCharacterProfile(const QString &subject, const QString &key, const QString &value)
 {
-    // 1. key 归一化（动态匹配数据库已有 key）
-    QString normalizedKey = normalizeProfileKey(key);
-
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return false;
+    }
     QSqlQuery query(m_db);
-
-    // 2. 先按 (key, tier) 精确匹配
-    query.prepare("SELECT id, value, confidence, session_count FROM user_profile WHERE key=? AND tier=?");
+    // key 归一化：同 subject 内用编辑距离匹配已有 key，避免语义重复
+    QString normalizedKey = normalizeProfileKey(subject, key);
+    // 先尝试查询已有记录（同 subject + normalizedKey）
+    query.prepare("SELECT id, value FROM character_profile WHERE subject=? AND key=?");
+    query.addBindValue(subject);
     query.addBindValue(normalizedKey);
-    query.addBindValue(tier);
-    if (!query.exec()) {
-        qDebug() << "[MemoryManager]查询画像失败:" << query.lastError();
-        return false;
-    }
-
-    int existingId = -1;
-    QString existingValue;
-    int existingConf = 0;
-    int existingCount = 0;
-
-    if (query.next()) {
-        // 3a. 同 key 同 tier：直接合并
-        existingId = query.value(0).toInt();
-        existingValue = query.value(1).toString();
-        existingConf = query.value(2).toInt();
-        existingCount = query.value(3).toInt();
-    } else {
-        // 3b. 同 key 不同 tier：取最稳定的 tier（数字越小越稳定）
-        query.prepare("SELECT id, value, confidence, session_count, tier FROM user_profile WHERE key=? ORDER BY tier ASC LIMIT 1");
-        query.addBindValue(normalizedKey);
-        if (!query.exec() || !query.next()) {
-            // 4. 完全无匹配：INSERT 新记录
-            query.prepare("INSERT INTO user_profile (key, value, tier, confidence, first_seen, last_triggered, session_count) "
-                          "VALUES (?, ?, ?, ?, ?, ?, 1)");
-            query.addBindValue(normalizedKey);
-            query.addBindValue(value);
-            query.addBindValue(tier);
-            query.addBindValue(qMin(100, 50 + confidenceGain));
-            query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-            query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-            if (!query.exec()) {
-                qDebug() << "[MemoryManager]插入画像失败:" << query.lastError();
-                return false;
-            }
-            qDebug() << "[MemoryManager]画像已新增:" << normalizedKey << "tier=" << tier;
-            return true;
+    if (query.exec() && query.next()) {
+        int existingId = query.value(0).toInt();
+        QString existingValue = query.value(1).toString();
+        // 合并 value：去重合并
+        QString mergedValue = mergeProfileValue(normalizedKey, existingValue, value);
+        query.prepare("UPDATE character_profile SET value=?, updated_at=? WHERE id=?");
+        query.addBindValue(mergedValue);
+        query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+        query.addBindValue(existingId);
+        if (!query.exec()) {
+            qDebug() << "[MemoryManager]更新角色档案失败:" << query.lastError();
+            return false;
         }
-        // 取到了同 key 不同 tier 的记录
-        existingId = query.value(0).toInt();
-        existingValue = query.value(1).toString();
-        existingConf = query.value(2).toInt();
-        existingCount = query.value(3).toInt();
-        int existingTier = query.value(4).toInt();
-        // 保留更稳定的 tier（数字越小越稳定）
-        tier = qMin(tier, existingTier);
+        qDebug() << "[MemoryManager]角色档案已更新:" << subject << normalizedKey << mergedValue;
+        return true;
+    } else {
+        // 新增
+        query.prepare("INSERT OR REPLACE INTO character_profile (subject, key, value, updated_at) VALUES (?, ?, ?, ?)");
+        query.addBindValue(subject);
+        query.addBindValue(normalizedKey);
+        query.addBindValue(value);
+        query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+        if (!query.exec()) {
+            qDebug() << "[MemoryManager]新增角色档案失败:" << query.lastError();
+            return false;
+        }
+        qDebug() << "[MemoryManager]角色档案已新增:" << subject << normalizedKey << value;
+        return true;
     }
-
-    // 5. 合并 value + 累加 confidence + 累加 session_count
-    QString mergedValue = mergeProfileValue(normalizedKey, existingValue, value);
-    int newConf = qMin(100, existingConf + confidenceGain);
-    int newCount = existingCount + 1;
-
-    query.prepare("UPDATE user_profile SET value=?, tier=?, confidence=?, session_count=?, last_triggered=? WHERE id=?");
-    query.addBindValue(mergedValue);
-    query.addBindValue(tier);
-    query.addBindValue(newConf);
-    query.addBindValue(newCount);
-    query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-    query.addBindValue(existingId);
-    if (!query.exec()) {
-        qDebug() << "[MemoryManager]更新画像失败:" << query.lastError();
-        return false;
-    }
-    qDebug() << "[MemoryManager]画像已更新:" << normalizedKey
-             << "conf=" << newConf << "count=" << newCount;
-    return true;
 }
 
-
-QList<UserProfile> MemoryManager::getActiveUserProfiles(int minConfidence)
+QList<CharacterProfile> MemoryManager::getCharacterProfiles(const QString &subject)
 {
-    QList<UserProfile> profiles;
-    if(!m_db.open()){
-        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+    QList<CharacterProfile> profiles;
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
         return profiles;
     }
     QSqlQuery query(m_db);
-    query.prepare("SELECT * FROM user_profile WHERE confidence >= :minConf ORDER BY tier ASC, confidence DESC");
-    query.bindValue(":minConf", minConfidence);
-
-    if (query.exec()) {
-        while (query.next()) {
-            UserProfile p;
-            p.id = query.value("id").toLongLong();
-            p.key = query.value("key").toString();
-            p.value = query.value("value").toString();
-            p.tier = query.value("tier").toInt();
-            p.confidence = query.value("confidence").toInt();
-            p.firstSeen = query.value("first_seen").toDateTime();
-            p.lastTriggered = query.value("last_triggered").toDateTime();
-            p.sessionCount = query.value("session_count").toInt();
-            profiles.append(p);
-        }
-        //标记本次被注入 LLM 的画像
-        if (!profiles.isEmpty()) {
-            QStringList placeholders;
-            for (int i = 0; i < profiles.size(); i++) placeholders << "?";
-            QString ph = placeholders.join(",");
-            QSqlQuery upd(m_db);
-            upd.prepare(QString("UPDATE user_profile SET last_triggered=?, session_count=session_count+1 WHERE id IN (%1)").arg(ph));
-            upd.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-            for (const UserProfile &p : profiles) upd.addBindValue(p.id);
-            if (!upd.exec()) {
-                qDebug() << "[MemoryManager]更新触发时间失败:" << upd.lastError();
-            }
-        }
+    if (subject.isEmpty()) {
+        query.prepare("SELECT id, subject, key, value, updated_at FROM character_profile ORDER BY subject, key");
+    } else {
+        query.prepare("SELECT id, subject, key, value, updated_at FROM character_profile WHERE subject=? ORDER BY key");
+        query.addBindValue(subject);
     }
-    else{
-        qDebug()<<"[MemoryManager]获取用户画像失败:"<<query.lastError();
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]查询角色档案失败:" << query.lastError();
         return profiles;
     }
-    qDebug()<<"[MemoryManager]获取用户画像成功";
+    while (query.next()) {
+        CharacterProfile p;
+        p.id = query.value(0).toLongLong();
+        p.subject = query.value(1).toString();
+        p.key = query.value(2).toString();
+        p.value = query.value(3).toString();
+        p.updatedAt = query.value(4).toDateTime();
+        profiles.append(p);
+    }
+    qDebug() << "[MemoryManager]获取角色档案成功，共" << profiles.size() << "条";
     return profiles;
 }
 
-bool MemoryManager::deleteUserProfile(qlonglong id)
+bool MemoryManager::deleteCharacterProfile(qlonglong id)
 {
-    if(!m_db.open()){
-        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
         return false;
     }
     QSqlQuery query(m_db);
-    query.prepare("DELETE FROM user_profile WHERE id = :id");
-    query.bindValue(":id", id);
+    query.prepare("DELETE FROM character_profile WHERE id=?");
+    query.addBindValue(id);
     if (!query.exec()) {
-        qDebug()<<"[MemoryManager]获取记忆摘要失败:"<<query.lastError();
+        qDebug() << "[MemoryManager]删除角色档案失败:" << query.lastError();
         return false;
     }
-    qDebug()<<"[MemoryManager]获取记忆摘要成功";
+    qDebug() << "[MemoryManager]角色档案已删除 id=" << id;
     return true;
 }
 
-int MemoryManager::scanAndApplyProfileDecay()
+// ============== v4: 情景记忆 CRUD ==============
+
+bool MemoryManager::addEpisodicMemory(const QString &content, const QString &type, double importance, const QDateTime &eventTime, const QString &sourceIds)
 {
-    if(!m_db.open()){
-        qDebug()<<"[MemoryManager]数据库打开失败:"<<m_db.lastError();
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO episodic_memory (content, event_time, importance, type, status, last_accessed, last_decay_at, source_ids) "
+                  "VALUES (?, ?, ?, ?, 'active', ?, ?, ?)");
+    query.addBindValue(content);
+    QDateTime et = eventTime.isValid() ? eventTime : QDateTime::currentDateTime();
+    query.addBindValue(et.toString("yyyy-MM-dd HH:mm:ss"));
+    query.addBindValue(importance);
+    query.addBindValue(type.isEmpty() ? "event" : type);
+    query.addBindValue(et.toString("yyyy-MM-dd HH:mm:ss"));
+    query.addBindValue(et.toString("yyyy-MM-dd HH:mm:ss"));
+    query.addBindValue(sourceIds);
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]新增情景记忆失败:" << query.lastError();
+        return false;
+    }
+    qDebug() << "[MemoryManager]情景记忆已新增:" << content << "type=" << type << "importance=" << importance;
+    return true;
+}
+
+QList<EpisodicMemory> MemoryManager::getActiveEpisodicMemories(double minImportance, int limit)
+{
+    QList<EpisodicMemory> memories;
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return memories;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("SELECT id, content, event_time, importance, type, status, last_accessed, source_ids "
+                  "FROM episodic_memory WHERE status='active' AND importance >= ? "
+                  "ORDER BY importance DESC, event_time DESC LIMIT ?");
+    query.addBindValue(minImportance);
+    query.addBindValue(limit);
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]查询情景记忆失败:" << query.lastError();
+        return memories;
+    }
+    while (query.next()) {
+        EpisodicMemory m;
+        m.id = query.value(0).toLongLong();
+        m.content = query.value(1).toString();
+        m.eventTime = query.value(2).toDateTime();
+        m.importance = query.value(3).toDouble();
+        m.type = query.value(4).toString();
+        m.status = query.value(5).toString();
+        m.lastAccessed = query.value(6).toDateTime();
+        m.sourceIds = query.value(7).toString();
+        memories.append(m);
+    }
+
+    // 更新 last_accessed
+    if (!memories.isEmpty()) {
+        QStringList ids;
+        for (const auto &m : memories) ids << QString::number(m.id);
+        QSqlQuery upd(m_db);
+        upd.prepare(QString("UPDATE episodic_memory SET last_accessed=? WHERE id IN (%1)")
+                        .arg(ids.join(",")));
+        upd.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+        upd.exec();
+    }
+
+    qDebug() << "[MemoryManager]获取情景记忆成功，共" << memories.size() << "条";
+    return memories;
+}
+
+bool MemoryManager::deleteEpisodicMemory(qlonglong id)
+{
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM episodic_memory WHERE id=?");
+    query.addBindValue(id);
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]删除情景记忆失败:" << query.lastError();
+        return false;
+    }
+    qDebug() << "[MemoryManager]情景记忆已删除 id=" << id;
+    return true;
+}
+
+bool MemoryManager::updateEpisodicMemoryStatus(qlonglong id, const QString &status)
+{
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("UPDATE episodic_memory SET status=? WHERE id=?");
+    query.addBindValue(status);
+    query.addBindValue(id);
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]更新情景记忆状态失败:" << query.lastError();
+        return false;
+    }
+    qDebug() << "[MemoryManager]情景记忆状态已更新 id=" << id << "status=" << status;
+    return true;
+}
+
+int MemoryManager::decayEpisodicMemory()
+{
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
         return -1;
     }
-    //半衰期，可考虑设置在config
-    double tier1Decay = 0.8;  // Tier 1 长期: -0.8/天
-    double tier2Decay = 5.0;  // Tier 2 中期: -5.0/天
-    double tier3Decay = 25.0; // Tier 3 短期: -25.0/天
-
+    // 衰减规则：
+    // - importance >= 0.8 的里程碑/承诺不衰减
+    // - 其余按 -0.05/天 衰减
+    // - importance < 0.1 删除
     m_db.transaction();
     try {
         QSqlQuery query(m_db);
         QString decaySql = R"(
-            UPDATE user_profile
-            SET confidence = CAST(ROUND(confidence - (julianday('now', 'localtime') - julianday(last_decay_at)) *
-                CASE tier
-                    WHEN 1 THEN :t1
-                    WHEN 2 THEN :t2
-                    WHEN 3 THEN :t3
-                    ELSE 5.0
-                END
-            ) AS INTEGER),
-            last_decay_at = datetime('now', 'localtime')
-            WHERE (julianday('now', 'localtime') - julianday(last_decay_at)) >= 0.0416
+            UPDATE episodic_memory
+            SET importance = MAX(0, importance - 0.05 * (julianday('now', 'localtime') - julianday(last_decay_at))),
+                last_decay_at = datetime('now', 'localtime')
+            WHERE importance < 0.8
+              AND (julianday('now', 'localtime') - julianday(last_decay_at)) >= 0.0416
         )";
-
-        query.prepare(decaySql);
-        query.bindValue(":t1", tier1Decay);
-        query.bindValue(":t2", tier2Decay);
-        query.bindValue(":t3", tier3Decay);
-
-        if (!query.exec()) throw query.lastError();
+        if (!query.exec(decaySql)) throw query.lastError();
         int updatedRows = query.numRowsAffected();
 
-        QString cleanSql = "DELETE FROM user_profile WHERE confidence <= 0;";
+        QString cleanSql = "DELETE FROM episodic_memory WHERE importance < 0.1 AND status='active'";
         if (!query.exec(cleanSql)) throw query.lastError();
         int deletedRows = query.numRowsAffected();
 
         m_db.commit();
-
         if (updatedRows > 0 || deletedRows > 0) {
-            qDebug()<<QString("[MemoryManager]全量衰减扫描完成:衰减更新%1条，自动遗忘清理%2条过期画像。")
+            qDebug()<<QString("[MemoryManager]情景记忆衰减完成:更新%1条，删除%2条。")
                             .arg(updatedRows).arg(deletedRows);
+        } else {
+            qDebug()<<"[MemoryManager]情景记忆保持最新，无需衰减。";
         }
-        else {
-            qDebug()<<"[MemoryManager]画像保持最新，无需衰减。";
-        }
-
         return deletedRows;
-
     } catch (const QSqlError &err) {
         m_db.rollback();
-        qDebug()<<"[MemoryManager]时间衰减扫描失败:"<<err.text();
+        qDebug()<<"[MemoryManager]情景记忆衰减失败:"<<err.text();
         return -1;
     }
 }
 
-QString MemoryManager::normalizeProfileKey(const QString &rawKey)
+QString MemoryManager::normalizeProfileKey(const QString &subject, const QString &rawKey)
 {
     QSqlQuery query(m_db);
-    query.prepare("SELECT DISTINCT key FROM user_profile");
+    query.prepare("SELECT DISTINCT key FROM character_profile WHERE subject=?");
+    query.addBindValue(subject);
     if(!query.exec()){
-        qDebug()<<"[MemoryManager]:查询失败，保留原key "<<rawKey;
+        qDebug()<<"[MemoryManager]归一化查询失败，保留原key:"<<rawKey;
+        return rawKey;
     }
     QStringList existingKeys;
     while(query.next()){
@@ -439,10 +482,9 @@ QString MemoryManager::normalizeProfileKey(const QString &rawKey)
     }
     //全匹配
     if(existingKeys.contains(rawKey)){
-        qDebug()<<"[MemoeyManager]:全匹配，无需修正"<<rawKey;
         return rawKey;
     }
-    //编辑距离
+    //编辑距离模糊匹配（同 subject 内）
     int threshold=getEditDistanceThreshold(rawKey);
     QString bestMatch;
     int minDist=threshold+1;
@@ -454,11 +496,10 @@ QString MemoryManager::normalizeProfileKey(const QString &rawKey)
         }
     }
     if (!bestMatch.isEmpty()) {
-        qDebug()<<"[MemoryManager]key归一化:"<<rawKey<<"->"<<bestMatch<<"编辑距离="<<minDist;
+        qDebug()<<"[MemoryManager]key归一化["<<subject<<"]:"<<rawKey<<"->"<<bestMatch<<"编辑距离="<<minDist;
         return bestMatch;
     }
-    //匹配失败，判定为新维度
-    qDebug()<<"[MemoryManager]新key维度:"<<rawKey;
+    qDebug()<<"[MemoryManager]新key维度["<<subject<<"]:"<<rawKey;
     return rawKey;
 }
 
@@ -491,6 +532,7 @@ int MemoryManager::levenshteinDistance(const QString &s1, const QString &s2)
     }
     return dp[n][m];
 }
+
 int MemoryManager::getEditDistanceThreshold(const QString &value)
 {
     int len = value.length();
@@ -499,6 +541,7 @@ int MemoryManager::getEditDistanceThreshold(const QString &value)
     if (len <= 12) return 3;
     return 4;
 }
+
 bool MemoryManager::addLongTermSummary(const QString &summaryText, qlonglong coveredEndId, const QString &sourceIdsJson)
 {
     if(!m_db.open()){
@@ -589,6 +632,93 @@ bool MemoryManager::deleteLongTermSummary(qlonglong id)
 }
 
 
+// ============== 关系状态 CRUD ==============
+
+bool MemoryManager::upsertRelationshipState(const QString &dimension, double delta)
+{
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    // 查询当前值
+    query.prepare("SELECT value FROM relationship_state WHERE dimension=?");
+    query.addBindValue(dimension);
+    if (!query.exec() || !query.next()) {
+        // 维度不存在，新建（clamp 到 [0, 100]）
+        double initVal = qBound(0.0, 30.0 + delta, 100.0);
+        query.prepare("INSERT OR REPLACE INTO relationship_state (dimension, value, updated_at) VALUES (?, ?, ?)");
+        query.addBindValue(dimension);
+        query.addBindValue(initVal);
+        query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+        if (!query.exec()) {
+            qDebug() << "[MemoryManager]新增关系状态失败:" << query.lastError();
+            return false;
+        }
+        qDebug() << "[MemoryManager]关系状态已新增:" << dimension << "=" << initVal;
+        return true;
+    }
+    double oldVal = query.value(0).toDouble();
+    double newVal = qBound(0.0, oldVal + delta, 100.0);
+    query.prepare("UPDATE relationship_state SET value=?, updated_at=? WHERE dimension=?");
+    query.addBindValue(newVal);
+    query.addBindValue(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+    query.addBindValue(dimension);
+    if (!query.exec()) {
+        qDebug() << "[MemoryManager]更新关系状态失败:" << query.lastError();
+        return false;
+    }
+    qDebug() << "[MemoryManager]关系状态已更新:" << dimension << oldVal << "->" << newVal << "(delta=" << delta << ")";
+    return true;
+}
+
+QList<RelationshipState> MemoryManager::getRelationshipStates()
+{
+    QList<RelationshipState> states;
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return states;
+    }
+    QSqlQuery query(m_db);
+    if (!query.exec("SELECT dimension, value, updated_at FROM relationship_state ORDER BY dimension")) {
+        qDebug() << "[MemoryManager]查询关系状态失败:" << query.lastError();
+        return states;
+    }
+    while (query.next()) {
+        RelationshipState s;
+        s.dimension = query.value(0).toString();
+        s.value = query.value(1).toDouble();
+        s.updatedAt = query.value(2).toDateTime();
+        states.append(s);
+    }
+    qDebug() << "[MemoryManager]获取关系状态成功，共" << states.size() << "条";
+    return states;
+}
+
+bool MemoryManager::initRelationshipState()
+{
+    if (!m_db.isOpen() && !m_db.open()) {
+        qDebug() << "[MemoryManager]数据库打开失败:" << m_db.lastError();
+        return false;
+    }
+    QSqlQuery query(m_db);
+    query.prepare("SELECT COUNT(*) FROM relationship_state");
+    query.exec();
+    int count = 0;
+    if (query.next()) count = query.value(0).toInt();
+    if (count > 0) {
+        qDebug() << "[MemoryManager]关系状态已存在，无需初始化";
+        return true;
+    }
+    query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('intimacy', 30.0)");
+    bool ok1 = query.exec();
+    query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('trust', 30.0)");
+    bool ok2 = query.exec();
+    qDebug() << "[MemoryManager]关系状态初始化:" << (ok1 && ok2 ? "成功" : "失败");
+    return ok1 && ok2;
+}
+
+
 void MemoryManager::initDatabase(const QString &dbFilePath)
 {
     QDir dbDir = QFileInfo(dbFilePath).dir();
@@ -631,8 +761,10 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
 
     try {
         if (currentVersion<1) {
-            qDebug()<<"[MemoryManager]没有数据库，正在创建对话记录表:";
-            QString createTableSql = R"(
+            qDebug()<<"[MemoryManager]正在初始化数据库表结构:";
+
+            // 1. 对话历史表
+            QString createChatHistorySql = R"(
                 CREATE TABLE IF NOT EXISTS chat_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
@@ -640,81 +772,93 @@ void MemoryManager::initDatabase(const QString &dbFilePath)
                     raw_reply TEXT NOT NULL
                 );
             )";
-            if (!query.exec(createTableSql)){
-                qDebug()<<"[MomeryManager]创建v1数据库异常:"<<query.lastError();
-            }
-            if (!query.exec("PRAGMA user_version = 1")){
-                qDebug()<<"[MomeryManager]v1数据库异常:"<<query.lastError();
-            }
-            currentVersion = 1;
-        }
-        m_db.commit();
-        qDebug()<<"[MemoryManager]数据库初始化完成,结构版本为:"<<currentVersion;
-
-        if(currentVersion<2){
-            qDebug()<<"[MemoryManager]没有更新v2数据库，正在创建用户画像记录表和摘要表:";
-            QString createUserProfileSql = R"(
-            CREATE TABLE IF NOT EXISTS user_profile (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                key TEXT NOT NULL,
-                value TEXT NOT NULL,
-                tier INTEGER DEFAULT 2,
-                confidence INTEGER DEFAULT 50,
-                first_seen DATETIME DEFAULT (datetime('now', 'localtime')),
-                last_triggered DATETIME DEFAULT (datetime('now', 'localtime')),
-                last_decay_at DATETIME DEFAULT (datetime('now', 'localtime')),
-                session_count INTEGER DEFAULT 1,
-                UNIQUE(key, value)
-            );
-        )";
-            if (!query.exec(createUserProfileSql)){
-                qDebug()<<"[MomeryManager]创建v2用户画像数据库异常:"<<query.lastError();
+            if (!query.exec(createChatHistorySql)) {
+                qDebug()<<"[MemoryManager]创建chat_history异常:"<<query.lastError();
             }
 
-            query.exec("CREATE INDEX IF NOT EXISTS idx_user_profile_tier ON user_profile(tier);");
-            query.exec("CREATE INDEX IF NOT EXISTS idx_user_profile_confidence ON user_profile(confidence);");
-            query.exec("CREATE INDEX IF NOT EXISTS idx_user_profile_last_triggered ON user_profile(last_triggered);");
-
+            // 2. 长期摘要表
             QString createSummarySql = R"(
-            CREATE TABLE IF NOT EXISTS long_term_summary (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                summary_text TEXT NOT NULL,
-                covered_turn_end_id INTEGER NOT NULL,
-                source_ids TEXT NOT NULL,
-                is_dirty INTEGER DEFAULT 0,
-                created_at DATETIME DEFAULT (datetime('now', 'localtime')),
-                updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
-            );
-        )";
-            if (!query.exec(createSummarySql)){
-                qDebug()<<"[MomeryManager]创建v2摘要数据库异常:"<<query.lastError();
+                CREATE TABLE IF NOT EXISTS long_term_summary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    summary_text TEXT NOT NULL,
+                    covered_turn_end_id INTEGER NOT NULL,
+                    source_ids TEXT NOT NULL,
+                    is_dirty INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+                    updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
+                );
+            )";
+            if (!query.exec(createSummarySql)) {
+                qDebug()<<"[MemoryManager]创建long_term_summary异常:"<<query.lastError();
             }
             query.exec("CREATE INDEX IF NOT EXISTS idx_summary_covered_end ON long_term_summary(covered_turn_end_id);");
             query.exec("CREATE INDEX IF NOT EXISTS idx_summary_is_dirty ON long_term_summary(is_dirty);");
-            if (!query.exec("PRAGMA user_version = 2")){
-                qDebug()<<"[MomeryManager]v2数据库异常:"<<query.lastError();
-            }
-            currentVersion = 2;
-        }
-        m_db.commit();
-        qDebug()<<"[MemoryManager]数据库升级完成,结构版本为:"<<currentVersion;
 
-        if(currentVersion<3){
-            qDebug()<<"[MemoryManager]升级v3：为user_profile新增last_decay_at字段，分离衰减与触发时间职责";
-            if (!query.exec("ALTER TABLE user_profile ADD COLUMN last_decay_at DATETIME")) {
-                qDebug()<<"[MomeryManager]v3新增字段异常:"<<query.lastError();
+            // 3. 角色档案表（取代已废弃的 user_profile）
+            QString createCharProfileSql = R"(
+                CREATE TABLE IF NOT EXISTS character_profile (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    subject TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at DATETIME DEFAULT (datetime('now', 'localtime')),
+                    UNIQUE(subject, key)
+                );
+            )";
+            if (!query.exec(createCharProfileSql)) {
+                qDebug()<<"[MemoryManager]创建character_profile异常:"<<query.lastError();
             }
-            // 将现有记录的 last_decay_at 初始化为 last_triggered，避免升级后首次衰减重复扣分
-            if (!query.exec("UPDATE user_profile SET last_decay_at = last_triggered WHERE last_decay_at IS NULL")) {
-                qDebug()<<"[MomeryManager]v3数据迁移异常:"<<query.lastError();
+
+            // 4. 情景记忆表
+            QString createEpisodicSql = R"(
+                CREATE TABLE IF NOT EXISTS episodic_memory (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT NOT NULL,
+                    event_time DATETIME DEFAULT (datetime('now', 'localtime')),
+                    importance REAL DEFAULT 0.5,
+                    type TEXT DEFAULT 'event',
+                    status TEXT DEFAULT 'active',
+                    last_accessed DATETIME DEFAULT (datetime('now', 'localtime')),
+                    last_decay_at DATETIME DEFAULT (datetime('now', 'localtime')),
+                    source_ids TEXT
+                );
+            )";
+            if (!query.exec(createEpisodicSql)) {
+                qDebug()<<"[MemoryManager]创建episodic_memory异常:"<<query.lastError();
             }
-            if (!query.exec("PRAGMA user_version = 3")){
-                qDebug()<<"[MomeryManager]v3数据库异常:"<<query.lastError();
+            query.exec("CREATE INDEX IF NOT EXISTS idx_episodic_importance ON episodic_memory(importance);");
+            query.exec("CREATE INDEX IF NOT EXISTS idx_episodic_type ON episodic_memory(type);");
+            query.exec("CREATE INDEX IF NOT EXISTS idx_episodic_status ON episodic_memory(status);");
+
+            if (!query.exec("PRAGMA user_version = 1")) {
+                qDebug()<<"[MemoryManager]设置数据库版本异常:"<<query.lastError();
             }
-            currentVersion = 3;
+            currentVersion = 1;
         }
+
+        // 关系状态表：无条件创建（兼容已有数据库）
+        query.exec(R"(
+            CREATE TABLE IF NOT EXISTS relationship_state (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                dimension TEXT NOT NULL UNIQUE,
+                value REAL NOT NULL,
+                updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
+            );
+        )");
+        query.prepare("SELECT COUNT(*) FROM relationship_state");
+        query.exec();
+        int relCount = 0;
+        if (query.next()) relCount = query.value(0).toInt();
+        if (relCount == 0) {
+            query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('intimacy', 30.0)");
+            query.exec();
+            query.prepare("INSERT OR IGNORE INTO relationship_state (dimension, value) VALUES ('trust', 30.0)");
+            query.exec();
+            qDebug()<<"[MemoryManager]关系状态已初始化: intimacy=30, trust=30";
+        }
+
         m_db.commit();
-        qDebug()<<"[MemoryManager]数据库升级完成,结构版本为:"<<currentVersion;
+        qDebug()<<"[MemoryManager]数据库初始化完成,结构版本为:"<<currentVersion;
     }
     catch(const QSqlError &error){
         m_db.rollback();
