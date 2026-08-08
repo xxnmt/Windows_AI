@@ -36,6 +36,7 @@ qt_add_executable(Windows_AI
     streamplayer.h streamplayer.cpp
     fileplayer.h fileplayer.cpp
     ttsprocessmanager.h ttsprocessmanager.cpp
+    timemanager.h timemanager.cpp
 )
 
 target_link_libraries(Windows_AI

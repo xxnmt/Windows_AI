@@ -34,6 +34,8 @@ signals:
     //通知中枢更新UI
     void playAudioAction(const QString &zhText, const QMap<QString, QString> &tags);
 
+    void playbackQueueEmpty();
+
 private slots:
     //TTS生成线程
     void processTtsQueue();
@@ -51,6 +53,7 @@ private slots:
 
 
 private:
+    void checkPlaybackQueueEmpty();
     //ttsProcessApi
     TTSProcessManager *m_processManager=nullptr;
     QQueue<SentenceText> m_pendingSentences;

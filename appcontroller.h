@@ -15,6 +15,7 @@ class ChatWidget;
 class AnchorManager;
 class SettingsWidget;
 class MemoryManager;
+class TimeManager;
 
 class AppController : public QObject
 {
@@ -45,6 +46,7 @@ private:
     AnchorManager *m_anchorManager;
     SettingsWidget *m_settingsWidget;
     MemoryManager *m_memoryManager;
+    TimeManager *m_timeManager;
 };
 
 #endif // APPCONTROLLER_H

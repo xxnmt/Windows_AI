@@ -9,6 +9,7 @@
 #include "configmanager.h"
 #include "settingswidget.h"
 #include "memorymanager.h"
+#include "timemanager.h"
 
 #include <QDebug>
 #include <QJsonArray>
@@ -31,6 +32,8 @@ AppController::AppController(QObject *parent)
     m_settingsWidget->setMemoryLength(ConfigManager::instance().getShortMemoryLength());
     m_memoryManager->decayEpisodicMemory();        // 启动时执行一次情景记忆衰减
     m_llmService->setMemoryManager(m_memoryManager);
+
+    m_timeManager =new TimeManager(this);
 
     m_anchorManager = new AnchorManager(m_character, this);
     //ui绑定
@@ -138,6 +141,8 @@ void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString,
 
     // 2. 更新多重状态标签
     m_appearance->applyTags(tags);
+    m_timeManager->notifyLLMtagsApplicated();
+
 
 
     qDebug()<<"[AppController] 当前播放文本:" << zhText;
@@ -163,6 +168,7 @@ void AppController::initConnections()
     connect(m_llmService,&LLMService::sentencesReady,this,&AppController::handleMakoReply);
     connect(m_chatWidget,&ChatWidget::textSubmitted,this,[this](const QString &text){
         m_lastUserInput=text;
+        m_timeManager->notifyUserInputStarted();
         int memoryLength=ConfigManager::instance().getShortMemoryLength();;
         QList<HistoryTurn> shortTermMemory = m_memoryManager->getHistoryTurn(memoryLength);
         m_llmService->askDeepSeek(text,shortTermMemory);
@@ -221,4 +227,22 @@ void AppController::initConnections()
                 m_ttsService->switchModel(gptPath, sovitsPath);
             });
 
+    connect(m_timeManager, &TimeManager::clotheChanged,m_appearance, [this](const QString &clothing) {
+                QMap<QString, QString> tags;
+                tags["clothing"] = clothing;
+                m_appearance->applyTags(tags);
+            });
+
+    connect(m_timeManager, &TimeManager::blushingReset,m_appearance, [this]() {
+                QMap<QString, QString> tags;
+                tags["blush"] = "unblushing";
+                m_appearance->applyTags(tags);
+            });
+
+    connect(m_timeManager, &TimeManager::emotionReset,m_appearance, [this]() {
+                QMap<QString, QString> tags;
+                tags["emotion"] = "happyIdle";
+                m_appearance->applyTags(tags);
+            });
+    connect(m_ttsService, &TTSService::playbackQueueEmpty,m_timeManager, &TimeManager::notifyLLMEnded);
 }

@@ -127,6 +127,7 @@ void TTSService::onTtsFinished(const QString &audioPath, const SentenceText &sen
     m_playQueue.enqueue(item);
     processPlayQueue();
     processTtsQueue();
+    checkPlaybackQueueEmpty();
 }
 
 void TTSService::onTtsFailed(const QString &errorMsg, const SentenceText &sentence)
@@ -141,6 +142,7 @@ void TTSService::onTtsFailed(const QString &errorMsg, const SentenceText &senten
     m_playQueue.enqueue({sentence,"",false});
     processPlayQueue();
     processTtsQueue();
+    checkPlaybackQueueEmpty();
 }
 
 void TTSService::onPcmPlayFinished()
@@ -155,6 +157,7 @@ void TTSService::onPcmPlayFinished()
     }
     m_isPlaying = false;
     processPlayQueue();
+    checkPlaybackQueueEmpty();
 }
 
 void TTSService::onPcmPlayError(const QString &msg)
@@ -229,5 +232,14 @@ void TTSService::processPendingSentences()
         m_ttsQueue.enqueue(m_pendingSentences.dequeue());
     }
     processTtsQueue();
+}
+
+void TTSService::checkPlaybackQueueEmpty()
+{
+    if (m_playQueue.isEmpty() && m_ttsQueue.isEmpty()
+        && !m_isPlaying && !m_isSynthesizing) {
+        qDebug()<<"[TTS]:本轮对话已全部播放";
+        emit playbackQueueEmpty();
+    }
 }
 
