@@ -143,7 +143,10 @@ void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString,
     m_appearance->applyTags(tags);
     m_timeManager->notifyLLMtagsApplicated();
 
-
+    // 3. 如果本轮 blush=blushing，启动脸红退火倒计时
+    if (tags.value("blush") == "blushing") {
+        m_timeManager->notifyBlushingApplicated();
+    }
 
     qDebug()<<"[AppController] 当前播放文本:" << zhText;
     qDebug()<<"[AppController] 当前立绘路径:" << m_appearance->getPath();

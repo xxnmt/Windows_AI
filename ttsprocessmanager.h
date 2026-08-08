@@ -33,6 +33,7 @@ private:
     QStringList m_args;
     int m_port;
     const QString READY_MARKER = "Uvicorn running on";
+    void killProcessOnPort(int port);
 
 };
 

@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QTimer>
 #include <QTime>
-#include <QElapsedTimer>
 
 class TimeManager : public QObject
 {
@@ -23,6 +22,7 @@ public:
     void notifyLLMtagsApplicated();
     void notifyUserInputStarted();
     void notifyLLMEnded();
+    void notifyBlushingApplicated();
 
 signals:
     void clotheChanged(const QString &clothe);
@@ -33,8 +33,8 @@ private slots:
 
 private:
     QTimer *m_timer;
-    QElapsedTimer *m_blushTimer;
-    QElapsedTimer *m_idleTimer;
+    QTimer *m_blushResetTimer;
+    QTimer *m_emotionResetTimer;
 
     QTime m_nightStart;
     QTime m_nightEnd;
@@ -42,9 +42,6 @@ private:
     int m_BackIdleTime;
 
     bool m_isNight;
-    bool m_isIdleTimerActive;
-    bool m_isBlushTimerActive;
-    bool m_isLLMActive;
 };
 
 #endif // TIMEMANAGER_H

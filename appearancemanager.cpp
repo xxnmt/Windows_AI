@@ -24,14 +24,14 @@ void AppearanceManager::applyTags(const QMap<QString, QString> &tags)
     if (tags.contains("emotion")) {
         m_emotion = tags.value("emotion");
     }
-
-    //脸红更新 (加入退热机制;如果本句没有显式要求脸红，自动帮她退红，防止茉子一直红着脸)
-    if (tags.contains("blush")) {
-        m_blush = tags.value("blush");
-    } else {
-        m_blush = "unblushing";
-    }
-    checkPathAndUpdate();
+//timeManager已有自动退火机制
+    // //脸红更新 (加入退热机制;如果本句没有显式要求脸红，自动帮她退红，防止茉子一直红着脸)
+    // if (tags.contains("blush")) {
+    //     m_blush = tags.value("blush");
+    // } else {
+    //     m_blush = "unblushing";
+    // }
+    // checkPathAndUpdate();
 }
 
 QString AppearanceManager::getPath() const

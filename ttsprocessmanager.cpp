@@ -1,7 +1,10 @@
 #include "ttsprocessmanager.h"
 #include <QDebug>
 #include <QTcpSocket>
-
+#include <QRegularExpression>
+#ifdef Q_OS_WIN
+#include <QThread>
+#endif
 
 
 TTSProcessManager::TTSProcessManager(const QString &apiPythonPath, const QString &scriptDir,
@@ -28,6 +31,15 @@ bool TTSProcessManager::isApiReady()
 
 void TTSProcessManager::apiStart()
 {
+        
+    QTcpSocket probe;
+    probe.connectToHost("127.0.0.1", m_port);
+    if (probe.waitForConnected(500)) {
+        probe.disconnectFromHost();
+        qDebug() << "[TTSPM]:检测到端口" << m_port << "已被占用，清理可能的孤儿进程";
+        killProcessOnPort(m_port);
+    }
+
     if(m_process){
         if(m_process->state()==QProcess::Running){
             qDebug()<<"[TTSPM]:服务已启动，无需重复启动";
@@ -122,4 +134,35 @@ void TTSProcessManager::onHealthCheck()
     });
     connect(socket, &QAbstractSocket::errorOccurred, socket, &QObject::deleteLater);
     socket->connectToHost("127.0.0.1", m_port);
+}
+
+void TTSProcessManager::killProcessOnPort(int port)
+{
+#ifdef Q_OS_WIN
+    QProcess netstat;
+    netstat.start("cmd", {"/c", QString("netstat -ano | findstr :%1").arg(port)});
+    netstat.waitForFinished(3000);
+    QString output = QString::fromUtf8(netstat.readAllStandardOutput());
+
+    QStringList killedPids;
+    for (const QString &line : output.split('\n')) {
+        if (!line.contains("LISTENING", Qt::CaseInsensitive)) continue;
+        QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        if (parts.size() < 5) continue;
+        QString pid = parts.last();
+        if (killedPids.contains(pid)) continue;
+
+        QProcess killer;
+        killer.start("taskkill", {"/F", "/PID", pid});
+        killer.waitForFinished(3000);
+        killedPids.append(pid);
+        qDebug() << "[TTSPM]:已杀掉占用端口" << port << "的进程 PID=" << pid;
+    }
+
+    if (!killedPids.isEmpty()) {
+        QThread::msleep(1000);  // 等待端口释放
+    }
+#else
+    Q_UNUSED(port)
+#endif
 }
