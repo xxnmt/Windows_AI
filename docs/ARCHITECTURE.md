@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.6.0
-> 更新日期：2026-08-07
+> 更新日期：2026-08-08
 
 ---
 
@@ -23,10 +23,12 @@
 | **业务层** | LLMService | DeepSeek请求、JSON协议解析、句子拆分、记忆提取 | llmservice.h/cpp |
 | | TTSService | 语音合成队列、播放队列、策略模式（ITTSProvider） | ttsservice.h/cpp, ittsprovider.h, apittsprovider.h/cpp |
 | | ApiTTSProvider | GPT-SoVITS API 调用、流式 PCM 解析 | apittsprovider.h/cpp |
+| | TTSProcessManager | GPT-SoVITS 进程管理、孤儿进程清理（killProcessOnPort） | ttsprocessmanager.h/cpp |
 | | IPcmPlayer | 播放器抽象接口（静态工厂方法+PcmPlayerFinished/Error 信号） | ipcmplayer.h/cpp |
 | | StreamPlayer | 流式 PCM 播放（QAudioSink + QBuffer，预填充+兜底检测） | streamplayer.h/cpp |
 | | FilePlayer | 文件型 WAV 播放（QAudioSink + QFile，WAV头解析） | fileplayer.h/cpp |
 | | AppearanceManager | 四维状态管理、立绘路径生成、换图触发 | appearancemanager.h/cpp |
+| | TimeManager | 时间管理、表情/脸红退火（QTimer singleShot）、服装时段切换 | timemanager.h/cpp |
 | | AnchorManager | 位置锚点管理、统一位置跟随 | anchormanager.h/cpp |
 | | TagValidator | 标签合法性校验、编辑距离修正 | llmservice.h/cpp（内部类） |
 | **数据层** | ConfigManager | API Key配置、记忆长度配置、单例模式 | configmanager.h/cpp |
@@ -881,6 +883,59 @@ struct RelationshipState {
 
 ---
 
+### 2.14 TimeManager（时间管理器，独立子类）
+
+**职责**：时间驱动状态管理，负责表情/脸红退火倒计时与服装时段切换
+
+**设计要点**：
+- 独立子类，从 AppController 职责中拆出（缓解 TD-013 上帝对象问题）
+- 使用 `QTimer::singleShot` 替代原 `QElapsedTimer` 状态机，避免野指针崩溃（TD-030）
+- 退火时间单位修正：原 `hasExpired(15)` 误为 15ms，现 `start(15000)` 正确为 15秒（TD-032）
+- 两个独立退火定时器：表情退火 + 脸红退火，互不干扰
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `notifyLLMEnded()` | 启动表情退火倒计时（m_BackIdleTime * 1000 ms） | - | - |
+| `notifyBlushingApplicated()` | 启动脸红退火倒计时（m_blushTime * 1000 ms） | - | - |
+| `notifyUserInputStarted()` | stop 两个退火定时器（用户输入打断退火） | - | - |
+| `notifyLLMtagsApplicated()` | 只 stop 表情定时器（标签已应用，不需退火） | - | - |
+| `onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） | - | - |
+
+**退火机制**：
+```
+LLM 回复结束 → notifyLLMEnded() → m_emotionResetTimer.start(m_BackIdleTime * 1000)
+    │
+    ├── 用户输入 → notifyUserInputStarted() → stop 两个定时器
+    ├── 标签应用 → notifyLLMtagsApplicated() → stop 表情定时器
+    └── 定时器触发 → 表情回归默认（happyIdle）
+
+脸红标签 blushing → notifyBlushingApplicated() → m_blushResetTimer.start(m_blushTime * 1000)
+    │
+    ├── 用户输入 → notifyUserInputStarted() → stop 两个定时器
+    └── 定时器触发 → 脸红回归（unblushing）
+```
+
+---
+
+### 2.15 TTSProcessManager（GPT-SoVITS 进程管理）
+
+**职责**：管理 GPT-SoVITS python 进程的生命周期，清理孤儿进程
+
+**设计要点**：
+- `apiStart()` 开头通过 TCP 探测端口占用，若被占用则调用 `killProcessOnPort()` 清理孤儿 python.exe（TD-031）
+- 修复 "SoVITS 切换 400 Bad Request"（端口被占用导致复用坏实例）
+- 修复 "崩溃后留孤儿 python.exe"（异常退出后端口被占用）
+- Windows 平台使用 `netstat` + `taskkill` 实现进程清理
+
+**关键方法**：
+| 方法 | 作用 | 参数 | 返回值 |
+|------|------|------|--------|
+| `apiStart()` | 启动 API（开头探测端口占用 → killProcessOnPort 清理孤儿） | - | - |
+| `killProcessOnPort(int port)` | 清理占用指定端口的进程（Windows: netstat+taskkill） | int port | - |
+
+---
+
 ## 3. 核心数据流
 
 ### 3.1 完整对话流程
@@ -1047,29 +1102,31 @@ image/
 | TD-021 | 播放吞开头 | startPlayer预填充PCM再启动QAudioSink | ✅ 已修复 |
 | TD-022 | FilePlayer写入位置错误 | pushData先seek到末尾再write | ✅ 已修复 |
 | TD-023 | TTSService直接new具体播放器 | IPcmPlayer静态工厂方法 | ✅ 已修复 |
-| TD-024 | 衰减重复扣分 | last_decay_at 字段与 last_triggered 职责分离 | ✅ 已修复 |
-| TD-025 | tier 保留逻辑反转 | qMin(tier, existingTier) 保留更稳定 tier | ✅ 已修复 |
+| TD-024 | 衰减重复扣分 | user_profile 表整体删除，confidence/last_triggered 字段不再存在 | ✅ 已废弃 |
+| TD-025 | tier 保留逻辑反转 | tier 字段随 user_profile 表删除 | ✅ 已废弃 |
 | TD-026 | TTS 文本切分错误 | cut0（不切）→ cut5（按全部标点切） | ✅ 已修复 |
 | TD-027 | 超分采样率不匹配 | m_sampleRate 动态适配（流式 qobject_cast / 非流式 WAV 头解析） | ✅ 已修复 |
-| TD-028 | 用户画像 key 碎片化 | normalizeProfileKey 编辑距离归一化 | ✅ 已修复 |
-| TD-029 | AI 摘要盲提取 | 传入现有画像做增量更新 | ✅ 已修复 |
-| TD-030 | relationship_state 表创建位置错误（原在 v1 迁移块外无条件创建） | 移入 v1 迁移块作为第 5 张表，统一迁移归属 | ✅ 已修复 |
+| TD-028 | 角色档案 key 碎片化 | normalizeProfileKey 带 subject 参数，服务于 character_profile | ✅ 已修复 |
+| TD-029 | AI 摘要盲提取 | extractMemoryAsync 传 existingProfiles + existingMemories 增量更新 | ✅ 已修复 |
+| TD-030 | TimeManager 野指针崩溃 | QElapsedTimer 指针未初始化 → 重构为 QTimer singleShot | ✅ 已修复 |
+| TD-031 | TTSProcessManager 孤儿进程 | apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe | ✅ 已修复 |
+| TD-032 | TimeManager 退火时间单位错误 | hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒 | ✅ 已修复 |
 
 ### 7.2 待优化项
 
 | 编号 | 问题 | 位置 | 说明 | 状态 |
 |------|------|------|------|------|
-| A-001 | AppController职责过重 | appcontroller.cpp | 持有全部模块实例 | ⚠️ 可接受 |
+| A-001 | AppController职责过重 | appcontroller.cpp | 持有全部模块实例（TimeManager 已独立为子类） | ⚠️ 可接受 |
 | C-003 | 内联lambda过多 | appcontroller.cpp | 难以测试和复用 | ⚠️ 待优化 |
-| C-004 | LLMService头文件依赖MemoryManager | llmservice.h | 增加编译依赖链 | ❌ 待修复 |
-| RC-012 | AnchorManager析构未清理 | anchormanager.cpp | 内存泄漏风险 | ❌ 待修复 |
+| C-004 | LLMService头文件依赖MemoryManager | llmservice.h | 已用 `class MemoryManager;` 前向声明（TD-015 已修复） | ✅ 已修复 |
+| RC-012 | AnchorManager析构未清理 | anchormanager.cpp | 非问题：仅持弱引用，widget 所有权归 AppController（TD-014 已结案） | ✅ 非问题 |
 
 ### 7.3 架构演进规划
 
 | 阶段 | 版本 | 内容 |
 |------|------|------|
-| 当前 | v0.6.0 | 流式TTS播放、IPcmPlayer抽象（静态工厂）、播放完成检测、预填充防吞开头 |
-| 中期 | v0.7.0 | 设置界面完善、时间驱动服装切换、AnchorManager内存泄漏修复 |
+| 当前 | v0.6.0 | 流式TTS播放、IPcmPlayer抽象（静态工厂）、播放完成检测、预填充防吞开头、TimeManager QTimer singleShot 退火、TTSProcessManager 孤儿进程清理 |
+| 中期 | v0.7.0 | 设置界面完善、AppController职责拆分、独立存档系统 |
 | 远期 | v0.8.0+ | 架构改进、独立存档、插件化 |
 
 ---

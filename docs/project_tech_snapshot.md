@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-08-07
+> 日期：2026-08-08
 > 版本：v0.6.0
 > 状态：开发中
 
@@ -22,6 +22,7 @@
 | | `m_anchorManager` | AnchorManager*，位置锚点管理 |
 | | `m_settingsWidget` | SettingsWidget*，设置界面 |
 | | `m_memoryManager` | MemoryManager*，AI记忆系统 |
+| | `m_timeManager` | TimeManager*，时间管理器（表情/脸红退火、服装时段切换） |
 | | `m_lastUserInput` | QString，最后一次用户输入 |
 | **函数签名** | `void startApp()` | 启动应用，显示角色 |
 | | `void handleMakoReply(const QList<SentenceText>& sentences, const QString& rawReply)` | 处理AI回复，保存记忆+入队TTS+触发记忆提取 |
@@ -267,6 +268,31 @@ signals:
 | | `void setSource(const QString &filePath)` | 打开WAV文件，解析头，预填充（override IPcmPlayer） |
 | | `void pushData()` | 定时器回调：从文件读取数据写入m_buffer（seek到末尾追加） |
 | | `void stopPlayer()` | 停止播放，清理资源 |
+
+### TimeManager（时间管理器，独立子类）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **职责** | 时间驱动状态管理：表情/脸红退火倒计时、服装时段切换 | - |
+| **私有变量** | `m_blushResetTimer` | QTimer*，脸红退火倒计时（singleShot） |
+| | `m_emotionResetTimer` | QTimer*，表情退火倒计时（singleShot） |
+| | `m_BackIdleTime` | int，表情退火时间（秒，配置驱动） |
+| | `m_blushTime` | int，脸红退火时间（秒，配置驱动） |
+| **函数签名** | `void notifyLLMEnded()` | 启动表情退火倒计时（m_BackIdleTime * 1000 ms） |
+| | `void notifyBlushingApplicated()` | 启动脸红退火倒计时（m_blushTime * 1000 ms） |
+| | `void notifyUserInputStarted()` | stop 两个退火定时器（用户输入打断退火） |
+| | `void notifyLLMtagsApplicated()` | 只 stop 表情定时器（标签已应用） |
+| | `void onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） |
+| **设计要点** | QTimer::singleShot 替代原 QElapsedTimer 状态机，避免野指针崩溃（TD-030）；退火时间单位修正 hasExpired(15) 误为 15ms → start(15000) 正确为 15秒（TD-032） | - |
+
+### TTSProcessManager（GPT-SoVITS 进程管理）
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| **职责** | 管理 GPT-SoVITS python 进程的生命周期，清理孤儿进程 | - |
+| **函数签名** | `void apiStart()` | 启动 API（开头 TCP 探测端口占用 → killProcessOnPort 清理孤儿） |
+| | `void killProcessOnPort(int port)` | 清理占用指定端口的进程（Windows: netstat+taskkill） |
+| **设计要点** | 修复 SoVITS 切换 400 Bad Request（端口被占用导致复用坏实例，TD-031）；修复崩溃后留孤儿 python.exe（异常退出端口未释放） | - |
 
 ### MemoryManager（AI记忆系统）
 
@@ -585,7 +611,7 @@ struct SentenceText {
 
 - [x] 配置文件持久化 ✅ 已实现（JSON文件）
 - [x] AI记忆系统（短期记忆）✅ 已实现（SQLite数据库）
-- [x] AI记忆系统（中期/长期记忆）✅ 已实现（用户画像+长期摘要）
+- [x] AI记忆系统（中期/长期记忆）✅ 已实现（角色档案+情景记忆+长期摘要+关系状态）
 - [x] 系统提示词外部化 ✅ 已实现（prompt.txt文件）
 - [x] AI状态同步机制 ✅ 已实现（状态提供者模式）
 - [x] JSON输出协议 ✅ 已实现（response_format+JSON解析）
@@ -595,18 +621,19 @@ struct SentenceText {
 - [x] 播放完成检测 ✅ 已实现（setSynthesisDone + 兜底定时器）
 - [x] 预填充防吞开头 ✅ 已实现（startPlayer预填充PCM）
 - [x] 播放器工厂模式重构 ✅ 已实现（IPcmPlayer 静态工厂方法）
+- [x] TimeManager 时间管理器 ✅ 已实现（QTimer singleShot 退火、服装时段切换）
+- [x] TTSProcessManager 孤儿进程清理 ✅ 已实现（killProcessOnPort）
 - [ ] 设置界面完善（TTS配置、外观配置、时间配置等）
 - [ ] 立绘切换过渡动画
 - [ ] 错误重试机制（LLM请求失败自动重试）
-- [ ] AnchorManager内存泄漏修复（析构函数清理）
 
 ### 已知代码问题
 
 | 位置 | 问题描述 | 严重程度 |
 |------|----------|----------|
-| anchormanager.cpp | AnchorManager析构未清理m_anchors（内存泄漏风险） | **高** |
-| appcontroller.cpp | SUMMARY_THRESHOLD魔法数字硬编码 | 低 |
-| llmservice.h | 头文件依赖memorymanager.h，增加编译依赖链 | 中 |
+| anchormanager.cpp | ~~AnchorManager析构未清理m_anchors（内存泄漏风险）~~（TD-014 已结案：仅持弱引用，widget 所有权归 AppController） | ~~高~~ |
+| appcontroller.cpp | ~~SUMMARY_THRESHOLD魔法数字硬编码~~（TD-016 已结案：设计意图，摘要轮数=短期记忆轮数） | ~~低~~ |
+| llmservice.h | ~~头文件依赖memorymanager.h，增加编译依赖链~~（TD-015 已修复：llmservice.h 已用 `class MemoryManager;` 前向声明） | ~~中~~ |
 | ttsservice.cpp | ~~直接new StreamPlayer/FilePlayer~~（TD-023 已修复，改用 IPcmPlayer::create 静态工厂） | ~~低~~ |
 
 ---
@@ -705,6 +732,9 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-08-08 | TimeManager 重构为 QTimer singleShot 退火机制（表情/脸红退火倒计时、服装时段切换），修复野指针崩溃（TD-030，QElapsedTimer 指针未初始化）与退火时间单位错误（TD-032，hasExpired(15) 误为 15ms → start(15000) 为 15秒）；AppController onPlayAudioAction 接入脸红退火触发（blush=blushing 时 notifyBlushingApplicated） |
+| 2026-08-08 | TTSProcessManager 孤儿进程清理：apiStart 开头 TCP 探测端口占用 → killProcessOnPort 杀孤儿 python.exe（Windows: netstat+taskkill），修复 SoVITS 切换 400 Bad Request 与崩溃后留孤儿进程（TD-031） |
+| 2026-08-08 | 技术债务结案：TD-014 AnchorManager 内存泄漏非问题（仅持弱引用，widget 所有权归 AppController）、TD-015 LLMService 头文件依赖已修复（前向声明）、TD-024/025 随 user_profile 表废弃标记 |
 | 2026-08-07 | relationship_state 表创建位置修复：从无条件创建（v1 迁移块外）移入 v1 迁移块作为第 5 张表，统一迁移归属 |
 | 2026-08-07 | 关系状态系统完成：relationship_state 表（dimension/value/updated_at，UNIQUE(dimension)），默认 intimacy=30/trust=30；askDeepSeek 注入 `# 我们的关系` 段落（亲密度/信任度 X/100）；extractMemoryAsync 提取 relationship_updates（dimension+delta），经 memoryExtractionReady 写入 |
 | 2026-08-07 | WorkingMemory 工作记忆模块曾实现（内存级 currentTopic/userMood/userIntent/contextSummary，零额外API成本，主对话JSON顺带输出），经评估非必要，已彻底移除（llmservice.cpp/h、historyturn.h、prompt.txt 三处清理） |

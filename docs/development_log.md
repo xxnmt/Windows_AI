@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-08-07
+> 最后更新：2026-08-08
 
 ---
 
@@ -266,6 +266,38 @@
   - **relationship_state 表创建位置修复**：原本在 initDatabase 中被无条件创建（v1 迁移块之外），现已移入 v1 迁移块作为第 5 张表，迁移归属正确
 - 技术债务：无需新增条目（relationship_state 移位属代码整理非债务）
 
+### M24: TimeManager 重构 & TTSProcessManager 孤儿进程清理（已完成）
+- 日期：2026-08-08
+- 内容：
+  - **TimeManager 整文件重写**：
+    - 删除：QElapsedTimer、m_isIdleTimerActive/m_isBlushTimerActive/m_isLLMActive 状态机、onMinuteTick 里的退火轮询
+    - 新增：`QTimer *m_blushResetTimer` / `QTimer *m_emotionResetTimer`（均 singleShot）
+    - 新增接口：`notifyBlushingApplicated()`
+    - `notifyLLMEnded()` → 启动表情退火倒计时（m_BackIdleTime * 1000 ms）
+    - `notifyBlushingApplicated()` → 启动脸红退火倒计时（m_blushTime * 1000 ms）
+    - `notifyUserInputStarted()` → stop 两个定时器
+    - `notifyLLMtagsApplicated()` → 只 stop 表情定时器
+    - `onMinuteTick()` 只保留服装时段切换（白天校服 / 夜晚睡衣）
+    - 修复野指针崩溃（原 m_blushTimer/m_idleTimer 指针未初始化，TD-030）
+    - 修复退火时间单位错误（原 hasExpired(15) 是 15ms，现 start(15000) 是 15秒，TD-032）
+  - **TTSProcessManager 孤儿进程清理**：
+    - 新增 `killProcessOnPort(int port)` 方法（Windows: netstat+taskkill）
+    - `apiStart()` 开头加 TCP 探测端口占用 → 杀孤儿进程（TD-031）
+    - 头部加 include: QRegularExpression、QThread（Q_OS_WIN）
+    - 修复 "SoVITS 切换 400 Bad Request"（端口被占用导致复用坏实例）
+    - 修复 "崩溃后留孤儿 python.exe"（异常退出后端口被占用）
+  - **AppController 脸红退火触发**（appcontroller.cpp L146-149）：
+    - `onPlayAudioAction` 中 `notifyLLMtagsApplicated()` 之后加判断：
+      `if (tags.value("blush") == "blushing") m_timeManager->notifyBlushingApplicated();`
+  - **TD 项核对**：
+    - TD-014 AnchorManager 内存泄漏：✅ 非问题（仅持弱引用，widget 所有权归 AppController）
+    - TD-015 LLMService 头文件依赖：✅ 已修复（llmservice.h L11 已是 `class MemoryManager;` 前向声明）
+    - TD-013 AppController 上帝对象：维持 ⚠️ 可接受（TimeManager 已独立为子类）
+    - TD-024/025：状态改为 ✅ 已废弃（user_profile 表整体删除）
+    - TD-028/029：描述更新（normalizeProfileKey 带 subject / extractMemoryAsync 传 existingProfiles + existingMemories）
+  - **注**：M22 段落描述的 user_profile 系统（置信度衰减、tier、last_decay_at）已在 M23 记忆架构重整中整体废弃，TD-024/025 状态同步标记为「已废弃」
+  - 技术债务清理：TD-030~TD-032 全部修复，TD-014/015 核查结案
+
 ---
 
 ## 技术债务
@@ -284,9 +316,9 @@
 | TD-010 | AI记忆系统未实现 | ✅ 已实现（MemoryManager，SQLite短期记忆） | 高 | v0.2.4 |
 | TD-011 | 对话历史查看界面缺失 | ✅ 已实现（SettingsWidget记忆管理页） | 中 | v0.4.0 |
 | TD-012 | 长期记忆（重要事件摘要）未实现 | ✅ 已实现（LLM自动提取摘要+用户画像） | 中 | v0.4.0 |
-| TD-013 | AppController职责过重（上帝对象） | ⚠️ 可接受（当前规模合适） | 高 | v0.2.0 |
-| TD-014 | AnchorManager内存泄漏风险 | ❌ 待修复 | 高 | v0.2.1 |
-| TD-015 | LLMService头文件依赖MemoryManager | ❌ 待优化 | 中 | v0.2.4 |
+| TD-013 | AppController职责过重（上帝对象） | ⚠️ 可接受（当前规模合适，TimeManager 已独立为子类） | 高 | v0.2.0 |
+| TD-014 | AnchorManager内存泄漏风险 | ✅ 非问题（仅持弱引用，widget 所有权归 AppController） | 高 | v0.2.1 |
+| TD-015 | LLMService头文件依赖MemoryManager | ✅ 已修复（llmservice.h 已用 `class MemoryManager;` 前向声明） | 中 | v0.2.4 |
 | TD-016 | AppController中魔法数字SUMMARY_THRESHOLD | ✅ 非问题（设计意图：摘要轮数=短期记忆轮数） | 低 | v0.2.4 |
 | TD-017 | LLM标签输出格式不稳定 | ✅ 已修复（JSON协议+TagValidator校验） | 高 | v0.5.0 |
 | TD-018 | 流式PCM解析丢失数据 | ✅ 已修复（readyRead跳过WAV头透传裸PCM） | 高 | v0.5.0 |
@@ -295,12 +327,15 @@
 | TD-021 | 播放吞开头 | ✅ 已修复（startPlayer预填充PCM再启动QAudioSink） | 中 | v0.6.0 |
 | TD-022 | FilePlayer写入位置错误 | ✅ 已修复（pushData先seek到末尾再write） | 中 | v0.6.0 |
 | TD-023 | TTSService直接new具体播放器 | ✅ 已修复（IPcmPlayer 静态工厂方法） | 低 | v0.6.0 |
-| TD-024 | 衰减重复扣分（基于 last_triggered 衰减导致每次 upsert 都扣分） | ✅ 已修复（last_decay_at 字段与 last_triggered 职责分离） | 高 | v0.6.0 |
-| TD-025 | tier 保留逻辑反转（qMax 误用导致 tier 升级而非保留稳定 tier） | ✅ 已修复（qMin(tier, existingTier) 保留更稳定 tier） | 高 | v0.6.0 |
+| TD-024 | 衰减重复扣分（基于 last_triggered 衰减导致每次 upsert 都扣分） | ✅ 已废弃（user_profile 表整体删除，confidence/last_triggered 字段不再存在） | 高 | v0.6.0 |
+| TD-025 | tier 保留逻辑反转（qMax 误用导致 tier 升级而非保留稳定 tier） | ✅ 已废弃（tier 字段随 user_profile 表删除） | 高 | v0.6.0 |
 | TD-026 | TTS 文本切分错误（cut0 不切导致长文本一次性合成失败） | ✅ 已修复（cut0→cut5 按全部标点切） | 中 | v0.6.0 |
 | TD-027 | 超分采样率不匹配（super_sampling=true 时输出 48000Hz 但播放器硬编码 24000Hz） | ✅ 已修复（m_sampleRate 动态适配） | 中 | v0.6.0 |
-| TD-028 | 用户画像 key 碎片化（同义 key 未归并导致画像重复） | ✅ 已修复（normalizeProfileKey 编辑距离归一化） | 中 | v0.6.0 |
-| TD-029 | AI 摘要盲提取（无现有画像上下文导致重复/矛盾提取） | ✅ 已修复（传入现有画像做增量更新） | 中 | v0.6.0 |
+| TD-028 | 角色档案 key 碎片化（同义 key 未归并导致档案重复） | ✅ 已修复（normalizeProfileKey 带 subject 参数，服务于 character_profile） | 中 | v0.6.0 |
+| TD-029 | AI 摘要盲提取（无现有档案上下文导致重复/矛盾提取） | ✅ 已修复（extractMemoryAsync 传 existingProfiles + existingMemories 增量更新） | 中 | v0.6.0 |
+| TD-030 | TimeManager 野指针崩溃（QElapsedTimer/m_blushTimer/m_idleTimer 指针未初始化） | ✅ 已修复（重构为 QTimer singleShot，m_blushResetTimer/m_emotionResetTimer） | 高 | v0.6.0 |
+| TD-031 | TTSProcessManager 孤儿进程（异常退出后端口被占用导致下次启动复用坏实例） | ✅ 已修复（apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe） | 高 | v0.6.0 |
+| TD-032 | TimeManager 退火时间单位错误（hasExpired(15) 误为 15ms，配置为 15秒） | ✅ 已修复（改用 QTimer::start(15000) 正确为 15秒） | 高 | v0.6.0 |
 
 ---
 
@@ -315,7 +350,7 @@
 | v0.4.0 | AI记忆系统 | MemoryManager + LLMService + SettingsWidget | SQLite数据库（chat_history/user_profile/long_term_summary三张表）、短期记忆查询（默认15轮）、用户画像（置信度衰减三级半衰期）、长期记忆摘要（LLM自动提取）、记忆提取异步流程、记忆管理界面（查看/删除/清空/分页）、配置文件损坏降级处理、代码健壮性提升 |
 | v0.4.1 | TTS策略模式 | TTSService + ITTSProvider + ApiTTSProvider | 策略模式重构TTS、GPT-SoVITS HTTP API接入、双队列模型优化（合成→播放）、Qt Multimedia集成、参考音频情绪映射、错误处理（合成失败跳过不阻塞） |
 | v0.5.0 | JSON协议与标签校验 | LLMService + TagValidator + MemoryManager | JSON输出协议替代标签格式、response_format参数强制JSON输出、TagValidator标签校验与编辑距离修正、数据库结构简化（删除parsed_json列）、历史记忆纯文本注入 |
-| v0.6.0 | 流式TTS播放与播放器抽象 | TTSService + IPcmPlayer + StreamPlayer + FilePlayer | 流式PCM播放（streaming_mode+pcmDataReady）、IPcmPlayer抽象接口（静态工厂方法）、播放完成检测（setSynthesisDone+IdleState+兜底定时器）、预填充防吞开头、FilePlayer WAV头解析完善、signals遮蔽bug修复、野指针崩溃修复 |
+| v0.6.0 | 流式TTS播放与播放器抽象 & 时间管理 | TTSService + IPcmPlayer + StreamPlayer + FilePlayer + TimeManager + TTSProcessManager | 流式PCM播放（streaming_mode+pcmDataReady）、IPcmPlayer抽象接口（静态工厂方法）、播放完成检测（setSynthesisDone+IdleState+兜底定时器）、预填充防吞开头、FilePlayer WAV头解析完善、signals遮蔽bug修复、野指针崩溃修复、TimeManager QTimer singleShot 退火机制、TTSProcessManager 孤儿进程清理（killProcessOnPort） |
 
 ---
 
@@ -345,6 +380,10 @@
 | 2026-07-28 | 标签校验缺失导致非法标签（如"closest"） | 实现TagValidator类，支持编辑距离修正 | v0.5.0 |
 | 2026-07-28 | 历史记忆注入标签格式影响LLM输出 | 优化为纯文本注入，剥离标签格式 | v0.5.0 |
 | 2026-07-29 | 正则表达式语法错误 | 修正标签剥离正则为 `\\[[^\\]]+\\]` | v0.5.0 |
+| 2026-08-08 | TimeManager 野指针崩溃（m_blushTimer/m_idleTimer 指针未初始化） | 重构为 QTimer singleShot（m_blushResetTimer/m_emotionResetTimer），删除 QElapsedTimer 状态机 | v0.6.0 |
+| 2026-08-08 | TimeManager 退火时间单位错误（hasExpired(15) 误为 15ms） | 改用 QTimer::start(15000) 正确为 15秒 | v0.6.0 |
+| 2026-08-08 | SoVITS 切换 400 Bad Request（端口被孤儿 python.exe 占用） | TTSProcessManager::apiStart 开头 TCP 探测端口占用 → killProcessOnPort 清理孤儿进程 | v0.6.0 |
+| 2026-08-08 | 崩溃后留孤儿 python.exe（异常退出端口未释放） | killProcessOnPort 在 apiStart 开头强制清理占端口进程 | v0.6.0 |
 
 ---
 

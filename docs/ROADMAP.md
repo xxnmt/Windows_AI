@@ -2,7 +2,7 @@
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
 > 版本：v0.6.0
-> 更新日期：2026-08-07
+> 更新日期：2026-08-08
 
 ---
 
@@ -13,7 +13,7 @@
 ## 项目定位
 
 相比同类项目（如 LingChat），本项目专注于：
-- **科学的记忆系统**：五层记忆架构（短期记忆+角色档案+情景记忆+长期摘要+关系状态）+ 情景记忆重要度衰减机制
+- **科学的记忆系统**：五层记忆架构（短期记忆+角色档案+情景记忆+长期摘要+关系状态）+ 情景记忆重要度衰减机制 + 关系状态量化驱动
 - **系统化的状态管理**：四维立绘状态（emotion/blush/distance/clothing）设计 + 标签合法性校验
 - **稳定的AI协议**：JSON输出格式 + response_format 强制JSON + TagValidator 编辑距离修正
 - **轻量级高性能**：C++/Qt 方案，内存占用和性能优于 Electron/Tauri 方案
@@ -73,8 +73,10 @@
 **功能清单**：
 - [x] 分层记忆系统
   - [x] 短期记忆（最近N轮对话上下文，SQLite）✅ 已实现（默认15轮）
-  - [x] 用户画像（置信度衰减机制，3级半衰期）✅ 已实现
+  - [x] 角色档案（character_profile 表，subject/key/value，区分 user/mako 主体，无置信度无 tier）✅ 已实现
+  - [x] 情景记忆（episodic_memory 表，事件/承诺/冲突/里程碑，importance 衰减）✅ 已实现
   - [x] 长期记忆摘要（LLM自动提取重要事件）✅ 已实现
+  - [x] 关系状态（relationship_state 表，intimacy/trust 量化驱动）✅ 已实现
 - [x] 对话历史查看界面 ✅ 已实现
   - [x] 历史记录列表（表格展示，分页浏览）
   - [x] 删除功能（单条删除、清空全部）
@@ -82,8 +84,8 @@
 - [x] AI记忆写入与读取 ✅ 已实现
   - [x] 每次对话后写入历史
   - [x] 对话前读取短期记忆
-  - [x] 用户画像和长期摘要注入LLM提示词
-  - [x] 自动记忆提取（未摘要对话达到阈值时触发）
+  - [x] 角色档案和长期摘要注入LLM提示词
+  - [x] 自动记忆提取（未摘要对话达到阈值时触发，传入已有档案做增量更新）
 
 ### v0.4.1 - TTS策略模式重构
 **状态**：✅ 已完成
@@ -147,19 +149,21 @@
   - [x] pushData 写入位置 bug 修复
   - [x] WAV头解析完善（通道数+位深）
 - [x] 播放器工厂模式重构（IPcmPlayer 静态工厂方法）
-- [x] 用户画像系统改进（key归一化、value合并、衰减修复、置信度收窄）
+- [x] 角色档案系统改进（key 归一化 normalizeProfileKey、value 合并 mergeProfileValue，服务于 character_profile 表）
 - [x] TTS 文本切分修复（cut5 按全部标点切，替代 cut0 不切）
 - [x] 超分采样率适配（m_sampleRate 动态适配，流式 qobject_cast / 非流式 WAV 头解析）
-- [x] AI 摘要传入现有画像（extractMemoryAsync 新增 existingProfiles 参数，增量更新替代盲提取）
+- [x] AI 摘要传入现有画像（extractMemoryAsync 新增 existingProfiles + existingMemories 参数，增量更新替代盲提取）
 - [x] 关系状态系统（relationship_state 表，intimacy/trust 默认30，askDeepSeek 注入 `# 我们的关系`，extractMemoryAsync 提取 relationship_updates）
 - [x] 记忆架构重整（废弃 user_profile 表，改为 character_profile + episodic_memory + relationship_state 三张新表，数据库统一 v1 单一迁移块）
 - [x] prompt.txt 资源默认配置更新为 JSON 协议格式
+- [x] TimeManager 时间管理器（独立子类，QTimer singleShot 退火机制，onMinuteTick 服装时段切换）
+- [x] TTSProcessManager 孤儿进程清理（apiStart 开头 TCP 探测端口占用 → killProcessOnPort 杀孤儿 python.exe，修复 SoVITS 切换 400 Bad Request）
 - [ ] 设置界面完善
   - [ ] 外观配置（气泡样式、窗口透明度）
   - [ ] TTS配置（语速、温度、模型切换）
   - [ ] 时间配置（自动服装切换）
   - [ ] 快捷键配置（全局快捷键）
-- [ ] 时间驱动服装切换（白天校服 / 夜晚睡衣）
+- [x] 时间驱动服装切换（白天校服 / 夜晚睡衣，TimeManager::onMinuteTick 实现）
 - [ ] 右键菜单扩展（服装/表情快捷切换）
 - [ ] 系统托盘图标
 - [ ] 历史记录导出功能
@@ -170,16 +174,19 @@
 - [x] 修复播放完成信号不触发（TD-020）
 - [x] 修复播放吞开头（TD-021）
 - [x] 修复FilePlayer写入位置错误（TD-022）
-- [x] 修复衰减重复扣分（TD-024，last_decay_at 字段分离）
-- [x] 修复 tier 保留逻辑反转（TD-025，qMin(tier, existingTier)）
+- [x] 衰减重复扣分已废弃（TD-024，user_profile 表整体删除，confidence/last_triggered 字段不再存在）
+- [x] tier 保留逻辑反转已废弃（TD-025，tier 字段随 user_profile 表删除）
 - [x] 修复 TTS 文本切分错误（TD-026，cut0→cut5）
 - [x] 修复超分采样率不匹配（TD-027，m_sampleRate 动态适配）
-- [x] 修复用户画像 key 碎片化（TD-028，normalizeProfileKey 编辑距离归一化）
-- [x] 修复 AI 摘要盲提取（TD-029，传入现有画像做增量更新）
-- [ ] 创建TimeManager时间管理器
+- [x] 修复角色档案 key 碎片化（TD-028，normalizeProfileKey 带 subject 参数，服务于 character_profile）
+- [x] 修复 AI 摘要盲提取（TD-029，extractMemoryAsync 传 existingProfiles + existingMemories 做增量更新）
+- [x] 创建TimeManager时间管理器（独立子类，QTimer singleShot 退火机制）
+- [x] 修复TimeManager野指针崩溃（TD-030，QElapsedTimer 指针未初始化 → 重构为 QTimer singleShot）
+- [x] 修复TTSProcessManager孤儿进程（TD-031，apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe）
+- [x] 修复TimeManager退火时间单位错误（TD-032，hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒）
+- [x] AnchorManager内存泄漏核查（TD-014，非问题：仅持弱引用，widget 所有权归 AppController）
+- [x] 优化LLMService头文件依赖（TD-015，llmservice.h L11 已改为 `class MemoryManager;` 前向声明）
 - [ ] 创建ShortcutManager全局快捷键管理
-- [ ] 修复AnchorManager内存泄漏（TD-014）
-- [ ] 优化LLMService头文件依赖（TD-015）
 - [x] 播放器工厂模式重构（TD-023）
 - [ ] 添加错误重试机制（LLM请求失败自动重试）
 
@@ -191,7 +198,7 @@
 **功能清单**：
 - [ ] 架构改进
   - [ ] 拆分AppController职责（SignalRouter/MemoryCoordinator/ErrorHandler）
-  - [ ] 消除LLMService头文件对MemoryManager的直接依赖
+  - [ ] 消除LLMService头文件对MemoryManager的直接依赖（注：已部分修复，llmservice.h 使用前向声明，但 cpp 仍依赖）
 - [ ] 独立存档系统
   - [ ] 支持多个存档
   - [ ] 每个存档有独立的记忆和角色关系
@@ -201,7 +208,7 @@
   - [ ] 日程提醒
 
 **技术任务**：
-- [ ] 拆分AppController职责
+- [ ] 拆分AppController职责（TD-013 维持⚠️ 可接受，TimeManager 已独立为子类）
 - [ ] 扩展MemoryManager支持多存档
 - [ ] 创建SaveManager存档管理
 - [ ] 创建ScheduleManager日程管理
@@ -262,21 +269,24 @@
 | TD-004 | 立绘切换功能未实现 | 高 | v0.2.0 | ✅ 已解决（AppearanceManager） |
 | TD-007 | characterwidget大量注释代码残留 | 低 | v0.3.0 | ✅ 已清理 |
 | TD-008 | appcontroller重复include | 低 | v0.3.0 | ✅ 已修复 |
-| TD-013 | AppController职责过重（上帝对象） | 高 | v0.7.0 | ⚠️ 可接受（当前规模合适） |
-| TD-014 | AnchorManager内存泄漏风险 | 高 | v0.7.0 | ❌ 待修复 |
-| TD-015 | LLMService头文件依赖MemoryManager | 中 | v0.7.0 | ❌ 待优化 |
+| TD-013 | AppController职责过重（上帝对象） | 高 | v0.7.0 | ⚠️ 可接受（当前规模合适，TimeManager 已独立为子类） |
+| TD-014 | AnchorManager内存泄漏风险 | 高 | v0.7.0 | ✅ 非问题（仅持弱引用，widget 所有权归 AppController） |
+| TD-015 | LLMService头文件依赖MemoryManager | 中 | v0.7.0 | ✅ 已修复（llmservice.h 已用 `class MemoryManager;` 前向声明） |
 | TD-018 | 流式PCM解析丢失数据 | 高 | v0.6.0 | ✅ 已修复（跳过WAV头透传裸PCM） |
 | TD-019 | StreamPlayer野指针崩溃 | 高 | v0.6.0 | ✅ 已修复（m_buffer初始化nullptr+signals去重） |
 | TD-020 | 播放完成信号不触发 | 高 | v0.6.0 | ✅ 已修复（setSynthesisDone+IdleState+兜底定时器） |
 | TD-021 | 播放吞开头 | 中 | v0.6.0 | ✅ 已修复（startPlayer预填充PCM） |
 | TD-022 | FilePlayer写入位置错误 | 中 | v0.6.0 | ✅ 已修复（pushData先seek到末尾再write） |
 | TD-023 | TTSService直接new具体播放器 | 低 | v0.6.0 | ✅ 已修复（IPcmPlayer 静态工厂方法） |
-| TD-024 | 衰减重复扣分 | 高 | v0.6.0 | ✅ 已修复（last_decay_at 字段与 last_triggered 职责分离） |
-| TD-025 | tier 保留逻辑反转 | 高 | v0.6.0 | ✅ 已修复（qMin(tier, existingTier) 保留更稳定 tier） |
+| TD-024 | 衰减重复扣分 | 高 | v0.6.0 | ✅ 已废弃（user_profile 表整体删除，confidence/last_triggered 字段不再存在） |
+| TD-025 | tier 保留逻辑反转 | 高 | v0.6.0 | ✅ 已废弃（tier 字段随 user_profile 表删除） |
 | TD-026 | TTS 文本切分错误 | 中 | v0.6.0 | ✅ 已修复（cut0→cut5 按全部标点切） |
 | TD-027 | 超分采样率不匹配 | 中 | v0.6.0 | ✅ 已修复（m_sampleRate 动态适配） |
-| TD-028 | 用户画像 key 碎片化 | 中 | v0.6.0 | ✅ 已修复（normalizeProfileKey 编辑距离归一化） |
-| TD-029 | AI 摘要盲提取 | 中 | v0.6.0 | ✅ 已修复（传入现有画像做增量更新） |
+| TD-028 | 角色档案 key 碎片化 | 中 | v0.6.0 | ✅ 已修复（normalizeProfileKey 带 subject 参数，服务于 character_profile） |
+| TD-029 | AI 摘要盲提取 | 中 | v0.6.0 | ✅ 已修复（extractMemoryAsync 传 existingProfiles + existingMemories 增量更新） |
+| TD-030 | TimeManager 野指针崩溃 | 高 | v0.6.0 | ✅ 已修复（QElapsedTimer 指针未初始化 → 重构为 QTimer singleShot） |
+| TD-031 | TTSProcessManager 孤儿进程 | 高 | v0.6.0 | ✅ 已修复（apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe） |
+| TD-032 | TimeManager 退火时间单位错误 | 高 | v0.6.0 | ✅ 已修复（hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒） |
 
 ---
 
@@ -367,7 +377,7 @@ LLMService（JSON协议）
     chat_history表 → 仅保留 raw_reply（JSON对象），删除parsed_json列
 ```
 
-### 阶段7.5：流式TTS播放 & 播放器抽象（v0.6.0，当前）
+### 阶段7.5：流式TTS播放 & 播放器抽象 & 时间管理（v0.6.0，当前）
 ```
 TTSService（流式TTS）
     ├── ApiTTSProvider（streaming_mode=true）
@@ -381,7 +391,19 @@ TTSService（流式TTS）
     │   └── FilePlayer（文件型：QAudioSink + QFile）
     │       ├── WAV头解析（采样率+通道+位深）
     │       └── 预填充防吞开头
+    ├── TTSProcessManager（GPT-SoVITS 进程管理）
+    │   ├── apiStart() 开头 TCP 探测端口占用
+    │   └── killProcessOnPort() 清理孤儿 python.exe（修复 SoVITS 切换 400）
     └── onPcmPlayFinished() → 清理+继续下一句
+
+TimeManager（时间管理器，独立子类）
+    ├── m_blushResetTimer（QTimer singleShot，脸红退火倒计时）
+    ├── m_emotionResetTimer（QTimer singleShot，表情退火倒计时）
+    ├── notifyLLMEnded() → 启动表情退火倒计时（m_BackIdleTime * 1000 ms）
+    ├── notifyBlushingApplicated() → 启动脸红退火倒计时（m_blushTime * 1000 ms）
+    ├── notifyUserInputStarted() → stop 两个定时器
+    ├── notifyLLMtagsApplicated() → 只 stop 表情定时器
+    └── onMinuteTick() → 服装时段切换（白天校服 / 夜晚睡衣）
 ```
 
 ### 阶段8：插件化（v0.8.0+）
@@ -435,7 +457,7 @@ v0.3.0  ████████████████████ 100%  AI资
 v0.4.0  ████████████████████ 100%  AI记忆系统（三层记忆）
 v0.4.1  ████████████████████ 100%  TTS策略模式重构
 v0.5.0  ████████████████████ 100%  JSON协议 & 标签校验
-v0.6.0  ██████████████████░░   88%  流式TTS播放 & 播放器抽象（当前）
+v0.6.0  ███████████████████░   90%  流式TTS播放 & 播放器抽象 & 时间管理（当前）
 v0.7.0  ░░░░░░░░░░░░░░░░░░░░   0%  架构改进 & 独立存档
 v0.8.0  ░░░░░░░░░░░░░░░░░░░░   0%  角色自定义 & 剧本系统
 v0.9.0  ░░░░░░░░░░░░░░░░░░░░   0%  智能助手 & 性能优化
@@ -446,22 +468,22 @@ v0.9.0  ░░░░░░░░░░░░░░░░░░░░   0%  智�
 ## 近期任务（Next Up）
 
 1. **代码质量提升**
-   - 修复AnchorManager内存泄漏（TD-014）
-   - 优化LLMService头文件依赖（TD-015）
-   - 添加错误重试机制
+   - 添加错误重试机制（LLM请求失败自动重试）
+   - 创建ShortcutManager全局快捷键管理
 
-3. **设置界面扩展**
+2. **设置界面扩展**
    - TTS配置页（语速、温度、模型切换）
    - 外观配置（气泡样式、窗口透明度）
    - 时间配置（自动服装切换）
    - 快捷键配置
 
-4. **功能增强**
+3. **功能增强**
    - 历史记录导出功能
    - 立绘切换过渡动画
-   - 时间驱动服装切换
+   - 右键菜单扩展（服装/表情快捷切换）
+   - 系统托盘图标
 
-5. **长期规划**
-   - AppController职责拆分
+4. **长期规划**
+   - AppController职责拆分（TD-013 维持⚠️ 可接受）
    - 独立存档系统
    - 插件化架构
