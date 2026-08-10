@@ -151,7 +151,7 @@
 - [x] 播放器工厂模式重构（IPcmPlayer 静态工厂方法）
 - [x] 角色档案系统改进（key 归一化 normalizeProfileKey、value 合并 mergeProfileValue，服务于 character_profile 表）
 - [x] TTS 文本切分修复（cut5 按全部标点切，替代 cut0 不切）
-- [x] 超分采样率适配（m_sampleRate 动态适配，流式 qobject_cast / 非流式 WAV 头解析）
+- [x] 超分采样率适配（采样率从服务端WAV头读取，流式 StreamPlayer::updateSampleRate 校正 / 非流式 WAV 头解析）
 - [x] AI 摘要传入现有画像（extractMemoryAsync 新增 existingProfiles + existingMemories 参数，增量更新替代盲提取）
 - [x] 关系状态系统（relationship_state 表，intimacy/trust 默认30，askDeepSeek 注入 `# 我们的关系`，extractMemoryAsync 提取 relationship_updates）
 - [x] 记忆架构重整（废弃 user_profile 表，改为 character_profile + episodic_memory + relationship_state 三张新表，数据库统一 v1 单一迁移块）
@@ -184,6 +184,7 @@
 - [x] 修复TimeManager野指针崩溃（TD-030，QElapsedTimer 指针未初始化 → 重构为 QTimer singleShot）
 - [x] 修复TTSProcessManager孤儿进程（TD-031，apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe）
 - [x] 修复TimeManager退火时间单位错误（TD-032，hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒）
+- [x] 采样率从WAV头读取（TD-033，流式/分段路径从服务端WAV头偏移24读真实采样率，替代 super_sampling 猜测与硬编码 24000）
 - [x] AnchorManager内存泄漏核查（TD-014，非问题：仅持弱引用，widget 所有权归 AppController）
 - [x] 优化LLMService头文件依赖（TD-015，llmservice.h L11 已改为 `class MemoryManager;` 前向声明）
 - [ ] 创建ShortcutManager全局快捷键管理
@@ -287,6 +288,7 @@
 | TD-030 | TimeManager 野指针崩溃 | 高 | v0.6.0 | ✅ 已修复（QElapsedTimer 指针未初始化 → 重构为 QTimer singleShot） |
 | TD-031 | TTSProcessManager 孤儿进程 | 高 | v0.6.0 | ✅ 已修复（apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe） |
 | TD-032 | TimeManager 退火时间单位错误 | 高 | v0.6.0 | ✅ 已修复（hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒） |
+| TD-033 | 采样率硬编码/猜测（super_sampling 猜测 + 播放器硬编码 24000） | 中 | v0.6.0 | ✅ 已修复（流式/分段路径从服务端WAV头读取真实采样率，StreamPlayer::updateSampleRate 校正） |
 
 ---
 
@@ -402,7 +404,7 @@ TimeManager（时间管理器，独立子类）
     ├── notifyLLMEnded() → 启动表情退火倒计时（m_BackIdleTime * 1000 ms）
     ├── notifyBlushingApplicated() → 启动脸红退火倒计时（m_blushTime * 1000 ms）
     ├── notifyUserInputStarted() → stop 两个定时器
-    ├── notifyLLMtagsApplicated() → 只 stop 表情定时器
+    ├── notifyLLMtagsApplicated() → stop 表情+脸红两个定时器
     └── onMinuteTick() → 服装时段切换（白天校服 / 夜晚睡衣）
 ```
 

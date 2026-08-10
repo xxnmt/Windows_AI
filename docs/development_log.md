@@ -276,7 +276,7 @@
     - `notifyLLMEnded()` → 启动表情退火倒计时（m_BackIdleTime * 1000 ms）
     - `notifyBlushingApplicated()` → 启动脸红退火倒计时（m_blushTime * 1000 ms）
     - `notifyUserInputStarted()` → stop 两个定时器
-    - `notifyLLMtagsApplicated()` → 只 stop 表情定时器
+    - `notifyLLMtagsApplicated()` → stop 表情+脸红两个定时器（修复退火时序错乱：原只停表情定时器，脸红退火可能在对话中途任意时刻触发；后改为两定时器都停，脸红由 `notifyBlushingApplicated()` 视情况重启）
     - `onMinuteTick()` 只保留服装时段切换（白天校服 / 夜晚睡衣）
     - 修复野指针崩溃（原 m_blushTimer/m_idleTimer 指针未初始化，TD-030）
     - 修复退火时间单位错误（原 hasExpired(15) 是 15ms，现 start(15000) 是 15秒，TD-032）
@@ -297,6 +297,19 @@
     - TD-028/029：描述更新（normalizeProfileKey 带 subject / extractMemoryAsync 传 existingProfiles + existingMemories）
   - **注**：M22 段落描述的 user_profile 系统（置信度衰减、tier、last_decay_at）已在 M23 记忆架构重整中整体废弃，TD-024/025 状态同步标记为「已废弃」
   - 技术债务清理：TD-030~TD-032 全部修复，TD-014/015 核查结案
+
+### M25: TTS 流式播放流程确认 & 采样率从WAV头读取（已完成）
+- 日期：2026-08-11
+- 内容：
+  - **流式播放流程确认**：v3 模型"流式模式"实为**句子级分段返回**（return_fragment），非 token 级真流式；服务端按 cut5 切句逐句合成并 yield，播放器随到随放但粒度是句子（句1 播放与句2 合成并行）
+  - **UI 同步时机**：emit playAudioAction 移至 processTtsQueue 首块 lambda（首块 PCM 到达即变更 UI），替代原 startStreamPlayer 中合成前触发
+  - **采样率从 WAV 头读取（TD-033）**：
+    - 删除 ApiTTSProvider 中按 `super_sampling` 猜测采样率的逻辑（原 `super_sampling ? 48000 : 24000`）
+    - 流式 readyRead 跳过头时从 WAV 头偏移 24 读真实采样率写入 `m_sampleRate`；非流式分段响应从首个 WAV 头读取
+    - TTSService 新增私有 helper `apiSampleRate()`，替换三处硬编码 `startPlayer(24000,...)`
+    - IPcmPlayer 接口新增 `updateSampleRate()`（默认空实现），StreamPlayer 重写并在首块到达时校正 QAudioSink（与默认相同则空操作）
+    - 采样率以服务端 WAV 头为准：v3=24000Hz / v1,v2=32000Hz / v4及超分=48000Hz
+  - 技术债务清理：TD-033 修复
 
 ---
 
@@ -336,6 +349,7 @@
 | TD-030 | TimeManager 野指针崩溃（QElapsedTimer/m_blushTimer/m_idleTimer 指针未初始化） | ✅ 已修复（重构为 QTimer singleShot，m_blushResetTimer/m_emotionResetTimer） | 高 | v0.6.0 |
 | TD-031 | TTSProcessManager 孤儿进程（异常退出后端口被占用导致下次启动复用坏实例） | ✅ 已修复（apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe） | 高 | v0.6.0 |
 | TD-032 | TimeManager 退火时间单位错误（hasExpired(15) 误为 15ms，配置为 15秒） | ✅ 已修复（改用 QTimer::start(15000) 正确为 15秒） | 高 | v0.6.0 |
+| TD-033 | 采样率硬编码/猜测（super_sampling 猜测 + 播放器硬编码 24000） | ✅ 已修复（流式/分段路径从服务端WAV头读取真实采样率，StreamPlayer::updateSampleRate 校正） | 中 | v0.6.0 |
 
 ---
 

@@ -216,6 +216,7 @@ public:
     virtual bool getisPlaying() const = 0;
     virtual void setSynthesisDone() {}  // 流式专用
     virtual void setSource(const QString &path) {}  // 文件型专用
+    virtual void updateSampleRate(int sampleRate) {}  // 采样率校正（流式播放器重写）
 signals:
     void PcmPlayerFinished();
     void PcmPlayerError(const QString &error);
@@ -223,13 +224,13 @@ signals:
 ```
 
 **采样率自适应**：
-- **流式模式**：TTSService 通过 `qobject_cast<ApiTTSProvider*>(m_provider)` 获取 Provider 的实际采样率（`getSampleRate()`），传给 `startPlayer()`，避免硬编码 24000Hz 导致超分模式下播放速率异常
-- **非流式模式**：FilePlayer 已具备 WAV 头解析逻辑，会从文件头读取采样率并自动重建 QAudioSink，无需 TTSService 介入
-- **采样率取值**：`super_sampling=true` 时为 48000Hz，`super_sampling=false` 时为 24000Hz
+- **流式模式**：ApiTTSProvider 在 readyRead 跳过头时，从服务端 WAV 头偏移 24 读取真实采样率写入 `m_sampleRate`；TTSService 统一经私有 helper `apiSampleRate()`（内部 qobject_cast<ApiTTSProvider*>）取值传给 `startPlayer()`，首块到达时 StreamPlayer 再通过 `updateSampleRate()` 校正（与默认相同则空操作），彻底替代硬编码 24000Hz
+- **非流式模式**：FilePlayer 已具备 WAV 头解析逻辑，会从文件头读取采样率并自动重建 QAudioSink；非流式分段响应（isSegmentedResponse）由 ApiTTSProvider 从首个 WAV 头读取采样率后写临时文件
+- **采样率取值**：不再按 `super_sampling` 猜测，统一以服务端 WAV 头为准（v3=24000Hz，v1/v2=32000Hz，v4/超分=48000Hz），`m_sampleRate` 默认 24000 仅为兜底
 
 **实现类**：
-- `ApiTTSProvider`：调用 GPT-SoVITS HTTP API，streaming_mode=true 流式合成；新增 `m_sampleRate` 成员（默认 24000）和 `getSampleRate()` getter，`synthesize()` 中根据 `super_sampling` 设置（true=48000，false=24000）；非流式模式 `writePcmToWavFile` 用 `m_sampleRate` 替代硬编码 24000
-- `StreamPlayer`：流式PCM播放（QAudioSink + QBuffer，预填充+兜底检测）
+- `ApiTTSProvider`：调用 GPT-SoVITS HTTP API，streaming_mode=true 流式合成；`m_sampleRate`（默认 24000）+ `getSampleRate()` getter；流式/分段路径均从服务端 WAV 头读取真实采样率写入 `m_sampleRate`，不再按 `super_sampling` 猜测
+- `StreamPlayer`：流式PCM播放（QAudioSink + QBuffer，预填充+兜底检测；`updateSampleRate()` 支持采样率变化重建）
 - `FilePlayer`：文件型WAV播放（QAudioSink + QFile，WAV头解析+预填充）
 
 ### StreamPlayer（流式PCM播放器）
@@ -245,10 +246,12 @@ signals:
 | | `m_isSynthesisDone` | bool，合成完成标记 |
 | | `m_lastProcessedUsecs` | qint64，上次检测时的已播放微秒数 |
 | | `m_endCheckCount` | int，连续满足完成条件的次数 |
+| | `m_sampleRate` | int，当前QAudioSink配置的采样率（判断是否需要重建） |
 | **函数签名** | `void startPlayer(int sampleRate, int channels, int sampleBits)` | 启动播放器（预填充+QAudioSink::start） |
 | | `void stopPlayer()` | 停止播放器，清理资源 |
 | | `void writePcm(const QByteArray &pcmData)` | 写入PCM数据到队列 |
 | | `void setSynthesisDone()` | 标记合成完成，开启播放完成检测 |
+| | `void updateSampleRate(int sampleRate)` | 采样率校正：与当前不同则重建QAudioSink |
 | | `void pushData()` | 20ms定时器回调：从队列取数据写入m_buffer |
 | | `void checkPlayEnd()` | 500ms定时器回调：兜底检测播放完成 |
 | | `void finishAndEmit()` | 统一停止定时器+emit PcmPlayerFinished |
@@ -281,7 +284,7 @@ signals:
 | **函数签名** | `void notifyLLMEnded()` | 启动表情退火倒计时（m_BackIdleTime * 1000 ms） |
 | | `void notifyBlushingApplicated()` | 启动脸红退火倒计时（m_blushTime * 1000 ms） |
 | | `void notifyUserInputStarted()` | stop 两个退火定时器（用户输入打断退火） |
-| | `void notifyLLMtagsApplicated()` | 只 stop 表情定时器（标签已应用） |
+| | `void notifyLLMtagsApplicated()` | stop 表情+脸红两个定时器（脸红退火由 notifyBlushingApplicated 视情况重启） |
 | | `void onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） |
 | **设计要点** | QTimer::singleShot 替代原 QElapsedTimer 状态机，避免野指针崩溃（TD-030）；退火时间单位修正 hasExpired(15) 误为 15ms → start(15000) 正确为 15秒（TD-032） | - |
 

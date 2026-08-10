@@ -36,17 +36,19 @@
 ```
 LLM回复文本 → enqueueSentences() → m_ttsQueue(待合成) → ITTSProvider.synthesize()
                                                                     ↓
-                                              synthesisFinished → m_playQueue(待播放)
-                                                                    ↓
-                                              processPlayQueue() → QMediaPlayer播放
+                                    流式：pcmDataReady → StreamPlayer（随到随放，边合成边播）
+                                     首块PCM到达即起播，合成与播放并行
+                                    非流式：synthesisFinished → m_playQueue → FilePlayer
 ```
 
 | 组件 | 职责 |
 |------|------|
 | `TTSService` | 管理双队列、协调合成与播放、清理临时文件 |
 | `ITTSProvider` | 抽象接口，支持多种 TTS 实现 |
-| `ApiTTSProvider` | 通过 HTTP API 调用 GPT-SoVITS 服务 |
+| `ApiTTSProvider` | 通过 HTTP API 调用 GPT-SoVITS 服务，流式合成时从 WAV 头读取真实采样率 |
 | `MockTTSProvider` | 模拟实现（开发测试用） |
+| `StreamPlayer` | 流式 PCM 随到随放播放（QAudioSink + QBuffer） |
+| `FilePlayer` | 文件型 WAV 播放（解析文件头采样率并预填充） |
 
 #### TTS 模式切换
 
@@ -96,16 +98,18 @@ python api_v2.py -a 127.0.0.1 -p 9880
 ```json
 POST /tts
 {
-    "text": "你好，我是千岛茉子",
-    "text_lang": "zh",
+    "text": "こんにちは、千島茉子です",
+    "text_lang": "ja",
     "ref_audio_path": "path/to/reference.wav",
     "prompt_text": "参考音频对应的文本",
     "prompt_lang": "zh",
-    "text_split_method": "cut0",
+    "text_split_method": "cut5",
     "media_type": "wav",
-    "streaming_mode": false
+    "streaming_mode": true
 }
 ```
+
+> **采样率说明**：流式模式下客户端从服务端返回的首个 WAV 头（偏移 24）读取真实采样率（v3=24000Hz，v1/v2=32000Hz，v4/超分=48000Hz），不再按 `super_sampling` 硬编码；非流式文件播放由 FilePlayer 解析文件头自适。v3 模型的"流式"实为句子级分段返回（首音需等首句整句合成完成）。
 
 ### 计划功能（按优先级）
 - 🔧 **架构改进**：拆分 AppController 职责（信号路由、记忆协调、错误处理）
@@ -150,7 +154,7 @@ POST /tts
 - **构建系统**: CMake 3.19+
 - **AI 服务**: DeepSeek API (deepseek-v4-flash)
 - **语音合成**: GPT-SoVITS（API 已接入，策略模式封装）
-- **音频播放**: Qt Multimedia（QMediaPlayer + QAudioOutput）
+- **音频播放**: IPcmPlayer 抽象（StreamPlayer 流式 / FilePlayer 文件，QAudioSink + QBuffer）
 - **数据库**: SQLite（已实现，用于对话历史、用户画像、长期记忆摘要存储）
 
 ## 📦 安装与构建
@@ -200,7 +204,7 @@ cmake --build . --config Release
 - Qt::Widgets - UI组件
 - Qt::Network - 网络请求（DeepSeek API、GPT-SoVITS API）
 - Qt::Sql - SQLite数据库（对话历史）
-- Qt::Multimedia - 音频播放（QMediaPlayer、QAudioOutput）
+- Qt::Multimedia - 音频播放（QAudioSink 低延迟 PCM 播放）
 
 ## ⚙️ 配置
 
@@ -397,7 +401,7 @@ Windows_AI/
 
 ## ⚠️ 已知限制
 
-1. **无流式传输**：当前使用非流式模式，长文本合成延迟较高
+1. **流式粒度为句子级**：v3 模型"流式"实为句子级分段返回，首音需等首句整句合成完成（token 级真流式仅 v1/v2 + `streaming_mode=2/3` 支持）
 2. **无错误重试机制**：API 请求失败后不会自动重试，直接跳过该句
 3. **无网络状态检测**：应用启动时不会检测网络连接状态
 4. **立绘切换无过渡动画**：换图时直接切换，没有淡入淡出效果

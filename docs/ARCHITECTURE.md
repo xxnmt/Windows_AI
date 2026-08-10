@@ -427,6 +427,7 @@ public:
     virtual bool getisPlaying() const = 0;
     virtual void setSynthesisDone() {}  // 流式专用：标记合成完成
     virtual void setSource(const QString &path) {}  // 文件型专用：加载音频源
+    virtual void updateSampleRate(int sampleRate) {}  // 采样率校正（流式播放器重写）
 signals:
     void PcmPlayerFinished();
     void PcmPlayerError(const QString &error);
@@ -464,9 +465,9 @@ signals:
 - FilePlayer：setSource 中 seek(44) 跳过 WAV 头后，预读取 CHUNK_SIZE*4 数据写入 m_buffer，再 resume()
 
 **采样率自适应机制**：
-- **流式模式**：TTSService 通过 `qobject_cast<ApiTTSProvider*>(m_provider)` 获取 Provider 的实际采样率（`getSampleRate()`），传给 `startPlayer()`，避免硬编码 24000Hz 导致超分模式下播放速率异常
-- **非流式模式**：FilePlayer 已具备 WAV 头解析逻辑，会从文件头读取采样率并自动重建 QAudioSink，无需 TTSService 介入
-- **采样率取值**：`super_sampling=true` 时为 48000Hz，`super_sampling=false` 时为 24000Hz（由 ApiTTSProvider 在 `synthesize()` 中根据 `super_sampling` 参数写入 `m_sampleRate`）
+- **流式模式**：ApiTTSProvider 在 readyRead 跳过头时从服务端 WAV 头偏移 24 读取真实采样率写入 `m_sampleRate`；TTSService 经私有 helper `apiSampleRate()`（内部 qobject_cast<ApiTTSProvider*>）取值传给 `startPlayer()`，首块到达时 StreamPlayer 用 `updateSampleRate()` 校正（与默认相同则空操作）
+- **非流式模式**：FilePlayer 已具备 WAV 头解析逻辑，会从文件头读取采样率并自动重建 QAudioSink；非流式分段响应由 ApiTTSProvider 从首个 WAV 头读取采样率
+- **采样率取值**：不再按 `super_sampling` 猜测，统一以服务端 WAV 头为准（v3=24000Hz，v1/v2=32000Hz，v4/超分=48000Hz），`m_sampleRate` 默认 24000 仅为兜底
 
 ---
 
@@ -899,7 +900,7 @@ struct RelationshipState {
 | `notifyLLMEnded()` | 启动表情退火倒计时（m_BackIdleTime * 1000 ms） | - | - |
 | `notifyBlushingApplicated()` | 启动脸红退火倒计时（m_blushTime * 1000 ms） | - | - |
 | `notifyUserInputStarted()` | stop 两个退火定时器（用户输入打断退火） | - | - |
-| `notifyLLMtagsApplicated()` | 只 stop 表情定时器（标签已应用，不需退火） | - | - |
+| `notifyLLMtagsApplicated()` | stop 表情+脸红两个定时器（脸红退火由 notifyBlushingApplicated 视情况重启） | - | - |
 | `onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） | - | - |
 
 **退火机制**：
@@ -907,7 +908,7 @@ struct RelationshipState {
 LLM 回复结束 → notifyLLMEnded() → m_emotionResetTimer.start(m_BackIdleTime * 1000)
     │
     ├── 用户输入 → notifyUserInputStarted() → stop 两个定时器
-    ├── 标签应用 → notifyLLMtagsApplicated() → stop 表情定时器
+    ├── 标签应用 → notifyLLMtagsApplicated() → stop 表情+脸红两个定时器
     └── 定时器触发 → 表情回归默认（happyIdle）
 
 脸红标签 blushing → notifyBlushingApplicated() → m_blushResetTimer.start(m_blushTime * 1000)
@@ -991,10 +992,10 @@ LLM 回复结束 → notifyLLMEnded() → m_emotionResetTimer.start(m_BackIdleTi
    └── 继续取下一句
    │
    ▼
-9. 播放队列（Consumer）
+9. 播放队列/流式播放（Consumer）
    │
-   ├── 取出一句 → playAudioAction信号
-   └── QMediaPlayer播放音频
+   ├── 流式：首块PCM到达 → playAudioAction信号 → StreamPlayer随到随放
+   └── 非流式：synthesisFinished入队 → FilePlayer读取文件播放
    │
    ▼
 10. AppController::onPlayAudioAction(zhText, tags)
