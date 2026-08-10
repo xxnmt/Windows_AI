@@ -10,28 +10,25 @@ AppearanceManager::AppearanceManager(QObject *parent)
 
 void AppearanceManager::applyTags(const QMap<QString, QString> &tags)
 {
-    //距离更新
-    if (tags.contains("distance")) {
+    if(tags.contains("distance")){
         m_distance = tags.value("distance");
     }
-
-    //衣服更新
-    if (tags.contains("clothing")) {
+    if(tags.contains("clothing")){
         m_clothing = tags.value("clothing");
     }
-
-    //表情更新
-    if (tags.contains("emotion")) {
+    if(tags.contains("emotion")){
         m_emotion = tags.value("emotion");
     }
 //timeManager已有自动退火机制
     // //脸红更新 (加入退热机制;如果本句没有显式要求脸红，自动帮她退红，防止茉子一直红着脸)
-    // if (tags.contains("blush")) {
-    //     m_blush = tags.value("blush");
-    // } else {
+    if (tags.contains("blush")) {
+        m_blush = tags.value("blush");
+    }
+    // else {
     //     m_blush = "unblushing";
     // }
-    // checkPathAndUpdate();
+
+    checkPathAndUpdate();
 }
 
 QString AppearanceManager::getPath() const

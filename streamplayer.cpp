@@ -26,6 +26,7 @@ void StreamPlayer::startPlayer(int sampleRate, int channels, int sampleBits)
     audioFormat.setSampleRate(sampleRate);
     audioFormat.setChannelCount(channels);
     audioFormat.setSampleFormat(sampleBits==16?QAudioFormat::Int16:QAudioFormat::Int32);
+    m_sampleRate = sampleRate;
 
     m_audioSink=new QAudioSink(audioFormat,this);
     connect(m_audioSink,&QAudioSink::stateChanged,this,&StreamPlayer::onStateChanged);
@@ -86,6 +87,26 @@ void StreamPlayer::stopPlayer()
     m_playbackStarted = false;
     m_isSynthesisDone = false;
     m_endCheckCount = 0;
+}
+
+void StreamPlayer::updateSampleRate(int sampleRate)
+{
+    if (sampleRate <= 0 || sampleRate == m_sampleRate) return;  // 无变化则不重建
+    m_sampleRate = sampleRate;
+    qDebug() << "[StreamPlayer]采样率变化，重建QAudioSink:" << sampleRate;
+    if (m_audioSink) {
+        m_audioSink->stop();
+        delete m_audioSink;
+        m_audioSink = nullptr;
+    }
+    QAudioFormat fmt;
+    fmt.setSampleRate(m_sampleRate);
+    fmt.setChannelCount(1);
+    fmt.setSampleFormat(QAudioFormat::Int16);
+    m_audioSink = new QAudioSink(fmt, this);
+    connect(m_audioSink, &QAudioSink::stateChanged, this, &StreamPlayer::onStateChanged);
+    // 首块PCM到达时校正，此时buffer为空，直接以新采样率启动不会丢数据
+    m_audioSink->start(m_buffer);
 }
 
 void StreamPlayer::writePcm(const QByteArray &pcmData)

@@ -28,7 +28,7 @@ private:
 
     QNetworkAccessManager *m_networkManager;
     bool m_streamingMode=true;
-    int m_sampleRate = 24000;  // 根据 super_sampling 动态设置
+    int m_sampleRate = 24000;  // 默认值；流式/分段路径会从服务端WAV头读取真实值覆盖
 };
 struct SynthesisContext {
     QNetworkReply *reply;

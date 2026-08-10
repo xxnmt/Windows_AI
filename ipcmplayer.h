@@ -19,6 +19,7 @@ public:
     virtual bool getisPlaying() const = 0;
     virtual void setSynthesisDone() {}  // 流式合成全部完成，提示播放器检测播放结束
     virtual void setSource(const QString &path) {}  // 文件型播放器加载音频源
+    virtual void updateSampleRate(int sampleRate) {}  // 采样率校正（流式播放器重写，默认空实现）
 signals:
     void PcmPlayerFinished();
     void PcmPlayerError(const QString &error);

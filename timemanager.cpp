@@ -12,7 +12,6 @@ TimeManager::TimeManager(QObject *parent)
     m_timer = new QTimer(this);
     m_timer->setInterval(60000);
     connect(m_timer, &QTimer::timeout, this, &TimeManager::onMinuteTick);
-    start();
 
     m_blushResetTimer = new QTimer(this);
     m_blushResetTimer->setSingleShot(true);
@@ -72,9 +71,8 @@ void TimeManager::setBackIdleTime(const int time)
 
 void TimeManager::notifyLLMtagsApplicated()
 {
-    // LLM 新 tags 到达，取消表情退火
     m_emotionResetTimer->stop();
-    // 脸红定时器不停——如果 LLM 又输出 blushing，notifyBlushingApplicated 会重启它
+    m_blushResetTimer->stop();
 }
 
 void TimeManager::notifyUserInputStarted()

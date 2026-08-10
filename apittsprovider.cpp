@@ -75,11 +75,12 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
                                                  //   16: 最快，质量略降（适合实时对话）
                                                  //   32: 默认，平衡质量与速度（日常使用推荐）
                                                  //   64: 最慢，质量最佳（适合成品生成）
-    json["super_sampling"] = true;              // 【v3专用】超分辨率：
+    json["super_sampling"] = false;              // 【v3专用】超分辨率：
                                                  //   true: 音质更好但速度显著变慢(+40%~80%)
                                                  //   false: 默认，正常音质
-    m_sampleRate = json["super_sampling"].toBool() ? 48000 : 24000;
-    
+    // 采样率不再在此猜测：流式模式由服务端WAV头读取（见 readyRead），
+    // 非流式分段路径在 onNetworkReplyFinished 中读取，此处仅用成员默认值兜底。
+
     // ---------- 流式返回参数 ----------
     json["streaming_mode"] = m_streamingMode;              // 流式模式：
                                                  //   false: 关闭（返回完整音频文件，推荐）
@@ -113,6 +114,12 @@ void ApiTTSProvider::synthesize(const SentenceText &sentence)
                     // 没有WAV头，直接当作裸PCM
                     ctx->headerSkipped = true;
                 } else if (ctx->buffer.size() >= riffIdx + 44) {
+                    // 读取真实采样率：标准WAV头偏移24处为4字节小端（v3=24000，v1/v2=32000，v4/超分=48000）
+                    quint32 sr = *reinterpret_cast<const quint32*>(ctx->buffer.constData() + riffIdx + 24);
+                    if (sr > 0 && static_cast<int>(sr) != m_sampleRate) {
+                        m_sampleRate = static_cast<int>(sr);
+                        qDebug() << "[ApiTTS]从流式WAV头读取采样率:" << m_sampleRate;
+                    }
                     // 跳过44字节WAV头
                     ctx->buffer.remove(0, riffIdx + 44);
                     ctx->headerSkipped = true;
@@ -211,6 +218,15 @@ void ApiTTSProvider::onNetworkReplyFinished(QNetworkReply *reply, SentenceText s
     QByteArray rawData=reply->readAll();
     if(isSegmentedResponse(rawData,reply)){
         qDebug()<<"[ApiTTS]:检测到分段/流式返回，解析中";
+        // 从首个WAV头读取真实采样率（偏移24，4字节小端）
+        int riffIdx = rawData.indexOf("RIFF");
+        if (riffIdx >= 0 && rawData.size() >= riffIdx + 44) {
+            quint32 sr = *reinterpret_cast<const quint32*>(rawData.constData() + riffIdx + 24);
+            if (sr > 0) {
+                m_sampleRate = static_cast<int>(sr);
+                qDebug() << "[ApiTTS]分段返回WAV头采样率:" << m_sampleRate;
+            }
+        }
         QByteArray pcmData=extractAndConcatPcm(rawData);
         writePcmToWavFile(tempFilePath,pcmData,m_sampleRate);
     }

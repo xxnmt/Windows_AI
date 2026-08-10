@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 project(Windows_AI LANGUAGES CXX)
+enable_language(RC)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network Sql REQUIRED Multimedia)
 
@@ -37,6 +38,7 @@ qt_add_executable(Windows_AI
     fileplayer.h fileplayer.cpp
     ttsprocessmanager.h ttsprocessmanager.cpp
     timemanager.h timemanager.cpp
+    app.rc
 )
 
 target_link_libraries(Windows_AI
@@ -60,3 +62,4 @@ qt_generate_deploy_app_script(
     NO_UNSUPPORTED_PLATFORM_ERROR
 )
 install(SCRIPT ${deploy_script})
+target_include_directories(Windows_AI PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

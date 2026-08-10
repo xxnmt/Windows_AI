@@ -54,6 +54,8 @@ private slots:
 
 private:
     void checkPlaybackQueueEmpty();
+    void startStreamPlayer(IPcmPlayer *player, const SentenceText &sentence);
+    int apiSampleRate() const;  // 获取当前Provider的实际采样率（流式路径为ApiTTSProvider）
     //ttsProcessApi
     TTSProcessManager *m_processManager=nullptr;
     QQueue<SentenceText> m_pendingSentences;

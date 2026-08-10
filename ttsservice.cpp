@@ -93,8 +93,30 @@ void TTSService::processTtsQueue()
     if(m_provider->isStreamingMode()){
         disconnect(m_provider, &ITTSProvider::pcmDataReady, nullptr, nullptr);
         m_pendingStreamPlayer = IPcmPlayer::create(IPcmPlayer::Stream, this);
-        connect(m_provider,&ITTSProvider::pcmDataReady,m_pendingStreamPlayer,&IPcmPlayer::writePcm);
+        // connect(m_provider,&ITTSProvider::pcmDataReady,m_pendingStreamPlayer,&IPcmPlayer::writePcm);
         qDebug()<<"[TTS]开始合成语音(日文流式):"<<currentSentence.jaText;
+        if(!m_isPlaying&&m_playQueue.isEmpty()){
+            bool firstChunkPending=true;
+            connect(m_provider, &ITTSProvider::pcmDataReady, this,
+                    [this, currentSentence, firstChunkPending](const QByteArray &pcm) mutable {
+                        if(firstChunkPending){
+                            firstChunkPending = false;
+                            emit playAudioAction(currentSentence.zhText, currentSentence.rawTags);
+                            // 首块到达时服务端WAV头已解析，用真实采样率校正播放器（与默认相同则为空操作）
+                            if(m_pendingStreamPlayer){
+                                m_pendingStreamPlayer->updateSampleRate(apiSampleRate());
+                            }
+                        }
+                        if(m_pendingStreamPlayer){
+                            m_pendingStreamPlayer->writePcm(pcm);
+                        }
+                    });
+
+            startStreamPlayer(m_pendingStreamPlayer,currentSentence);
+        }
+        else{
+            connect(m_provider,&ITTSProvider::pcmDataReady,m_pendingStreamPlayer,&IPcmPlayer::writePcm);
+        }
     }
     else{
         qDebug()<<"[TTS]开始合成语音(日文):"<<currentSentence.jaText;
@@ -108,24 +130,26 @@ void TTSService::onTtsFinished(const QString &audioPath, const SentenceText &sen
 {
     qDebug()<<"[TTS]合成成功，进入待播放队列:"<<audioPath;
     m_isSynthesizing=false;
-
-    PlayItem item;
-    item.sentence = sentence;
-    item.audioPath = audioPath;
-    if(audioPath.isEmpty()){
-        item.isStream=true;
-        item.streamPlayer=m_pendingStreamPlayer;
-        m_pendingStreamPlayer=nullptr;
-        // 标记该流式播放器：合成数据已全部到达，等待播放结束
-        if (item.streamPlayer) {
-            item.streamPlayer->setSynthesisDone();
+    if(m_pendingStreamPlayer){
+        m_pendingStreamPlayer->setSynthesisDone();
+        if(m_player!=m_pendingStreamPlayer){
+            PlayItem item;
+            item.sentence=sentence;
+            item.audioPath=audioPath;
+            item.isStream=true;
+            item.streamPlayer=m_pendingStreamPlayer;
+            m_playQueue.enqueue(item);
+            processPlayQueue();
         }
     }
     else{
+        PlayItem item;
+        item.sentence=sentence;
+        item.audioPath=audioPath;
         item.isStream=false;
+        m_playQueue.enqueue(item);
+        processPlayQueue();
     }
-    m_playQueue.enqueue(item);
-    processPlayQueue();
     processTtsQueue();
     checkPlaybackQueueEmpty();
 }
@@ -135,7 +159,13 @@ void TTSService::onTtsFailed(const QString &errorMsg, const SentenceText &senten
     qDebug()<<"[TTS]合成失败，使用模拟替代:"<<errorMsg;
     m_isSynthesizing=false;
     if (m_pendingStreamPlayer) {
-        disconnect(m_provider, &ITTSProvider::pcmDataReady,m_pendingStreamPlayer, &IPcmPlayer::writePcm);
+        disconnect(m_provider, &ITTSProvider::pcmDataReady,nullptr, nullptr);
+        if(m_player==m_pendingStreamPlayer){
+            m_player->stopPlayer();
+            m_player->deleteLater();
+            m_player=nullptr;
+            m_isPlaying=false;
+        }
         m_pendingStreamPlayer->deleteLater();
         m_pendingStreamPlayer = nullptr;
     }
@@ -150,6 +180,7 @@ void TTSService::onPcmPlayFinished()
     qDebug()<<"[TTS]onPcmPlayFinished, 队列大小="<<m_playQueue.size();
     if (m_player) {
         // 如果是流式播放，断开数据信号
+        disconnect(m_provider, &ITTSProvider::pcmDataReady, this, nullptr);
         disconnect(m_provider, &ITTSProvider::pcmDataReady, m_player, &IPcmPlayer::writePcm);
         // 删除播放器并释放
         m_player->deleteLater();
@@ -188,9 +219,7 @@ void TTSService::processPlayQueue()
         m_player=item.streamPlayer;
         connect(m_player, &IPcmPlayer::PcmPlayerFinished,this, &TTSService::onPcmPlayFinished);
         connect(m_player, &IPcmPlayer::PcmPlayerError,this, &TTSService::onPcmPlayError);
-        int sr = 24000;
-        if (auto *api = qobject_cast<ApiTTSProvider*>(m_provider)) sr = api->getSampleRate();
-        m_player->startPlayer(sr, 1, 16);
+        m_player->startPlayer(apiSampleRate(), 1, 16);
     }
     else{
         qDebug()<<"[TTS]UI Ready,开始播放语音:"<<item.sentence.jaText<<item.sentence.zhText;
@@ -199,7 +228,7 @@ void TTSService::processPlayQueue()
 
         connect(m_player, &IPcmPlayer::PcmPlayerFinished, this, &TTSService::onPcmPlayFinished);
         connect(m_player, &IPcmPlayer::PcmPlayerError,this, &TTSService::onPcmPlayError);
-        m_player->startPlayer(24000, 1, 16);
+        m_player->startPlayer(apiSampleRate(), 1, 16);  // FilePlayer会从文件头自行校正，此处仅兜底
         m_player->setSource(item.audioPath);
     }
 }
@@ -241,5 +270,24 @@ void TTSService::checkPlaybackQueueEmpty()
         qDebug()<<"[TTS]:本轮对话已全部播放";
         emit playbackQueueEmpty();
     }
+}
+
+void TTSService::startStreamPlayer(IPcmPlayer *player, const SentenceText &sentence)
+{
+    m_player=player;
+    connect(m_player,&IPcmPlayer::PcmPlayerFinished,this,&TTSService::onPcmPlayFinished);
+    connect(m_player,&IPcmPlayer::PcmPlayerError,this,&TTSService::onPcmPlayError);
+    // emit playAudioAction(sentence.zhText,sentence.rawTags);
+    m_player->startPlayer(apiSampleRate(),1,16);
+    m_isPlaying=true;
+    qDebug()<<"[TTS]流式起播(边合成边播):"<<sentence.zhText;
+}
+
+int TTSService::apiSampleRate() const
+{
+    if (auto *api = qobject_cast<ApiTTSProvider*>(m_provider)) {
+        return api->getSampleRate();
+    }
+    return 24000;  // 兜底默认（非ApiTTSProvider路径；实际流式/文件路径均为ApiTTSProvider）
 }
 

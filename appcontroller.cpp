@@ -45,6 +45,8 @@ AppController::AppController(QObject *parent)
 
     initConnections();
 
+    m_timeManager->start();
+
     m_character->updatePath(m_appearance->getPath());
 
 }

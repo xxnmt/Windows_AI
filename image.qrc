@@ -113,5 +113,6 @@
         <file>image/far/schoolUniformWithoutCoat/unblushing/sad.png</file>
         <file>image/far/schoolUniformWithoutCoat/unblushing/conscientious.png</file>
         <file>image/default_config/prompt.txt</file>
+        <file>image/favicon.ico</file>
     </qresource>
 </RCC>
