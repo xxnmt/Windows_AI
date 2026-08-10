@@ -401,10 +401,9 @@ TTSService（流式TTS）
 TimeManager（时间管理器，独立子类）
     ├── m_blushResetTimer（QTimer singleShot，脸红退火倒计时）
     ├── m_emotionResetTimer（QTimer singleShot，表情退火倒计时）
-    ├── notifyLLMEnded() → 启动表情退火倒计时（m_BackIdleTime * 1000 ms）
-    ├── notifyBlushingApplicated() → 启动脸红退火倒计时（m_blushTime * 1000 ms）
-    ├── notifyUserInputStarted() → stop 两个定时器
-    ├── notifyLLMtagsApplicated() → stop 表情+脸红两个定时器
+    ├── m_distanceResetTimer（QTimer singleShot，距离退火倒计时）
+    ├── notifyRoundEnded(finalTags) → 停全部定时器；按最终状态启动：blush=blushing / emotion≠happyIdle / distance=closer
+    ├── notifyUserInputStarted() → stop 三个定时器
     └── onMinuteTick() → 服装时段切换（白天校服 / 夜晚睡衣）
 ```
 

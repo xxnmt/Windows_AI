@@ -141,14 +141,8 @@ void AppController::onPlayAudioAction(const QString &zhText, const QMap<QString,
     // 1. 你的 BubbleWidget 自己有 typeWriteEffect，直接调用即可
     m_bubble->showMessage(zhText);
 
-    // 2. 更新多重状态标签
+    // 2. 更新多重状态标签（退火定时器在每轮结束 notifyRoundEnded 时按最终状态统一启动）
     m_appearance->applyTags(tags);
-    m_timeManager->notifyLLMtagsApplicated();
-
-    // 3. 如果本轮 blush=blushing，启动脸红退火倒计时
-    if (tags.value("blush") == "blushing") {
-        m_timeManager->notifyBlushingApplicated();
-    }
 
     qDebug()<<"[AppController] 当前播放文本:" << zhText;
     qDebug()<<"[AppController] 当前立绘路径:" << m_appearance->getPath();
@@ -249,5 +243,19 @@ void AppController::initConnections()
                 tags["emotion"] = "happyIdle";
                 m_appearance->applyTags(tags);
             });
-    connect(m_ttsService, &TTSService::playbackQueueEmpty,m_timeManager, &TimeManager::notifyLLMEnded);
+
+    connect(m_timeManager, &TimeManager::distanceReset,m_appearance, [this]() {
+                QMap<QString, QString> tags;
+                tags["distance"] = "far";
+                m_appearance->applyTags(tags);
+            });
+
+    // 每轮对话结束：以最终视觉状态驱动退火（脸红/非默认表情/closer 各自开定时器）
+    connect(m_ttsService, &TTSService::playbackQueueEmpty, m_timeManager, [this]() {
+                QMap<QString, QString> finalTags;
+                finalTags["blush"]    = m_appearance->getBlush();
+                finalTags["emotion"]  = m_appearance->getEmotion();
+                finalTags["distance"] = m_appearance->getDistance();
+                m_timeManager->notifyRoundEnded(finalTags);
+            });
 }

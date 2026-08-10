@@ -892,29 +892,28 @@ struct RelationshipState {
 - 独立子类，从 AppController 职责中拆出（缓解 TD-013 上帝对象问题）
 - 使用 `QTimer::singleShot` 替代原 `QElapsedTimer` 状态机，避免野指针崩溃（TD-030）
 - 退火时间单位修正：原 `hasExpired(15)` 误为 15ms，现 `start(15000)` 正确为 15秒（TD-032）
-- 两个独立退火定时器：表情退火 + 脸红退火，互不干扰
+- 三个独立退火定时器：表情退火 + 脸红退火 + 距离退火，互不干扰
+- 退火由「每轮对话最终状态」驱动，而非逐句触发（重构：删除 notifyLLMEnded/notifyLLMtagsApplicated/notifyBlushingApplicated 三个方法，统一为 notifyRoundEnded）
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `notifyLLMEnded()` | 启动表情退火倒计时（m_BackIdleTime * 1000 ms） | - | - |
-| `notifyBlushingApplicated()` | 启动脸红退火倒计时（m_blushTime * 1000 ms） | - | - |
-| `notifyUserInputStarted()` | stop 两个退火定时器（用户输入打断退火） | - | - |
-| `notifyLLMtagsApplicated()` | stop 表情+脸红两个定时器（脸红退火由 notifyBlushingApplicated 视情况重启） | - | - |
+| `notifyRoundEnded(finalTags)` | 每轮结束，先停全部退火，再按最终状态启动对应定时器 | 最终状态 QMap | - |
+| `notifyUserInputStarted()` | stop 三个退火定时器（用户输入打断退火） | - | - |
+| `setDistanceTime(time)` | 设置距离退火时长（秒，与脸红/表情 setter 同格式） | int | - |
 | `onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） | - | - |
 
-**退火机制**：
+**退火机制**（按每轮最终状态）：
 ```
-LLM 回复结束 → notifyLLMEnded() → m_emotionResetTimer.start(m_BackIdleTime * 1000)
+每轮对话结束 → playbackQueueEmpty → AppController 取最终视觉状态(finalTags)
+    → TimeManager::notifyRoundEnded(finalTags) → 停全部定时器
     │
-    ├── 用户输入 → notifyUserInputStarted() → stop 两个定时器
-    ├── 标签应用 → notifyLLMtagsApplicated() → stop 表情+脸红两个定时器
-    └── 定时器触发 → 表情回归默认（happyIdle）
-
-脸红标签 blushing → notifyBlushingApplicated() → m_blushResetTimer.start(m_blushTime * 1000)
+    ├── finalTags.blush == "blushing"  → 启动 m_blushResetTimer(m_blushTime*1000)
+    ├── finalTags.emotion != "happyIdle" → 启动 m_emotionResetTimer(m_BackIdleTime*1000)
+    ├── finalTags.distance == "closer" → 启动 m_distanceResetTimer(m_distanceTime*1000)
     │
-    ├── 用户输入 → notifyUserInputStarted() → stop 两个定时器
-    └── 定时器触发 → 脸红回归（unblushing）
+    ├── 用户输入 → notifyUserInputStarted() → stop 全部定时器
+    └── 各定时器触发 → 对应维度回归默认（表情→happyIdle / 脸红→unblushing / 距离→far）
 ```
 
 ---

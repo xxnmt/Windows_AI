@@ -276,17 +276,18 @@ signals:
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| **职责** | 时间驱动状态管理：表情/脸红退火倒计时、服装时段切换 | - |
+| **职责** | 时间驱动状态管理：表情/脸红/距离退火倒计时、服装时段切换 | - |
 | **私有变量** | `m_blushResetTimer` | QTimer*，脸红退火倒计时（singleShot） |
 | | `m_emotionResetTimer` | QTimer*，表情退火倒计时（singleShot） |
+| | `m_distanceResetTimer` | QTimer*，距离退火倒计时（singleShot） |
 | | `m_BackIdleTime` | int，表情退火时间（秒，配置驱动） |
 | | `m_blushTime` | int，脸红退火时间（秒，配置驱动） |
-| **函数签名** | `void notifyLLMEnded()` | 启动表情退火倒计时（m_BackIdleTime * 1000 ms） |
-| | `void notifyBlushingApplicated()` | 启动脸红退火倒计时（m_blushTime * 1000 ms） |
-| | `void notifyUserInputStarted()` | stop 两个退火定时器（用户输入打断退火） |
-| | `void notifyLLMtagsApplicated()` | stop 表情+脸红两个定时器（脸红退火由 notifyBlushingApplicated 视情况重启） |
+| | `m_distanceTime` | int，距离退火时间（秒，配置驱动，默认 15） |
+| **函数签名** | `void notifyRoundEnded(finalTags)` | 每轮结束：停全部退火，再按最终状态启动对应定时器（blush=blushing / emotion!=happyIdle / distance=closer） |
+| | `void notifyUserInputStarted()` | stop 三个退火定时器（用户输入打断退火） |
+| | `void setDistanceTime(int)` | 设置距离退火时长（秒，与 setBlushTime/setBackIdleTime 同格式） |
 | | `void onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） |
-| **设计要点** | QTimer::singleShot 替代原 QElapsedTimer 状态机，避免野指针崩溃（TD-030）；退火时间单位修正 hasExpired(15) 误为 15ms → start(15000) 正确为 15秒（TD-032） | - |
+| **设计要点** | QTimer::singleShot 替代原 QElapsedTimer 状态机，避免野指针崩溃（TD-030）；退火时间单位修正 hasExpired(15) 误为 15ms → start(15000) 正确为 15秒（TD-032）；退火由「每轮最终状态」驱动，删除 notifyLLMEnded/notifyLLMtagsApplicated/notifyBlushingApplicated 三方法统一为 notifyRoundEnded | - |
 
 ### TTSProcessManager（GPT-SoVITS 进程管理）
 

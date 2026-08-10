@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QTimer>
 #include <QTime>
+#include <QMap>
+#include <QString>
 
 class TimeManager : public QObject
 {
@@ -18,16 +20,16 @@ public:
     void setNightEnd(const QTime &time);
     void setBlushTime(const int time);
     void setBackIdleTime(const int time);
+    void setDistanceTime(const int time);
 
-    void notifyLLMtagsApplicated();
+    void notifyRoundEnded(const QMap<QString, QString> &finalTags);
     void notifyUserInputStarted();
-    void notifyLLMEnded();
-    void notifyBlushingApplicated();
 
 signals:
     void clotheChanged(const QString &clothe);
     void blushingReset();
     void emotionReset();
+    void distanceReset();
 private slots:
     void onMinuteTick();
 
@@ -35,11 +37,13 @@ private:
     QTimer *m_timer;
     QTimer *m_blushResetTimer;
     QTimer *m_emotionResetTimer;
+    QTimer *m_distanceResetTimer;
 
     QTime m_nightStart;
     QTime m_nightEnd;
     int m_blushTime;
     int m_BackIdleTime;
+    int m_distanceTime;
 
     bool m_isNight;
 };

@@ -313,6 +313,20 @@
 
 ---
 
+### M26: 退火机制重构——按「每轮最终状态」驱动（已完成）
+- 日期：2026-08-11
+- 内容：
+  - **动机**：原退火逻辑按句子驱动、问题多——表情定时器轮末无条件启动（即使最终表情是默认 happyIdle 也白跑）、脸红逐句重启不反映轮末状态、无距离退火（closer 挂住不回落）
+  - **新模型**：每轮对话结束（playbackQueueEmpty）取最终视觉状态，只对激活维度开各自退火定时器
+    - `blush == "blushing"` → 脸红定时器（m_blushTime*1000，回落到 unblushing）
+    - `emotion != "happyIdle"` → 表情定时器（m_BackIdleTime*1000，回落到 happyIdle）
+    - `distance == "closer"` → 距离定时器（**新增** m_distanceTime*1000，回落到 far）
+  - **TimeManager 重构**：删除 `notifyLLMEnded` / `notifyLLMtagsApplicated` / `notifyBlushingApplicated` 三方法，统一为 `notifyRoundEnded(finalTags)`（先停全部退火，再按最终状态启动）；新增 `m_distanceResetTimer` + `distanceReset()` 信号 + `setDistanceTime()`（默认 15s，与 setBlushTime/setBackIdleTime 同格式）
+  - **AppController 调整**：`onPlayAudioAction` 删掉逐句定时器调用（只留 applyTags+showMessage）；`playbackQueueEmpty` 连接改为 lambda，从 AppearanceManager 读最终 getBlush/getEmotion/getDistance 组装 finalTags 调 `notifyRoundEnded`；新增 `distanceReset → distance="far"` 连接
+  - 三个退火 setter（setBlushTime/setBackIdleTime/setDistanceTime）暂未接 config（下一阶段完善 config/setting 功能时接线）
+
+---
+
 ## 技术债务
 
 | 编号 | 描述 | 状态 | 优先级 | 引入版本 |
