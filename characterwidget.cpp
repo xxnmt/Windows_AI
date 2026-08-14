@@ -23,6 +23,7 @@ CharacterWidget::CharacterWidget(QWidget *parent)
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     //without background
     setAttribute(Qt::WA_TranslucentBackground);
+    setAttribute(Qt::WA_NoSystemBackground); // 透明窗口切换时减少系统重绘闪帧
 
     imageLabel = new QLabel(this);
 
@@ -38,14 +39,32 @@ CharacterWidget::~CharacterWidget() {}
 void CharacterWidget::updatePath(const QString &imagePath)
 {
     QPixmap pixmap(imagePath);
-    if(!pixmap.isNull()){
+    if (pixmap.isNull()) return;
+
+    // 首次加载：直接设置（构造期调用，窗口未显示，无需锚定）
+    if (m_visibleRect.isEmpty()) {
         imageLabel->setPixmap(pixmap);
         resize(pixmap.size());
-
         m_visibleRect = calculateVisibleRect(pixmap);
         qDebug()<<"[character]扫描位置为："<<m_visibleRect;
-
+        return;
     }
+
+    // 后续切换：锚定“脚底中心”。两张立绘 bottom 都是 767（脚底对齐），
+    // 保持脚底不动、角色原地生长，避免 center 锚定让 closer 脚底下坠造成向下漂。
+    QPoint anchor = this->pos()
+                  + QPoint(m_visibleRect.center().x(), m_visibleRect.bottom());
+
+    imageLabel->setPixmap(pixmap);
+    m_visibleRect = calculateVisibleRect(pixmap);
+    qDebug()<<"[character]扫描位置为："<<m_visibleRect;
+
+    QPoint newFeet = this->pos()
+                   + QPoint(m_visibleRect.center().x(), m_visibleRect.bottom());
+    QPoint newPos = this->pos() + (anchor - newFeet);
+    // 先同步渲染新图，再移动窗口：避免 setGeometry 移动瞬间系统仍以旧图重绘造成“向右闪一下”
+    repaint();
+    setGeometry(newPos.x(), newPos.y(), pixmap.width(), pixmap.height());
 }
 
 QPoint CharacterWidget::getBubbleAnchorPos() const

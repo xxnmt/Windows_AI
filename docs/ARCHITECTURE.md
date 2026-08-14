@@ -1120,6 +1120,7 @@ image/
 | C-003 | 内联lambda过多 | appcontroller.cpp | 难以测试和复用 | ⚠️ 待优化 |
 | C-004 | LLMService头文件依赖MemoryManager | llmservice.h | 已用 `class MemoryManager;` 前向声明（TD-015 已修复） | ✅ 已修复 |
 | RC-012 | AnchorManager析构未清理 | anchormanager.cpp | 非问题：仅持弱引用，widget 所有权归 AppController（TD-014 已结案） | ✅ 非问题 |
+| TD-034 | 对话轮冲突导致退火误触发 | appcontroller.cpp + timemanager.cpp | 上一轮播放收尾的 playbackQueueEmpty 晚于新一轮输入，被误认为当前轮结束，用旧轮 finalTags 启动退火定时器，中途提前退火。根因：playbackQueueEmpty 裸信号不含轮次信息 | ⚠️ 待处理（需轮次冲突策略：打断当前轮 / 自动入队，让用户选择） |
 
 ### 7.3 架构演进规划
 

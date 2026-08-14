@@ -119,7 +119,7 @@ void TimeManager::onMinuteTick()
     if (m_nightStart <= m_nightEnd) {
         isNight = (now >= m_nightStart && now < m_nightEnd);
     } else {
-        isNight = (now <= m_nightStart || now > m_nightEnd);
+        isNight = (now >= m_nightStart || now < m_nightEnd);
     }
     if (isNight != m_isNight) {
         m_isNight = isNight;
