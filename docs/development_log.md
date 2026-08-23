@@ -364,6 +364,21 @@
 | TD-031 | TTSProcessManager 孤儿进程（异常退出后端口被占用导致下次启动复用坏实例） | ✅ 已修复（apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe） | 高 | v0.6.0 |
 | TD-032 | TimeManager 退火时间单位错误（hasExpired(15) 误为 15ms，配置为 15秒） | ✅ 已修复（改用 QTimer::start(15000) 正确为 15秒） | 高 | v0.6.0 |
 | TD-033 | 采样率硬编码/猜测（super_sampling 猜测 + 播放器硬编码 24000） | ✅ 已修复（流式/分段路径从服务端WAV头读取真实采样率，StreamPlayer::updateSampleRate 校正） | 中 | v0.6.0 |
+| TD-034 | 对话轮次冲突：playbackQueueEmpty 裸信号无轮次身份，上一轮退火在下一轮对话中途误触发 | ⚠️ 待处理（归属「对话轮次冲突」特性，未来提供打断当前轮/自动排队两种策略） | 高 | v0.6.0 |
+| TD-035 | TimeManager 昼夜判断逻辑颠倒（`now <= 22:00 || now > 7:00` 将整个白天 7:00-22:00 误判为夜，导致白天穿睡衣） | ✅ 已修复（跨零点判断改为 `now >= 22:00 || now < 7:00`） | 高 | v0.6.0 |
+| TD-036 | 立绘切换抖动/漂移（closer 相对 far 脚底差 30px，center 锚定让 closer 脚底向下坠，且 resize+move 两步重绘造成向右闪帧） | ✅ 已修复（脚底中心锚定 + 原子 setGeometry + repaint + WA_NoSystemBackground） | 高 | v0.6.0 |
+
+---
+
+## 里程碑补充
+
+### M27: 立绘切换修复 & 昼夜判断修正（已完成）
+
+- 日期：2026-08-23
+- 内容：
+  - **TD-036 立绘切换抖动/漂移修复**：`updatePath` 改为锚定「脚底中心」（两张立绘 bottom 均为 767，脚底对齐则角色原地生长，不再 center 锚定造成 closer 脚底下坠）；移动改用原子 `setGeometry` 并在移动前 `repaint()` 同步渲染新图，配合构造器 `WA_NoSystemBackground`，消除切换瞬间旧图向右闪帧
+  - **TD-035 昼夜判断跨零点修正**：原 `isNight = (now <= m_nightStart || now > m_nightEnd)` 逻辑颠倒，把白天 7:00-22:00 全判为夜（白天穿睡衣）；改为 `isNight = (now >= m_nightStart || now < m_nightEnd)`，正确覆盖 22:00-次日 7:00
+  - **TD-034 对话轮次冲突**：`playbackQueueEmpty` 裸信号无轮次身份，导致上一轮退火在下一轮中途误触发。暂缓处理，归属 v0.7.0「对话轮次冲突」特性（未来让用户选择打断当前轮 / 自动进入队列）
 
 ---
 

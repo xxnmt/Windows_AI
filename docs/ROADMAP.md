@@ -160,7 +160,8 @@
 - [x] TTSProcessManager 孤儿进程清理（apiStart 开头 TCP 探测端口占用 → killProcessOnPort 杀孤儿 python.exe，修复 SoVITS 切换 400 Bad Request）
 - [ ] 设置界面完善
   - [ ] 外观配置（气泡样式、窗口透明度）
-  - [ ] TTS配置（语速、温度、模型切换）
+  - [x] TTS模型切换 ✅ 已实现（设置界面 tab_3：GPT路径/模型、SoVITS路径/模型）
+  - [ ] TTS语速、温度配置
   - [ ] 时间配置（自动服装切换）
   - [ ] 快捷键配置（全局快捷键）
 - [x] 时间驱动服装切换（白天校服 / 夜晚睡衣，TimeManager::onMinuteTick 实现）
@@ -294,6 +295,8 @@
 | TD-032 | TimeManager 退火时间单位错误 | 高 | v0.6.0 | ✅ 已修复（hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒） |
 | TD-033 | 采样率硬编码/猜测（super_sampling 猜测 + 播放器硬编码 24000） | 中 | v0.6.0 | ✅ 已修复（流式/分段路径从服务端WAV头读取真实采样率，StreamPlayer::updateSampleRate 校正） |
 | TD-034 | 对话轮冲突导致退火误触发：上一轮播放收尾（playbackQueueEmpty）晚于新一轮用户输入，被当作当前轮结束，用旧轮 finalTags 启动退火定时器，导致新一轮播放中途提前退回默认状态 | 中 | v0.7.0 | ⚠️ 待处理（需对话轮次冲突解决策略：用户可选"打断当前轮"或"自动排队"） |
+| TD-035 | 昼夜判定写反（跨午夜比较符用错，整个白天被误判为夜晚而穿睡衣） | 中 | v0.6.0 | ✅ 已修复（onMinuteTick 跨午夜分支改为 `(now >= m_nightStart || now < m_nightEnd)`） |
+| TD-036 | 立绘 far/closer 切换漂移与闪帧（切换原点不当 + resize/move 两步重绘） | 中 | v0.6.0 | ✅ 已修复（updatePath 锚定脚底中心 + 原子 setGeometry + setPixmap 后 repaint + WA_NoSystemBackground） |
 
 ---
 

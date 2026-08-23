@@ -197,11 +197,14 @@ m_llmService->registerStateProvider([this](){return m_appearance->getCurrentStat
 - 仅负责UI渲染和用户交互
 - 不再直接持有LLMService和BubbleWidget（解耦）
 - 通过 `updatePath()` 接收外观变化
+- 立绘切换锚定**脚底中心**（两张图 bottom 均为 767，脚底对齐），角色原地生长不漂移
+- 位置+尺寸用原子 `setGeometry` 一次到位，且 `setPixmap` 后先 `repaint()` 再移动，消除 resize/move 两步重绘造成的闪帧
+- 构造时 `WA_NoSystemBackground`，减少透明窗口切换时的系统重绘
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
 |------|------|------|--------|
-| `updatePath()` | 切换立绘图片 | QString imagePath | - |
+| `updatePath()` | 切换立绘图片（锚定脚底中心 + 原子 setGeometry） | QString imagePath | - |
 | `calculateVisibleRect()` | 扫描像素透明度，计算有效区域 | QPixmap pixmap | QRect |
 | `mousePressEvent()` | 记录拖拽起始偏移 | QMouseEvent* | - |
 | `mouseMoveEvent()` | 移动窗口并发出角色移动 | QMouseEvent* | - |
@@ -894,6 +897,7 @@ struct RelationshipState {
 - 退火时间单位修正：原 `hasExpired(15)` 误为 15ms，现 `start(15000)` 正确为 15秒（TD-032）
 - 三个独立退火定时器：表情退火 + 脸红退火 + 距离退火，互不干扰
 - 退火由「每轮对话最终状态」驱动，而非逐句触发（重构：删除 notifyLLMEnded/notifyLLMtagsApplicated/notifyBlushingApplicated 三个方法，统一为 notifyRoundEnded）
+- 昼夜判定（onMinuteTick）跨午夜正确处理：`m_nightStart > m_nightEnd` 时用 `isNight = (now >= m_nightStart || now < m_nightEnd)`，修复整个白天被误判为夜晚（TD-035）
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
@@ -1111,6 +1115,8 @@ image/
 | TD-030 | TimeManager 野指针崩溃 | QElapsedTimer 指针未初始化 → 重构为 QTimer singleShot | ✅ 已修复 |
 | TD-031 | TTSProcessManager 孤儿进程 | apiStart 开头 killProcessOnPort 清理占端口孤儿 python.exe | ✅ 已修复 |
 | TD-032 | TimeManager 退火时间单位错误 | hasExpired(15) 误为 15ms → QTimer::start(15000) 正确为 15秒 | ✅ 已修复 |
+| TD-035 | 昼夜判定写反（跨午夜分支比较符用错，整个白天被误判为夜晚） | onMinuteTick 跨午夜分支改为 `(now >= m_nightStart || now < m_nightEnd)` | ✅ 已修复 |
+| TD-036 | 立绘 far/closer 切换漂移与闪帧 | updatePath 锚定脚底中心 + 原子 setGeometry + setPixmap 后 repaint + WA_NoSystemBackground | ✅ 已修复 |
 
 ### 7.2 待优化项
 

@@ -1,7 +1,7 @@
 # 【项目技术快照】
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 日期：2026-08-08
+> 日期：2026-08-23
 > 版本：v0.6.0
 > 状态：开发中
 
@@ -37,7 +37,7 @@
 | **私有变量** | `dragPosition` | QPoint，鼠标拖拽偏移 |
 | | `imageLabel` | QLabel*，立绘图片标签 |
 | | `m_visibleRect` | QRect，立绘有效像素区域 |
-| **函数签名** | `void updatePath(const QString& imagePath)` | 切换立绘图片 |
+| **函数签名** | `void updatePath(const QString& imagePath)` | 切换立绘图片（锚定脚底中心 + 原子 setGeometry，避免 closer 下坠漂移与切换闪帧） |
 | | `QPoint getBubbleAnchorPos() const` | 获取气泡锚点坐标（已不再直接使用） |
 | | `QPoint getChatAnchorPos() const` | 获取聊天窗口锚点坐标 |
 | | `QRect getVisibleRect() const` | 获取立绘有效区域 |
@@ -287,7 +287,7 @@ signals:
 | | `void notifyUserInputStarted()` | stop 三个退火定时器（用户输入打断退火） |
 | | `void setDistanceTime(int)` | 设置距离退火时长（秒，与 setBlushTime/setBackIdleTime 同格式） |
 | | `void onMinuteTick()` | 每分钟检查服装时段切换（白天校服 / 夜晚睡衣） |
-| **设计要点** | QTimer::singleShot 替代原 QElapsedTimer 状态机，避免野指针崩溃（TD-030）；退火时间单位修正 hasExpired(15) 误为 15ms → start(15000) 正确为 15秒（TD-032）；退火由「每轮最终状态」驱动，删除 notifyLLMEnded/notifyLLMtagsApplicated/notifyBlushingApplicated 三方法统一为 notifyRoundEnded | - |
+| **设计要点** | QTimer::singleShot 替代原 QElapsedTimer 状态机，避免野指针崩溃（TD-030）；退火时间单位修正 hasExpired(15) 误为 15ms → start(15000) 正确为 15秒（TD-032）；退火由「每轮最终状态」驱动，删除 notifyLLMEnded/notifyLLMtagsApplicated/notifyBlushingApplicated 三方法统一为 notifyRoundEnded；昼夜跨零点判断 `isNight = (now >= 22:00 || now < 7:00)`（TD-035，修复原写法把白天误判为夜） | - |
 
 ### TTSProcessManager（GPT-SoVITS 进程管理）
 
@@ -497,8 +497,9 @@ struct SentenceText {
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| **职责** | 设置界面，管理API Key、记忆长度配置和对话历史管理 | - |
-| **配置项** | API Key配置、记忆长度配置、历史记录管理 | - |
+| **职责** | 设置界面，管理API Key、TTS配置、记忆长度配置和对话历史管理 | - |
+| **配置项** | API Key配置、TTS配置（GPT-SoVITS路径/模型、SoVITS路径/模型）、记忆长度配置、历史记录管理 | - |
+| **待完善** | 第4个tab为空占位：外观配置（气泡样式/窗口透明度）、时间配置（自动服装切换）、快捷键配置尚未实现 | - |
 | **函数签名** | `void show()` | 显示设置窗口 |
 | | `void setMemoryManager(MemoryManager* manager)` | 注入MemoryManager实例 |
 | | `void setMemoryLength(int length)` | 初始化记忆长度设置 |
@@ -627,7 +628,9 @@ struct SentenceText {
 - [x] 播放器工厂模式重构 ✅ 已实现（IPcmPlayer 静态工厂方法）
 - [x] TimeManager 时间管理器 ✅ 已实现（QTimer singleShot 退火、服装时段切换）
 - [x] TTSProcessManager 孤儿进程清理 ✅ 已实现（killProcessOnPort）
-- [ ] 设置界面完善（TTS配置、外观配置、时间配置等）
+- [x] TTS模型切换 ✅ 已实现（设置界面 tab_3：GPT-SoVITS路径/模型、SoVITS路径/模型）
+- [ ] 设置界面完善（外观配置、时间配置、快捷键配置；tab_4 空占位）
+- [ ] TTS语速、温度配置
 - [ ] 立绘切换过渡动画
 - [ ] 错误重试机制（LLM请求失败自动重试）
 
@@ -736,6 +739,7 @@ Windows_AI/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-08-23 | 立绘切换修复（TD-036）：`updatePath` 锚定脚底中心 + 原子 setGeometry + repaint + WA_NoSystemBackground，消除 closer 下坠漂移与切换闪帧；昼夜判断跨零点修正（TD-035）：`isNight = (now >= 22:00 || now < 7:00)`，修复白天误判为夜穿睡衣 |
 | 2026-08-08 | TimeManager 重构为 QTimer singleShot 退火机制（表情/脸红退火倒计时、服装时段切换），修复野指针崩溃（TD-030，QElapsedTimer 指针未初始化）与退火时间单位错误（TD-032，hasExpired(15) 误为 15ms → start(15000) 为 15秒）；AppController onPlayAudioAction 接入脸红退火触发（blush=blushing 时 notifyBlushingApplicated） |
 | 2026-08-08 | TTSProcessManager 孤儿进程清理：apiStart 开头 TCP 探测端口占用 → killProcessOnPort 杀孤儿 python.exe（Windows: netstat+taskkill），修复 SoVITS 切换 400 Bad Request 与崩溃后留孤儿进程（TD-031） |
 | 2026-08-08 | 技术债务结案：TD-014 AnchorManager 内存泄漏非问题（仅持弱引用，widget 所有权归 AppController）、TD-015 LLMService 头文件依赖已修复（前向声明）、TD-024/025 随 user_profile 表废弃标记 |
