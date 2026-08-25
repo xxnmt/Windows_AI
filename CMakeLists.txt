@@ -25,7 +25,6 @@ qt_add_executable(Windows_AI
     chatwidget.h chatwidget.cpp
     anchorstrategy.h
     anchormanager.h anchormanager.cpp
-    settingswidget.h settingswidget.cpp settingswidget.ui
     memorymanager.h memorymanager.cpp
     historyturn.h
     ttsreference.h
@@ -39,6 +38,7 @@ qt_add_executable(Windows_AI
     ttsprocessmanager.h ttsprocessmanager.cpp
     timemanager.h timemanager.cpp
     app.rc
+    settingswidget.h settingswidget.cpp settingswidget.ui
 )
 
 target_link_libraries(Windows_AI

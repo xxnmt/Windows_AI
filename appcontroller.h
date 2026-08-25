@@ -13,6 +13,7 @@ class AppearanceManager;
 class TTSService;
 class ChatWidget;
 class AnchorManager;
+// class SettingsWidget;
 class SettingsWidget;
 class MemoryManager;
 class TimeManager;
@@ -44,6 +45,7 @@ private:
     TTSService *m_ttsService;
     ChatWidget *m_chatWidget;
     AnchorManager *m_anchorManager;
+    // SettingsWidget *m_settingsWidget;
     SettingsWidget *m_settingsWidget;
     MemoryManager *m_memoryManager;
     TimeManager *m_timeManager;

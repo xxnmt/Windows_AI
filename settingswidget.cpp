@@ -14,27 +14,130 @@
 #include <QFileInfoList>
 #include <QFileInfo>
 #include <QDir>
+#include <QScrollBar>
+#include <QWheelEvent>
+#include <QTreeWidgetItem>
+#include <QAbstractItemView>
+#include <QPoint>
 
 SettingsWidget::SettingsWidget(QWidget *parent)
     : QWidget(parent),
     ui(new Ui::SettingsWidget)
 {
 
-    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint);
-    setWindowTitle("茉子 - 设置中心");
-    // resize(400, 300);
+
 
     ui->setupUi(this);
+    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint);
+    setWindowTitle("mako chat 设置中心");
+    resize(760, 520);
+    setMinimumSize(520, 400);
     setupHistoryTable();
 
     ui->btn_previousMemoryPage->setEnabled(false);
     ui->btn_nextMemoryPage->setEnabled(false);
+
+    // 左右目录↔滚动 双向同步
+    buildSync();
+
+    // 滚轮透传：下拉框/微调框/时间编辑框不拦截界面滚动
+    const QList<QObject*> wheelWidgets = {
+        ui->comboBox_GPTModel,
+        ui->comboBox_SoVitsModel,
+        ui->spinBox_shortMemoryLength,
+        ui->spinBox_MemorySummaryLength,
+        ui->spinBox_blushingLasting,
+        ui->spinBox_emotionLasting,
+        ui->spinBox_distanceLasting,
+        ui->timeEdit_nightStart,
+        ui->timeEdit_nightEnd,
+    };
+    for (QObject *o : wheelWidgets)
+        o->installEventFilter(this);
 
 }
 
 SettingsWidget::~SettingsWidget()
 {
     delete ui;
+}
+
+void SettingsWidget::buildSync()
+{
+    // ① 一级区域：目录顶层项 → section1
+    m_sectionMap[findTreeItem("对话系统")]     = ui->section1_chatSystem;
+    m_sectionMap[findTreeItem("语音合成")]     = ui->section1_TTSSystem;
+    m_sectionMap[findTreeItem("记忆系统")]     = ui->section1_memorySystem;
+    m_sectionMap[findTreeItem("时间管理")]     = ui->section1_timeManagerSystem;
+    m_sectionMap[findTreeItem("历史会话记录")] = ui->section1_historyTurn;
+    // ② 二级分区：目录叶子项 → section2
+    m_sectionMap[findTreeItem("大语言模型")]  = ui->section2_api;
+    m_sectionMap[findTreeItem("GPT-Sovits")] = ui->section2_GPT_Sovits;
+    m_sectionMap[findTreeItem("短期记忆")]    = ui->section2_shortMemory;
+    m_sectionMap[findTreeItem("长期记忆")]    = ui->section2_longMemory;
+    m_sectionMap[findTreeItem("昼夜切换")]    = ui->section2_nightChange;
+    m_sectionMap[findTreeItem("自动退火")]    = ui->section2_annealingTime;
+
+    // ③ 点击目录 → 滚动到分区
+    connect(ui->treeIndex, &QTreeWidget::currentItemChanged, this,
+            [this](QTreeWidgetItem *cur, QTreeWidgetItem*){
+        if (!cur) return;
+        m_syncGuard = true;
+        QWidget *sec = m_sectionMap.value(cur);
+        if (sec) ui->scrollArea->ensureWidgetVisible(sec, 0, 20);
+        m_syncGuard = false;
+    });
+
+    // ④ 滚动 → 高亮目录（scroll-spy）
+    connect(ui->scrollArea->verticalScrollBar(), &QScrollBar::valueChanged, this,
+            [this](int){
+        if (m_syncGuard) return;
+        int viewTop = ui->scrollArea->verticalScrollBar()->value();
+        QTreeWidgetItem *best = nullptr;
+        int bestTop = -1;
+        for (auto it = m_sectionMap.cbegin(); it != m_sectionMap.cend(); ++it) {
+            int secTop = it.value()->mapTo(ui->scrollArea->viewport(), QPoint(0,0)).y();
+            // 挑"顶部还没越过视口、且 y 最大（最贴近视口顶部）"的分区
+            if (secTop <= viewTop && secTop > bestTop) {
+                bestTop = secTop;
+                best = it.key();
+            }
+        }
+        if (best && best != ui->treeIndex->currentItem()) {
+            m_syncGuard = true;
+            ui->treeIndex->setCurrentItem(best);
+            ui->treeIndex->scrollToItem(best, QAbstractItemView::PositionAtTop);
+            m_syncGuard = false;
+        }
+    });
+}
+
+QTreeWidgetItem *SettingsWidget::findTreeItem(const QString &text) const
+{
+    auto search = [&](auto &&self, QTreeWidgetItem *p) -> QTreeWidgetItem* {
+        for (int i = 0; i < p->childCount(); ++i) {
+            QTreeWidgetItem *c = p->child(i);
+            if (c->text(0) == text) return c;
+            if (auto *r = self(self, c)) return r;
+        }
+        return nullptr;
+    };
+    for (int i = 0; i < ui->treeIndex->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *t = ui->treeIndex->topLevelItem(i);
+        if (t->text(0) == text) return t;
+        if (auto *r = search(search, t)) return r;
+    }
+    return nullptr;
+}
+
+bool SettingsWidget::eventFilter(QObject *obj, QEvent *ev)
+{
+    if (ev->type() == QEvent::Wheel) {
+        // 把滚轮转给右侧滚动条，自身不再滚动
+        ui->scrollArea->verticalScrollBar()->event(ev);
+        return true;   // 消费掉，阻止下拉框翻项/微调框自增
+    }
+    return QWidget::eventFilter(obj, ev);
 }
 
 void SettingsWidget::setMemoryManager(MemoryManager *manager)
@@ -47,7 +150,7 @@ void SettingsWidget::setMemoryManager(MemoryManager *manager)
 
 void SettingsWidget::setMemoryLength(int length)
 {
-    ui->spinBox_memoryLength->setValue(length);
+    ui->spinBox_shortMemoryLength->setValue(length);
 }
 
 void SettingsWidget::refreshHistoryTurnList()
@@ -80,19 +183,6 @@ void SettingsWidget::showEvent(QShowEvent *event)
 
 }
 
-void SettingsWidget::on_btn_configSaveAll_clicked()
-{
-    on_btn_saveApiKey_clicked();
-    // hide();
-
-}
-
-void SettingsWidget::on_btn_configQuit_clicked()
-{
-    loadSettings();
-    hide();
-}
-
 void SettingsWidget::on_btn_saveApiKey_clicked()
 {
     ConfigManager &configSettings=ConfigManager::instance();
@@ -107,25 +197,18 @@ void SettingsWidget::on_btn_saveApiKey_clicked()
 }
 
 
-void SettingsWidget::on_btn_saveMemoryLength_clicked()
+void SettingsWidget::on_btn_saveShortMemoryLength_clicked()
 {
     ConfigManager &configSettings=ConfigManager::instance();
-    configSettings.setShortMemoryLength(ui->spinBox_memoryLength->value());
+    configSettings.setShortMemoryLength(ui->spinBox_shortMemoryLength->value());
     if(configSettings.saveSetting()){
         emit settingsSaved();
-        qDebug()<<"[SettingWidget]:茉子短期记忆轮数成功设置为"<<ui->spinBox_memoryLength->value()<<"轮";
+        qDebug()<<"[SettingWidget]:茉子短期记忆轮数成功设置为"<<ui->spinBox_shortMemoryLength->value()<<"轮";
     }
     else{
         qDebug()<<"[SettingsWidget]:茉子短期记忆轮数设置失败";
     }
 
-}
-
-
-void SettingsWidget::on_btn_claenTempMemory_clicked()
-{
-    refreshHistoryTurnList();
-    qDebug()<<"[SettingsWidget]:短期记忆实时读取数据库，暂时无法清空";
 }
 
 
@@ -253,26 +336,12 @@ void SettingsWidget::on_btn_nextMemoryPage_clicked()
     }
 }
 
-
-void SettingsWidget::on_btn_momorySaveAll_clicked()
-{
-    on_btn_saveMemoryLength_clicked();
-    // hide();
-}
-
-
-void SettingsWidget::on_btn_memoryQuit_clicked()
-{
-    loadSettings();
-    hide();
-}
-
 void SettingsWidget::loadSettings()
 {
     ConfigManager &cfg = ConfigManager::instance();
     ConfigManager &configSettings= ConfigManager::instance();
     ui->lineEdit_apiKey->setText(configSettings.getApiKey());
-    ui->spinBox_memoryLength->setValue(configSettings.getShortMemoryLength());
+    ui->spinBox_shortMemoryLength->setValue(configSettings.getShortMemoryLength());
     ui->lineEdit_GPTSovitsFilePath->setText(cfg.getGPTSovitsRootPath());
     ui->lineEdit_GPTModelFilePath->setText(cfg.getGPTModelDir());
     ui->lineEdit_sovitsModelFilePath->setText(cfg.getSoVITSModelDir());
@@ -307,20 +376,20 @@ void SettingsWidget::setupHistoryTable()
     headers << "ID" << "时间" << "用户输入" << "AI回复";
     m_historyModel->setHorizontalHeaderLabels(headers);
 
-    ui->tableView->setModel(m_historyModel);
+    ui->tableView_historyTurn->setModel(m_historyModel);
 
     //列宽设置
-    ui->tableView->setColumnWidth(0, 50);   // ID
-    ui->tableView->setColumnWidth(1, 150);  // 时间
-    ui->tableView->setColumnWidth(2, 200);  // 用户输入
+    ui->tableView_historyTurn->setColumnWidth(0, 50);   // ID
+    ui->tableView_historyTurn->setColumnWidth(1, 150);  // 时间
+    ui->tableView_historyTurn->setColumnWidth(2, 200);  // 用户输入
 
 
     //整行选择，可多选
-    ui->tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui->tableView_historyTurn->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableView_historyTurn->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-    ui->tableView->horizontalHeader()->setStretchLastSection(true);
-    ui->tableView->setAlternatingRowColors(true);
+    ui->tableView_historyTurn->horizontalHeader()->setStretchLastSection(true);
+    ui->tableView_historyTurn->setAlternatingRowColors(true);
 }
 
 void SettingsWidget::loadHistoryPage(int page)
@@ -341,8 +410,8 @@ void SettingsWidget::loadHistoryPage(int page)
         idItem->setTextAlignment(Qt::AlignCenter);
         //Time
         QStandardItem *timeItem = new QStandardItem(
-        turn.timestamp.toString("yyyy-MM-dd hh:mm:ss")
-        );
+            turn.timestamp.toString("yyyy-MM-dd hh:mm:ss")
+            );
         timeItem->setTextAlignment(Qt::AlignCenter);
         //user
         QString userText = turn.userInput;
@@ -393,7 +462,7 @@ bool SettingsWidget::verifyApiKey(const QString &inputKey)
 QList<int> SettingsWidget::getSelectedMemoryIDs()
 {
     QList<int>ids;
-    QModelIndexList selectedRows =ui->tableView->selectionModel()->selectedRows();
+    QModelIndexList selectedRows =ui->tableView_historyTurn->selectionModel()->selectedRows();
     for(const QModelIndex &index:selectedRows){
         int row =index.row();
         QModelIndex idIndex=m_historyModel->index(row,0);
@@ -440,6 +509,9 @@ void SettingsWidget::on_btn_saveGPTModelPath_clicked()
     ConfigManager::instance().setGPTWeightsPath(fullPath);
     qDebug()<<"[Settings]GPT模型已设为:"<<fullPath;
     // QMessageBox::information(this, "保存成功", "GPT 模型路径已保存");
+    emit ttsModelSwitchRequested(
+        ConfigManager::instance().getGPTWeightsPath(),
+        ConfigManager::instance().getSoVITSWeightsPath());
 }
 
 
@@ -461,39 +533,9 @@ void SettingsWidget::on_btn_saveSoVitsModelPath_clicked()
     ConfigManager::instance().setSoVITSWeightsPath(fullPath);
     qDebug()<<"[Settings]SoVits模型已设为:"<<fullPath;
     // QMessageBox::information(this, "保存成功", "SoVits 模型路径已保存");
-}
-
-
-void SettingsWidget::on_btn_TTSSaveAll_clicked()
-{
-    ConfigManager& cfg = ConfigManager::instance();
-    // 保存两个文件夹路径
-    cfg.setGPTSovitsRootPath(ui->lineEdit_GPTSovitsFilePath->text().trimmed());
-    cfg.setGPTModelDir(ui->lineEdit_GPTModelFilePath->text().trimmed());
-    cfg.setSoVITSModelDir(ui->lineEdit_sovitsModelFilePath->text().trimmed());
-
-    // 保存选中的模型路径
-    QString gptSelected = ui->comboBox_GPTModel->currentText();
-    if (!gptSelected.isEmpty()) {
-        cfg.setGPTWeightsPath(QDir(cfg.getGPTModelDir()).filePath(gptSelected));
-    }
-    QString sovitsSelected = ui->comboBox_SoVitsModel->currentText();
-    if (!sovitsSelected.isEmpty()) {
-        cfg.setSoVITSWeightsPath(QDir(cfg.getSoVITSModelDir()).filePath(sovitsSelected));
-    }
-
-    cfg.saveSetting();
-
-    emit ttsModelSwitchRequested(cfg.getGPTWeightsPath(), cfg.getSoVITSWeightsPath());
-    // QMessageBox::information(this, "保存成功", "TTS 配置已保存，正在切换模型...");
-    qDebug()<<"[SettingsWidget]:保存成功,正在切换模型...";
-}
-
-
-void SettingsWidget::on_btn_TTSQuit_clicked()
-{
-    loadSettings();  // 恢复未保存的修改
-    hide();
+    emit ttsModelSwitchRequested(
+        ConfigManager::instance().getGPTWeightsPath(),
+        ConfigManager::instance().getSoVITSWeightsPath());
 }
 
 

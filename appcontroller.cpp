@@ -7,6 +7,7 @@
 #include "chatwidget.h"
 #include "anchormanager.h"
 #include "configmanager.h"
+// #include "settingswidget.h"
 #include "settingswidget.h"
 #include "memorymanager.h"
 #include "timemanager.h"
@@ -27,9 +28,13 @@ AppController::AppController(QObject *parent)
     m_ttsService = new TTSService;
     m_chatWidget = new ChatWidget;
     m_memoryManager = new MemoryManager(ConfigManager::instance().getMemoryPath());
-    m_settingsWidget = new SettingsWidget;
+    // m_settingsWidget = new SettingsWidget;
+    // m_settingsWidget->setMemoryManager(m_memoryManager);
+    // m_settingsWidget->setMemoryLength(ConfigManager::instance().getShortMemoryLength());
+    m_settingsWidget =new SettingsWidget;
     m_settingsWidget->setMemoryManager(m_memoryManager);
     m_settingsWidget->setMemoryLength(ConfigManager::instance().getShortMemoryLength());
+
     m_memoryManager->decayEpisodicMemory();        // 启动时执行一次情景记忆衰减
     m_llmService->setMemoryManager(m_memoryManager);
 
@@ -72,11 +77,14 @@ AppController::~AppController()
         delete m_chatWidget;
         m_chatWidget = nullptr;
     }
-    if (m_settingsWidget) {
+    // if (m_settingsWidget) {
+    //     delete m_settingsWidget;
+    //     m_settingsWidget = nullptr;
+    // }
+    if(m_settingsWidget){
         delete m_settingsWidget;
-        m_settingsWidget = nullptr;
+        m_settingsWidget=nullptr;
     }
-
     // 3. 析构无 UI 的核心业务服务模块
     if (m_llmService) {
         delete m_llmService;
@@ -160,6 +168,9 @@ void AppController::initConnections()
     connect(m_appearance, &AppearanceManager::characterPathChanged,m_anchorManager, &AnchorManager::updateAllAnchors);
     connect(m_bubble, &BubbleWidget::bubbleShown,m_anchorManager, &AnchorManager::updateAllAnchors);
 
+    // connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &SettingsWidget::show);
+    // connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
+    //     m_llmService->setApiKey(ConfigManager::instance().getApiKey());});
     connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &SettingsWidget::show);
     connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
         m_llmService->setApiKey(ConfigManager::instance().getApiKey());});

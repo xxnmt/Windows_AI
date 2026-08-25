@@ -1,10 +1,19 @@
-#ifndef SETTINGSWIDGET_H
-#define SETTINGSWIDGET_H
+#ifndef SETTINGWIDGET_H
+#define SETTINGWIDGET_H
 
 #include <QWidget>
+#include <QVector>
+#include <QList>
+#include <QEvent>
+#include <QString>
+#include <QMap>
+
 #include <QStandardItemModel>
 
+
 class MemoryManager;
+class QTreeWidgetItem;
+
 namespace Ui {
 class SettingsWidget;
 }
@@ -24,42 +33,29 @@ public:
 
 protected:
     void showEvent(QShowEvent *event)override;
+    bool eventFilter(QObject *obj, QEvent *ev) override;
 signals:
     void settingsSaved();
     void ttsModelSwitchRequested(const QString &gptPath, const QString &sovitsPath);
 
 private slots:
     //tab config
-    void on_btn_configSaveAll_clicked();
-    void on_btn_configQuit_clicked();
     void on_btn_saveApiKey_clicked();
- //tab memory
-    void on_btn_saveMemoryLength_clicked();
-    void on_btn_claenTempMemory_clicked();
 
+    //tab memory
+    void on_btn_saveShortMemoryLength_clicked();
     void on_btn_deleteSelectedMemory_clicked();
     void on_btn_claenAllMemory_clicked();
     void on_btn_previousMemoryPage_clicked();
     void on_btn_nextMemoryPage_clicked();
-    void on_btn_momorySaveAll_clicked();
-    void on_btn_memoryQuit_clicked();
-//tab TTs
+
+    //tab TTs
     void on_btn_saveGPTSoVitsPath_clicked();
-
     void on_btn_saveGPTModelPath_clicked();
-
     void on_btn_saveSoVitsModelPath_clicked();
-
-    void on_btn_TTSSaveAll_clicked();
-
-    void on_btn_TTSQuit_clicked();
-
     void on_btn_saveGPTPath_clicked();
-
     void on_btn_loadGPTModel_clicked();
-
     void on_btn_saveSoVitsPath_clicked();
-
     void on_btn_loadSovitsModel_clicked();
 
 private:
@@ -75,6 +71,11 @@ private:
     int m_totalRecords = 0;
     int m_totalPages = 1;
 
+    bool m_syncGuard = false;                       // 防止 滚动↔点击 互踩
+    QMap<QTreeWidgetItem*, QWidget*> m_sectionMap;  // 目录项 → 分区
+    void buildSync();                               // 建映射 + 连两个方向
+    QTreeWidgetItem *findTreeItem(const QString &text) const; // 按文本找目录项
+
     void loadSettings();
     void setupHistoryTable();
     void loadHistoryPage(int page);
@@ -83,4 +84,4 @@ private:
     QList<int> getSelectedMemoryIDs();
 };
 
-#endif // SETTINGSWIDGET_H
+#endif // SETTINGWIDGET_H

@@ -6,32 +6,111 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>699</width>
-    <height>565</height>
+    <width>611</width>
+    <height>953</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,4">
    <item>
-    <widget class="QWidget" name="widget" native="true">
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <widget class="QTreeWidget" name="treeIndex">
+     <property name="headerHidden">
+      <bool>true</bool>
+     </property>
+     <column>
+      <property name="text">
+       <string>设置列表</string>
+      </property>
+     </column>
+     <item>
+      <property name="text">
+       <string>对话系统</string>
+      </property>
       <item>
-       <widget class="QTabWidget" name="tabWidget">
-        <property name="currentIndex">
-         <number>3</number>
-        </property>
-        <widget class="QWidget" name="tab">
-         <attribute name="title">
-          <string>Config</string>
-         </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout">
+       <property name="text">
+        <string>大语言模型</string>
+       </property>
+      </item>
+     </item>
+     <item>
+      <property name="text">
+       <string>语音合成</string>
+      </property>
+      <item>
+       <property name="text">
+        <string>GPT-Sovits</string>
+       </property>
+      </item>
+     </item>
+     <item>
+      <property name="text">
+       <string>记忆系统</string>
+      </property>
+      <item>
+       <property name="text">
+        <string>短期记忆</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>长期记忆</string>
+       </property>
+      </item>
+     </item>
+     <item>
+      <property name="text">
+       <string>时间管理</string>
+      </property>
+      <item>
+       <property name="text">
+        <string>昼夜切换</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>自动退火</string>
+       </property>
+      </item>
+     </item>
+     <item>
+      <property name="text">
+       <string>历史会话记录</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="contentWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>464</width>
+        <height>950</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QWidget" name="section1_chatSystem" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_2">
           <item>
-           <widget class="QWidget" name="widget_2" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>对话系统</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="section2_api" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
              <item>
-              <widget class="QLabel" name="label">
+              <widget class="QLabel" name="label_2">
                <property name="text">
                 <string>APIKEY:</string>
                </property>
@@ -50,70 +129,156 @@
             </layout>
            </widget>
           </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="section1_TTSSystem" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
-           <widget class="QWidget" name="widget_4" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
-             <item>
-              <widget class="QLabel" name="label_3">
-               <property name="text">
-                <string>APIKEY:</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit_apiKey_2"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveApiKey_2">
-               <property name="text">
-                <string>保存APIKEY</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>语音合成</string>
+            </property>
            </widget>
           </item>
           <item>
-           <spacer name="verticalSpacer">
-            <property name="orientation">
-             <enum>Qt::Orientation::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_3" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <widget class="QWidget" name="section2_GPT_Sovits" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_4">
              <item>
-              <spacer name="horizontalSpacer_3">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_configSaveAll">
+              <widget class="QLabel" name="label_4">
                <property name="text">
-                <string>保存全部</string>
+                <string>GPT-Sovits</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="btn_configQuit">
-               <property name="text">
-                <string>取消</string>
-               </property>
+              <widget class="QWidget" name="widget_5" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_15">
+                <item>
+                 <widget class="QLabel" name="label_12">
+                  <property name="text">
+                   <string>GPTSovits位置</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="lineEdit_GPTSovitsFilePath"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveGPTSoVitsPath">
+                  <property name="text">
+                   <string>保存路径</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QWidget" name="widget_18" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_16">
+                <item>
+                 <widget class="QLabel" name="label_13">
+                  <property name="text">
+                   <string>GPTModel位置</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="lineEdit_GPTModelFilePath"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveGPTPath">
+                  <property name="text">
+                   <string>保存路径</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_loadGPTModel">
+                  <property name="text">
+                   <string>扫描模型</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QWidget" name="widget_19" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_17" stretch="1,6,1">
+                <item>
+                 <widget class="QLabel" name="label_14">
+                  <property name="text">
+                   <string>GPT模型</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="comboBox_GPTModel"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveGPTModelPath">
+                  <property name="text">
+                   <string>保存</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QWidget" name="widget_20" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_18">
+                <item>
+                 <widget class="QLabel" name="label_15">
+                  <property name="text">
+                   <string>SovitsMoedl位置</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="lineEdit_sovitsModelFilePath"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveSoVitsPath">
+                  <property name="text">
+                   <string>保存路径</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_loadSovitsModel">
+                  <property name="text">
+                   <string>扫描模型</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QWidget" name="widget_21" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="1,6,1">
+                <item>
+                 <widget class="QLabel" name="label_16">
+                  <property name="text">
+                   <string>Sovits模型</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="comboBox_SoVitsModel"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveSoVitsModelPath">
+                  <property name="text">
+                   <string>保存</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </widget>
              </item>
             </layout>
@@ -121,35 +286,199 @@
           </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="tab_2">
-         <attribute name="title">
-          <string>Memory</string>
-         </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
+       </item>
+       <item>
+        <widget class="QWidget" name="section1_memorySystem" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_7">
           <item>
-           <widget class="QWidget" name="widget_5" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <widget class="QLabel" name="label_17">
+            <property name="text">
+             <string>记忆系统</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="section2_shortMemory" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_5">
              <item>
-              <widget class="QLabel" name="label_2">
-               <property name="text">
-                <string>记忆轮数</string>
-               </property>
+              <widget class="QWidget" name="widget_22" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_20" stretch="0,0,0">
+                <item>
+                 <widget class="QLabel" name="label_18">
+                  <property name="text">
+                   <string>短期记忆窗口</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="spinBox_shortMemoryLength"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveShortMemoryLength">
+                  <property name="text">
+                   <string>设置轮数</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </widget>
              </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="section2_longMemory" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_6">
              <item>
-              <widget class="QSpinBox" name="spinBox_memoryLength"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveMemoryLength">
-               <property name="text">
-                <string>设置轮数</string>
-               </property>
+              <widget class="QWidget" name="widget_25" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_21">
+                <item>
+                 <widget class="QLabel" name="label_20">
+                  <property name="text">
+                   <string>自动摘窗口</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="spinBox_MemorySummaryLength"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveMemorySummaryLength">
+                  <property name="text">
+                   <string>设置轮数</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </widget>
              </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="section1_timeManagerSystem" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_8">
+          <item>
+           <widget class="QLabel" name="label_19">
+            <property name="text">
+             <string>时间管理</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="section2_nightChange" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_11">
              <item>
-              <widget class="QPushButton" name="btn_claenTempMemory">
-               <property name="text">
-                <string>清除临时记忆</string>
+              <widget class="QWidget" name="widget_24" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_22">
+                <item>
+                 <widget class="QLabel" name="label_21">
+                  <property name="text">
+                   <string>夜晚开始时间</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QTimeEdit" name="timeEdit_nightStart"/>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label_22">
+                  <property name="text">
+                   <string>夜晚结束时间</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QTimeEdit" name="timeEdit_nightEnd"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveNightTime">
+                  <property name="text">
+                   <string>保存</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="section2_annealingTime" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_12">
+             <item>
+              <widget class="QWidget" name="widget_26" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_23">
+                <item>
+                 <widget class="QLabel" name="label_23">
+                  <property name="text">
+                   <string>脸红退火</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="spinBox_blushingLasting"/>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label_24">
+                  <property name="text">
+                   <string>表情退火</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="spinBox_emotionLasting"/>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label_25">
+                  <property name="text">
+                   <string>距离退火</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QSpinBox" name="spinBox_distanceLasting"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btn_saveAnnealingTime">
+                  <property name="text">
+                   <string>保存</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="section1_historyTurn" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_9">
+          <item>
+           <widget class="QLabel" name="label_26">
+            <property name="text">
+             <string>历史会话记录</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="widget_29" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_10">
+             <item>
+              <widget class="QTableView" name="tableView_historyTurn">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>300</height>
+                </size>
                </property>
               </widget>
              </item>
@@ -157,11 +486,8 @@
            </widget>
           </item>
           <item>
-           <widget class="QTableView" name="tableView"/>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_6" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_7">
+           <widget class="QWidget" name="widget_28" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_24">
              <item>
               <widget class="QPushButton" name="btn_deleteSelectedMemory">
                <property name="text">
@@ -175,19 +501,6 @@
                 <string>清除全部记录</string>
                </property>
               </widget>
-             </item>
-             <item>
-              <spacer name="horizontalSpacer">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
              </item>
              <item>
               <widget class="QPushButton" name="btn_previousMemoryPage">
@@ -213,218 +526,11 @@
             </layout>
            </widget>
           </item>
-          <item>
-           <widget class="QWidget" name="widget_7" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_8">
-             <item>
-              <spacer name="horizontalSpacer_2">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_momorySaveAll">
-               <property name="text">
-                <string>保存全部</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_memoryQuit">
-               <property name="text">
-                <string>取消</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="tab_3">
-         <attribute name="title">
-          <string>TTS</string>
-         </attribute>
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <item>
-           <widget class="QWidget" name="widget_8" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_9">
-             <item>
-              <widget class="QLabel" name="label_4">
-               <property name="text">
-                <string>GPTSovits位置</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit_GPTSovitsFilePath"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveGPTSoVitsPath">
-               <property name="text">
-                <string>保存路径</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_12" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_13">
-             <item>
-              <widget class="QLabel" name="label_7">
-               <property name="text">
-                <string>GPTModel位置</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit_GPTModelFilePath"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveGPTPath">
-               <property name="text">
-                <string>保存路径</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_loadGPTModel">
-               <property name="text">
-                <string>扫描模型</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_9" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_10" stretch="1,6,1">
-             <item>
-              <widget class="QLabel" name="label_5">
-               <property name="text">
-                <string>GPT模型</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="comboBox_GPTModel"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveGPTModelPath">
-               <property name="text">
-                <string>保存</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_13" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_14">
-             <item>
-              <widget class="QLabel" name="label_8">
-               <property name="text">
-                <string>SovitsMoedl位置</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLineEdit" name="lineEdit_sovitsModelFilePath"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveSoVitsPath">
-               <property name="text">
-                <string>保存路径</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_loadSovitsModel">
-               <property name="text">
-                <string>扫描模型</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_10" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_11" stretch="1,6,1">
-             <item>
-              <widget class="QLabel" name="label_6">
-               <property name="text">
-                <string>Sovits模型</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QComboBox" name="comboBox_SoVitsModel"/>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_saveSoVitsModelPath">
-               <property name="text">
-                <string>保存</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QWidget" name="widget_11" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_12">
-             <item>
-              <spacer name="horizontalSpacer_4">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_TTSSaveAll">
-               <property name="text">
-                <string>保存全部</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="btn_TTSQuit">
-               <property name="text">
-                <string>取消</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="tab_4">
-         <attribute name="title">
-          <string>TimeManager</string>
-         </attribute>
-        </widget>
-       </widget>
-      </item>
-     </layout>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
