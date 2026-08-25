@@ -495,20 +495,28 @@ struct SentenceText {
 
 ### SettingsWidget（设置界面）
 
+> v0.6.0 重构：删除原多标签页实现，改为「左侧目录 + 右侧滚动内容」的主-从式布局，支持双向 scroll-spy 同步。
+
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| **职责** | 设置界面，管理API Key、TTS配置、记忆长度配置和对话历史管理 | - |
-| **配置项** | API Key配置、TTS配置（GPT-SoVITS路径/模型、SoVITS路径/模型）、记忆长度配置、历史记录管理 | - |
-| **待完善** | 第4个tab为空占位：外观配置（气泡样式/窗口透明度）、时间配置（自动服装切换）、快捷键配置尚未实现 | - |
+| **职责** | 设置界面，管理API Key、TTS模型切换、记忆长度配置和对话历史管理 | - |
+| **配置项** | API Key配置、TTS模型配置（GPT路径/模型、SoVITS路径/模型，保存时热切换）、短期记忆轮数、历史记录管理 | - |
+| **布局** | 左侧目录树 `treeIndex` + 右侧滚动区 `scrollArea`；一级区域 `section1_*` + 二级分区 `section2_*` | - |
+| **双向同步** | 点击目录→滚到分区（`ensureWidgetVisible`）；滚动→按页面位置高亮目录项（`m_sectionMap` + `m_syncGuard`） | - |
+| **滚轮透传** | 下拉框/微调框/时间编辑框 `eventFilter`，滚轮转给右侧滚动条不拦截界面滚动 | - |
+| **待完善** | 长期记忆自动摘轮数、时间管理（夜晚时间/退火时长）控件已就位但 config 未接线；外观/快捷键配置尚未实现 | - |
 | **函数签名** | `void show()` | 显示设置窗口 |
 | | `void setMemoryManager(MemoryManager* manager)` | 注入MemoryManager实例 |
 | | `void setMemoryLength(int length)` | 初始化记忆长度设置 |
+| | `void buildSync()` | 建立目录↔分区映射并连接双向同步 |
 | | `void refreshHistoryTurnList()` | 刷新历史记录列表 |
 | | `void loadHistoryPage(int page)` | 加载指定页的历史记录 |
+| | `bool eventFilter(QObject*, QEvent*)` | 滚轮透传 |
 | | `void on_btn_saveApiKey_clicked()` | 保存API Key |
 | | `void on_btn_deleteSelectedMemory_clicked()` | 删除选中的历史记录 |
 | | `void on_btn_claenAllMemory_clicked()` | 清空所有历史记录 |
 | **信号** | `void settingsSaved()` | 设置保存后发出 |
+| | `void ttsModelSwitchRequested(gptPath, sovitsPath)` | GPT/SoVITS模型保存成功时发出，通知TTS热切换 |
 
 ---
 
@@ -575,6 +583,7 @@ struct SentenceText {
 | AppearanceManager | `characterPathChanged(path)` | AnchorManager | `updateAllAnchors()` |
 | BubbleWidget | `bubbleShown()` | AnchorManager | `updateAllAnchors()` |
 | SettingsWidget | `settingsSaved()` | AppController lambda | 更新LLMService API Key |
+| SettingsWidget | `ttsModelSwitchRequested(gptPath, sovitsPath)` | AppController lambda | 调用TTSService::switchModel热切换GPT/SoVITS模型 |
 
 ### AI状态同步机制（方案C · 已实现）
 
@@ -628,8 +637,9 @@ struct SentenceText {
 - [x] 播放器工厂模式重构 ✅ 已实现（IPcmPlayer 静态工厂方法）
 - [x] TimeManager 时间管理器 ✅ 已实现（QTimer singleShot 退火、服装时段切换）
 - [x] TTSProcessManager 孤儿进程清理 ✅ 已实现（killProcessOnPort）
-- [x] TTS模型切换 ✅ 已实现（设置界面 tab_3：GPT-SoVITS路径/模型、SoVITS路径/模型）
-- [ ] 设置界面完善（外观配置、时间配置、快捷键配置；tab_4 空占位）
+- [x] 设置界面重构 ✅ 已实现（左侧目录+右侧滚动主从布局，双向 scroll-spy 同步，滚轮透传）
+- [x] TTS模型切换 ✅ 已实现（设置界面「语音合成」区：GPT路径/模型、SoVITS路径/模型，保存时热切换）
+- [ ] 设置界面完善（长期记忆自动摘/时间管理 config 接线、外观配置、快捷键配置）
 - [ ] TTS语速、温度配置
 - [ ] 立绘切换过渡动画
 - [ ] 错误重试机制（LLM请求失败自动重试）

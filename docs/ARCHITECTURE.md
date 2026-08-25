@@ -33,7 +33,7 @@
 | | TagValidator | 标签合法性校验、编辑距离修正 | llmservice.h/cpp（内部类） |
 | **数据层** | ConfigManager | API Key配置、记忆长度配置、单例模式 | configmanager.h/cpp |
 | | MemoryManager | AI对话历史管理、SQLite数据库 | memorymanager.h/cpp |
-| **设置层** | SettingsWidget | 设置界面、API配置、记忆管理 | settingswidget.h/cpp/ui |
+| **设置层** | SettingsWidget | 设置界面（左右目录+滚动双向同步）、API/记忆/TTS模型配置 | settingswidget.h/cpp/ui |
 | **数据结构** | SentenceText | 句子数据模型（中文/日文/标签） | sentencedata.h |
 | | HistoryTurn | 对话历史数据结构 | historyturn.h |
 | | CharacterProfile | 角色档案数据结构（user/mako 主体） | historyturn.h |
@@ -130,6 +130,12 @@ connect(m_character, &CharacterWidget::settingsRequested, m_settingsWidget, &Set
 // 设置保存 → 更新LLMService API Key
 connect(m_settingsWidget, &SettingsWidget::settingsSaved, this, [this](){
     m_llmService->setApiKey(ConfigManager::instance().getApiKey());
+});
+
+// TTS模型切换（GPT/SoVITS模型保存时）→ 通知TTS服务热切换
+connect(m_settingsWidget, &SettingsWidget::ttsModelSwitchRequested,
+        this, [this](const QString &gptPath, const QString &sovitsPath){
+    m_ttsService->switchModel(gptPath, sovitsPath);
 });
 
 // LLM回复 → AppController → 保存记忆 + 入队TTS + 触发记忆提取
@@ -623,17 +629,31 @@ LLMService::parseJsonReply() → TagValidator校验
 
 ### 2.12 SettingsWidget
 
-**职责**：设置界面，管理API Key、记忆长度配置和对话历史管理
+**职责**：设置界面，管理API Key、记忆长度配置、TTS模型切换和对话历史管理
 
-**设计要点**：
+**设计要点**（v0.6.0 重构为「主-从式滚动布局」，替代原多标签页）：
 - 独立窗口（Qt::Window），支持关闭按钮
-- 显示时自动加载当前配置
-- 配置修改后立即保存并通知AppController更新
+- **布局**：左侧目录树 `treeIndex` + 右侧滚动区 `scrollArea`/`contentWidget`（`widgetResizable`），内容按区块竖排
+- **两级分区**：一级区域 `section1_*`（对话系统/语音合成/记忆系统/时间管理/历史会话记录）内含二级分区 `section2_*`（大语言模型/GPT-Sovits/短期记忆/长期记忆/昼夜切换/自动退火）
+- **双向同步 scroll-spy**：点击目录项 → `ensureWidgetVisible` 滚到对应分区；滚动右侧 → 按分区页面位置（`mapTo(viewport).y()` 取最贴近视口顶部的分区）高亮左侧对应目录项。用 `m_sectionMap`（目录项↔分区映射）+ `m_syncGuard` 双向互斥防抖
+- **滚轮透传**：下拉框/微调框/时间编辑框安装 `eventFilter`，滚轮事件转给右侧滚动条并消费，避免拦截界面滚动
+- 显示时自动加载当前配置，配置修改后立即保存并通知AppController更新
 
 **当前实现**：
-- API Key配置页（输入框 + 保存按钮）
-- 记忆长度配置（数字输入框 + 保存按钮）
-- 对话历史管理页（表格展示、分页浏览、单条删除、清空全部）
+- API Key配置（对话系统→大语言模型区）
+- 短期记忆轮数（记忆系统→短期记忆区）
+- TTS模型切换（语音合成→GPT-Sovits区：GPT路径/模型、SoVITS路径/模型，保存时 `emit ttsModelSwitchRequested`）
+- 对话历史管理（历史会话记录区：表格展示、分页浏览、单条删除、清空全部，删除需API Key验证）
+
+**待完善**（控件已就位，config 未接线）：
+- 长期记忆自动摘窗口轮数
+- 时间管理：夜晚开始/结束时间、脸红/表情/距离退火时长
+
+**信号**：
+| 信号 | 触发时机 | 接收方 |
+|------|----------|--------|
+| `settingsSaved()` | API Key/记忆长度保存成功 | AppController → 更新LLMService API Key |
+| `ttsModelSwitchRequested(gptPath, sovitsPath)` | GPT/SoVITS模型保存成功 | AppController → `m_ttsService->switchModel()` |
 
 **关键方法**：
 | 方法 | 作用 | 参数 | 返回值 |
@@ -641,8 +661,10 @@ LLMService::parseJsonReply() → TagValidator校验
 | `show()` | 显示设置窗口 | - | - |
 | `setMemoryManager()` | 注入MemoryManager实例 | MemoryManager* | - |
 | `setMemoryLength()` | 初始化记忆长度设置 | int length | - |
+| `buildSync()` | 建立目录↔分区映射并连接双向同步 | - | - |
 | `refreshHistoryTurnList()` | 刷新历史记录列表 | - | - |
 | `loadHistoryPage()` | 加载指定页的历史记录 | int page | - |
+| `eventFilter()` | 滚轮透传 | QObject*, QEvent* | bool |
 | `on_btn_saveApiKey_clicked()` | 保存API Key | - | - |
 | `on_btn_deleteSelectedMemory_clicked()` | 删除选中记录 | - | - |
 | `on_btn_claenAllMemory_clicked()` | 清空全部记录 | - | - |

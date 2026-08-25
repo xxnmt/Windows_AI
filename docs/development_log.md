@@ -1,7 +1,7 @@
 # 开发记录
 
 > 项目：Windows_AI 桌面看板娘（桌宠）
-> 最后更新：2026-08-08
+> 最后更新：2026-08-25
 
 ---
 
@@ -379,6 +379,20 @@
   - **TD-036 立绘切换抖动/漂移修复**：`updatePath` 改为锚定「脚底中心」（两张立绘 bottom 均为 767，脚底对齐则角色原地生长，不再 center 锚定造成 closer 脚底下坠）；移动改用原子 `setGeometry` 并在移动前 `repaint()` 同步渲染新图，配合构造器 `WA_NoSystemBackground`，消除切换瞬间旧图向右闪帧
   - **TD-035 昼夜判断跨零点修正**：原 `isNight = (now <= m_nightStart || now > m_nightEnd)` 逻辑颠倒，把白天 7:00-22:00 全判为夜（白天穿睡衣）；改为 `isNight = (now >= m_nightStart || now < m_nightEnd)`，正确覆盖 22:00-次日 7:00
   - **TD-034 对话轮次冲突**：`playbackQueueEmpty` 裸信号无轮次身份，导致上一轮退火在下一轮中途误触发。暂缓处理，归属 v0.7.0「对话轮次冲突」特性（未来让用户选择打断当前轮 / 自动进入队列）
+
+### M28: 设置界面重构 —— 滚动主从布局 & 双向同步（已完成）
+
+- 日期：2026-08-25
+- 内容：
+  - **删除旧 SettingsWidget（多标签页实现）**：`settingswidget.h/cpp/ui` 移除
+  - **新设置界面改为「左侧目录树 + 右侧滚动内容」主从布局**：
+    - 左侧 `treeIndex` 目录，右侧 `scrollArea`/`contentWidget` 内容按区块竖排
+    - 两级分区：一级 `section1_*`（对话系统/语音合成/记忆系统/时间管理/历史会话记录）+ 二级 `section2_*`（大语言模型/GPT-Sovits/短期记忆/长期记忆/昼夜切换/自动退火）
+  - **双向 scroll-spy 同步**：点击目录项 → `ensureWidgetVisible` 滚到对应分区；滚动右侧 → 按分区页面位置（`mapTo(viewport).y()` 取最贴近视口顶部的分区）高亮左侧目录项。用 `m_sectionMap`（目录项↔分区映射）+ `m_syncGuard` 双向互斥防抖
+  - **滚轮透传**：下拉框/微调框/时间编辑框安装 `eventFilter`，滚轮事件转给右侧滚动条并消费，不拦截界面滚动
+  - **TTS模型切换接线**：GPT/SoVITS 模型保存成功后 `emit ttsModelSwitchRequested(gptPath, sovitsPath)`，AppController 连接 `m_ttsService->switchModel()` 实现热切换
+  - **类/文件重命名**：`SettingWidgetTest` → `SettingsWidget`，`settingwidgettest.*` → `settingswidget.*`（git mv 保留历史），成员 `m_settingWidgetTest` → `m_settingsWidget`
+  - **待接线**：长期记忆自动摘轮数、时间管理（夜晚时间/退火时长）控件已就位但 config 未接线（下一阶段补 config/setting 功能时接线）
 
 ---
 
